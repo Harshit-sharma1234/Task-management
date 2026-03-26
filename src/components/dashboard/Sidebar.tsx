@@ -19,7 +19,7 @@ export function Sidebar() {
             <Building2 size={16} />
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-semibold text-gray-900 leading-tight">khushi Tailor</span>
+            <span className="text-sm font-semibold text-gray-900 leading-tight">Tectome</span>
             <span className="text-xs text-gray-500 leading-tight">1 workspace</span>
           </div>
         </div>
