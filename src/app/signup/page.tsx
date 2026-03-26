@@ -6,7 +6,7 @@ export const metadata = {
   title: 'Sign up | Linear Clone',
 };
 
-export default async function Signup({ searchParams }) {
+export default async function Signup({ searchParams }: { searchParams: { message: string } }) {
   const resolvedSearchParams = await searchParams;
 
   return (
