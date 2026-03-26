@@ -1,0 +1,933 @@
+# 🏗️ Full-Stack Project Management Application — Complete System Architecture
+
+> **Source**: Synthesized from 5.5-hour GreatStack tutorial (104 transcript chunks, 2550 lines).
+> **Scope**: Production-ready HLD, LLD, Schema, APIs, RBAC, Folder Structure & Roadmap.
+
+---
+
+## 1. High-Level Architecture (HLD)
+
+### 1.1 System Context Diagram
+
+```mermaid
+graph TD
+    subgraph "Clients"
+        WebApp["React SPA (Vite + Tailwind)"]
+        FutureMobile["Future: Mobile App"]
+    end
+
+    subgraph "Identity & Access Management"
+        Clerk["Clerk Auth Platform"]
+        ClerkOrg["Clerk Organizations"]
+    end
+
+    subgraph "Application Layer"
+        Express["Node.js / Express API Server"]
+        Inngest["Inngest Worker (Background Jobs)"]
+    end
+
+    subgraph "Data Layer"
+        NeonDB["Neon Serverless PostgreSQL"]
+        Prisma["Prisma ORM"]
+    end
+
+    subgraph "Notification Layer"
+        SMTP["SMTP Provider (Brevo/SendinBlue)"]
+        NodeMailer["NodeMailer Transport"]
+    end
+
+    subgraph "Hosting & CI/CD"
+        Vercel["Vercel Platform"]
+        GitHub["GitHub Repository"]
+    end
+
+    WebApp -->|HTTPS/REST + JWT Bearer| Express
+    WebApp -->|Auth UI Components| Clerk
+    Clerk -->|Webhooks: user/org events| Inngest
+    Inngest -->|Event-driven job execution| Express
+    Express -->|Prisma Client| NeonDB
+    Inngest -->|Prisma Client| NeonDB
+    Inngest -->|Send emails via| NodeMailer
+    NodeMailer -->|SMTP| SMTP
+    GitHub -->|Git push triggers| Vercel
+    Vercel -->|Hosts| Express
+    Vercel -->|Hosts| WebApp
+```
+
+### 1.2 Tier Breakdown
+
+| Tier | Technology | Purpose |
+|:-----|:-----------|:--------|
+| **Presentation** | React 18, Vite, Tailwind CSS, Redux Toolkit | SPA with state management, theming (light/dark), routing |
+| **API Gateway** | Express.js (Node.js) | REST API, Clerk middleware, route protection |
+| **Background Jobs** | Inngest | Webhook processing, scheduled email reminders, event-driven flows |
+| **ORM** | Prisma | Type-safe DB access, migrations, schema-first design |
+| **Database** | Neon PostgreSQL (Serverless) | Relational data storage with auto-scaling |
+| **Auth** | Clerk | User auth (Google, Email), organization management, role assignment |
+| **Email** | NodeMailer + Brevo SMTP | Task assignment emails, due-date reminder emails |
+| **Hosting** | Vercel (Frontend + Backend) | Git-to-live CI/CD, preview deployments, edge functions |
+
+### 1.3 Data Flow — Task Assignment Lifecycle
+
+```mermaid
+sequenceDiagram
+    participant Admin as Admin/Team Lead
+    participant Frontend as React App
+    participant API as Express API
+    participant DB as Neon PostgreSQL
+    participant Inngest as Inngest Worker
+    participant SMTP as Email (Brevo)
+    participant Assignee as Assigned User
+
+    Admin->>Frontend: Fill task form + click Create
+    Frontend->>API: POST /api/tasks {title, assigneeId, dueDate...}
+    API->>DB: prisma.task.create({data})
+    API->>Inngest: inngest.send("app/task.assigned", {taskId, origin})
+    API-->>Frontend: 200 {task, message}
+    
+    Inngest->>DB: prisma.task.findUnique(taskId)
+    Inngest->>SMTP: sendEmail({to: assignee, subject, body})
+    SMTP-->>Assignee: "New Task Assignment" email
+    
+    Note over Inngest: step.sleepUntil(dueDate)
+    
+    Inngest->>DB: Check task.status !== "DONE"
+    alt Task still pending
+        Inngest->>SMTP: sendEmail({to: assignee, subject: "Reminder"})
+        SMTP-->>Assignee: "Task Reminder" email
+    end
+```
+
+---
+
+## 2. Low-Level Design (LLD)
+
+### 2.1 Backend Component Architecture
+
+```mermaid
+graph LR
+    subgraph "server.js (Entry Point)"
+        MW1["express.json()"]
+        MW2["cors()"]
+        MW3["clerkMiddleware()"]
+        ING["app.use('/api/inngest', serve)"]
+        R1["app.use('/api/workspaces', protect, workspaceRouter)"]
+        R2["app.use('/api/projects', protect, projectRouter)"]
+        R3["app.use('/api/tasks', protect, taskRouter)"]
+        R4["app.use('/api/comments', protect, commentRouter)"]
+    end
+
+    subgraph "Middleware"
+        protect["authMiddleware.js: protect()"]
+    end
+
+    subgraph "Controllers"
+        WC["workspaceController.js"]
+        PC["projectController.js"]
+        TC["taskController.js"]
+        CC["commentController.js"]
+    end
+
+    subgraph "Inngest Functions"
+        IF1["syncUserCreation"]
+        IF2["syncUserDeletion"]
+        IF3["syncUserUpdation"]
+        IF4["syncWorkspaceCreation"]
+        IF5["syncWorkspaceUpdation"]
+        IF6["syncWorkspaceDeletion"]
+        IF7["syncWorkspaceMemberCreation"]
+        IF8["sendTaskAssignmentEmail"]
+    end
+
+    R1 --> WC
+    R2 --> PC
+    R3 --> TC
+    R4 --> CC
+```
+
+### 2.2 Frontend Component Tree
+
+```mermaid
+graph TD
+    Main["main.jsx"] --> BR["BrowserRouter"]
+    BR --> CP["ClerkProvider"]
+    CP --> RP["Redux Provider"]
+    RP --> App["App.jsx (Routes)"]
+    
+    App --> Layout["Layout.jsx"]
+    Layout --> Navbar["Navbar.jsx"]
+    Layout --> Sidebar["Sidebar.jsx"]
+    Layout --> Outlet["Outlet (Child Routes)"]
+    
+    Outlet --> Dashboard["Dashboard.jsx"]
+    Outlet --> Projects["ProjectsPage.jsx"]
+    Outlet --> Team["TeamPage.jsx"]
+    Outlet --> Settings["SettingsPage.jsx"]
+    Outlet --> TaskDetails["TaskDetails.jsx"]
+    Outlet --> ProjectView["ProjectView.jsx"]
+    
+    Dashboard --> StatsGrid["StatsGrid.jsx"]
+    Dashboard --> TaskSummary["TaskSummary.jsx"]
+    Dashboard --> CreateProjectDialog["CreateProjectDialog.jsx"]
+    
+    ProjectView --> ProjectTask["ProjectTask.jsx"]
+    ProjectView --> ProjectAnalytics["ProjectAnalytics.jsx"]
+    ProjectView --> ProjectCalendar["ProjectCalendar.jsx"]
+    ProjectView --> ProjectSettings["ProjectSettings.jsx"]
+    
+    Sidebar --> WorkspaceDropdown["WorkspaceDropdown.jsx"]
+    Sidebar --> MyTaskSidebar["MyTaskSidebar.jsx"]
+    
+    Navbar --> UserButton["Clerk UserButton"]
+    Navbar --> ThemeToggle["ThemeToggle"]
+    Navbar --> SearchBar["SearchBar"]
+```
+
+### 2.3 State Management (Redux Toolkit)
+
+```mermaid
+graph LR
+    subgraph "workspaceSlice.js"
+        WS_State["State: {workspaces[], currentWorkspace, loading}"]
+        WS_Reducers["Reducers: setWorkspaces, setCurrentWorkspace, addWorkspace, updateWorkspace, deleteWorkspace, addProject, addTask, updateTask, deleteTask"]
+        WS_Thunks["Async Thunk: fetchWorkspaces"]
+        WS_Extra["extraReducers: pending/fulfilled/rejected"]
+    end
+```
+
+**Key State Operations**:
+- `fetchWorkspaces` — calls `GET /api/workspaces` with Bearer token, populates entire workspace tree
+- `setCurrentWorkspace` — persists workspace ID to `localStorage` for session continuity
+- `addProject/addTask` — optimistically updates state after successful API calls
+
+---
+
+## 3. Database Schema (with Relationships)
+
+### 3.1 Entity Relationship Diagram
+
+```mermaid
+erDiagram
+    User ||--o{ WorkspaceMember : "belongs_to"
+    User ||--o{ ProjectMember : "joined_as"
+    User ||--o{ Task : "assigned_to"
+    User ||--o{ Comment : "authored"
+    User ||--o{ Workspace : "owns"
+
+    Workspace ||--o{ WorkspaceMember : "has_members"
+    Workspace ||--o{ Project : "contains"
+
+    Project ||--o{ ProjectMember : "has_members"
+    Project ||--o{ Task : "contains"
+
+    Task ||--o{ Comment : "has_comments"
+```
+
+### 3.2 Complete Prisma Schema
+
+```prisma
+// ─── Enums ───────────────────────────────────────────────
+enum ProjectStatus {
+  PLANNING
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+enum TaskType {
+  TASK
+  BUG
+  FEATURE
+  IMPROVEMENT
+  OTHER
+}
+
+enum MemberRole {
+  ADMIN
+  MEMBER
+}
+
+// ─── Models ──────────────────────────────────────────────
+model User {
+  id              String            @id                    // Clerk user ID
+  name            String?
+  email           String            @unique
+  image           String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  workspaces      WorkspaceMember[]
+  ownedWorkspaces Workspace[]       @relation("WorkspaceOwner")
+  projects        ProjectMember[]
+  tasks           Task[]            @relation("TaskAssignee")
+  comments        Comment[]
+}
+
+model Workspace {
+  id          String            @id                        // Clerk org ID
+  name        String
+  slug        String            @unique
+  description String?
+  imageUrl    String?
+  settings    Json              @default("{}")
+  ownerId     String
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  owner       User              @relation("WorkspaceOwner", fields: [ownerId], references: [id])
+  members     WorkspaceMember[]
+  projects    Project[]
+}
+
+model WorkspaceMember {
+  id          String            @id @default(cuid())
+  userId      String
+  workspaceId String
+  role        MemberRole        @default(MEMBER)
+  message     String?
+
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
+}
+
+model Project {
+  id          String            @id @default(cuid())
+  workspaceId String
+  name        String
+  description String?
+  status      ProjectStatus     @default(PLANNING)
+  priority    Priority          @default(MEDIUM)
+  progress    Int               @default(0)
+  teamLead    String?                                     // User ID of team lead
+  startDate   DateTime?
+  endDate     DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  owner       User?             @relation(fields: [teamLead], references: [id])
+  members     ProjectMember[]
+  tasks       Task[]
+}
+
+model ProjectMember {
+  id        String    @id @default(cuid())
+  userId    String
+  projectId String
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, projectId])
+}
+
+model Task {
+  id          String      @id @default(cuid())
+  projectId   String
+  title       String
+  description String?
+  type        TaskType    @default(TASK)
+  status      TaskStatus  @default(TODO)
+  priority    Priority    @default(MEDIUM)
+  assigneeId  String?
+  dueDate     DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  project     Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignee    User?       @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  comments    Comment[]
+}
+
+model Comment {
+  id        String    @id @default(cuid())
+  taskId    String
+  userId    String
+  content   String
+  createdAt DateTime  @default(now())
+
+  task      Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+```
+
+### 3.3 Key Relationships Summary
+
+| Relationship | Type | Constraint |
+|:-------------|:-----|:-----------|
+| User ↔ Workspace | Many-to-Many (via WorkspaceMember) | `@@unique([userId, workspaceId])` |
+| User ↔ Project | Many-to-Many (via ProjectMember) | `@@unique([userId, projectId])` |
+| User → Task | One-to-Many (assignee) | Optional foreign key |
+| Project → Task | One-to-Many | Cascade delete |
+| Task → Comment | One-to-Many | Cascade delete |
+| Workspace → Project | One-to-Many | Cascade delete |
+
+---
+
+## 4. API Endpoints (Request/Response)
+
+### 4.1 Authentication
+
+All protected routes require:
+```
+Headers: { Authorization: "Bearer <clerk_jwt_token>" }
+```
+
+The `protect` middleware extracts `userId` via `req.auth()` (Clerk SDK). Returns `401 Unauthorized` if no valid token.
+
+### 4.2 Workspace APIs
+
+| Method | Endpoint | Description | Auth |
+|:-------|:---------|:------------|:-----|
+| `GET` | `/api/workspaces` | Get all workspaces for logged-in user | ✅ |
+| `POST` | `/api/workspaces/add-member` | Add member to workspace | ✅ Admin |
+
+#### `GET /api/workspaces`
+
+```json
+// Response 200
+[
+  {
+    "id": "org_abc123",
+    "name": "GreatStack Dev",
+    "slug": "greatstack-dev",
+    "imageUrl": "https://...",
+    "owner": { "id": "user_1", "name": "Harshit", "email": "..." },
+    "members": [
+      {
+        "id": "wm_1",
+        "userId": "user_1",
+        "role": "ADMIN",
+        "user": { "id": "user_1", "name": "Harshit", "email": "...", "image": "..." }
+      }
+    ],
+    "projects": [
+      {
+        "id": "proj_1",
+        "name": "Launchpad CRM",
+        "status": "ACTIVE",
+        "tasks": [
+          {
+            "id": "task_1",
+            "title": "UI/UX Design",
+            "assignee": { "id": "user_2", "name": "...", "email": "..." },
+            "comments": [
+              { "id": "com_1", "content": "Working on it", "user": { "name": "..." } }
+            ]
+          }
+        ],
+        "members": [{ "user": { "name": "...", "email": "..." } }],
+        "owner": { "name": "..." }
+      }
+    ]
+  }
+]
+```
+
+#### `POST /api/workspaces/add-member`
+
+```json
+// Request Body
+{
+  "email": "user@example.com",
+  "role": "MEMBER",           // "ADMIN" | "MEMBER"
+  "workspaceId": "org_abc123",
+  "message": "Welcome to the team!"
+}
+
+// Response 200
+{
+  "member": { "id": "wm_2", "userId": "user_2", "workspaceId": "org_abc123", "role": "MEMBER" },
+  "message": "Member added successfully"
+}
+
+// Error Responses
+// 404: { "message": "User not found" }
+// 404: { "message": "Workspace not found" }
+// 400: { "message": "Missing required parameters" }
+// 400: { "message": "Invalid role" }
+// 400: { "message": "User is already a member" }
+// 401: { "message": "You don't have admin privileges" }
+```
+
+### 4.3 Project APIs
+
+| Method | Endpoint | Description | Auth |
+|:-------|:---------|:------------|:-----|
+| `POST` | `/api/projects` | Create new project | ✅ Admin |
+| `PUT` | `/api/projects` | Update project details | ✅ Admin/Lead |
+| `POST` | `/api/projects/:projectId/add-member` | Add member to project | ✅ Lead |
+
+#### `POST /api/projects`
+
+```json
+// Request Body
+{
+  "workspaceId": "org_abc123",
+  "name": "Launchpad CRM",
+  "description": "CRM application project",
+  "status": "ACTIVE",
+  "priority": "MEDIUM",
+  "progress": 0,
+  "teamLead": "user@example.com",    // Email of team lead
+  "teamMembers": ["a@ex.com", "b@ex.com"],
+  "startDate": "2026-03-25",
+  "endDate": "2026-04-30"
+}
+
+// Response 200
+{
+  "project": {
+    "id": "proj_1",
+    "name": "Launchpad CRM",
+    "members": [{ "user": { "name": "...", "email": "..." } }],
+    "tasks": [],
+    "owner": { "name": "..." }
+  },
+  "message": "Project created successfully"
+}
+
+// Error Responses
+// 404: { "message": "Workspace not found" }
+// 403: { "message": "You don't have permission to create project in this workspace" }
+```
+
+#### `PUT /api/projects`
+
+```json
+// Request Body (partial update)
+{
+  "id": "proj_1",
+  "workspaceId": "org_abc123",
+  "name": "Updated Name",
+  "description": "Updated description",
+  "status": "ACTIVE",
+  "priority": "HIGH",
+  "progress": 45,
+  "startDate": "2026-03-25",
+  "endDate": "2026-05-15"
+}
+
+// Response 200
+{ "project": { ... }, "message": "Project updated successfully" }
+```
+
+#### `POST /api/projects/:projectId/add-member`
+
+```json
+// Request Body
+{ "email": "newmember@example.com" }
+
+// Response 200
+{ "member": { "id": "pm_1", "userId": "...", "projectId": "..." }, "message": "Member added successfully" }
+```
+
+### 4.4 Task APIs
+
+| Method | Endpoint | Description | Auth |
+|:-------|:---------|:------------|:-----|
+| `POST` | `/api/tasks` | Create new task | ✅ Lead |
+| `PUT` | `/api/tasks/:id` | Update task (status, etc.) | ✅ Lead |
+| `POST` | `/api/tasks/delete` | Bulk delete tasks | ✅ Lead |
+
+#### `POST /api/tasks`
+
+```json
+// Request Body
+{
+  "projectId": "proj_1",
+  "title": "Build Login Page",
+  "description": "Implement login with OAuth",
+  "type": "FEATURE",           // TASK | BUG | FEATURE | IMPROVEMENT | OTHER
+  "status": "TODO",            // TODO | IN_PROGRESS | DONE | CANCELLED
+  "priority": "HIGH",          // LOW | MEDIUM | HIGH | URGENT
+  "assigneeId": "user_2",
+  "dueDate": "2026-04-10"
+}
+
+// Response 200
+{
+  "task": {
+    "id": "task_1",
+    "title": "Build Login Page",
+    "assignee": { "id": "user_2", "name": "...", "email": "..." },
+    ...
+  },
+  "message": "Task created successfully"
+}
+
+// Side Effect: Triggers Inngest event "app/task.assigned" → sends email to assignee
+```
+
+#### `PUT /api/tasks/:id`
+
+```json
+// Request Body (any task fields)
+{ "status": "DONE" }
+
+// Response 200
+{ "task": { ... }, "message": "Task updated successfully" }
+```
+
+#### `POST /api/tasks/delete`
+
+```json
+// Request Body
+{ "taskIds": ["task_1", "task_2"] }
+
+// Response 200
+{ "message": "Task deleted successfully" }
+```
+
+### 4.5 Comment APIs
+
+| Method | Endpoint | Description | Auth |
+|:-------|:---------|:------------|:-----|
+| `POST` | `/api/comments` | Add comment to task | ✅ Project Member |
+| `GET` | `/api/comments/:taskId` | Get all comments for task | ✅ |
+
+#### `POST /api/comments`
+
+```json
+// Request Body
+{ "taskId": "task_1", "content": "I am working on it" }
+
+// Response 200
+{
+  "id": "com_1",
+  "taskId": "task_1",
+  "content": "I am working on it",
+  "userId": "user_1",
+  "user": { "id": "user_1", "name": "Harshit", "image": "..." },
+  "createdAt": "2026-03-25T..."
+}
+```
+
+#### `GET /api/comments/:taskId`
+
+```json
+// Response 200
+{
+  "comments": [
+    {
+      "id": "com_1",
+      "content": "I am working on it",
+      "createdAt": "...",
+      "user": { "id": "user_1", "name": "Harshit", "image": "..." }
+    }
+  ]
+}
+```
+
+### 4.6 Inngest Webhook Endpoints (Internal)
+
+| Event Name | Trigger | Action |
+|:-----------|:--------|:-------|
+| `clerk/user.created` | Clerk webhook | Save user to DB |
+| `clerk/user.updated` | Clerk webhook | Update user in DB |
+| `clerk/user.deleted` | Clerk webhook | Delete user from DB |
+| `clerk/organization.created` | Clerk webhook | Save workspace + creator as ADMIN |
+| `clerk/organization.updated` | Clerk webhook | Update workspace name/slug/image |
+| `clerk/organization.deleted` | Clerk webhook | Delete workspace from DB |
+| `clerk/organizationInvitation.accepted` | Clerk webhook | Add new workspace member |
+| `app/task.assigned` | Task creation API | Send assignment email + schedule reminder |
+
+---
+
+## 5. RBAC System (Roles + Permissions)
+
+### 5.1 Role Hierarchy
+
+```mermaid
+graph TD
+    subgraph "Workspace Level"
+        WA["ADMIN"] -->|can do everything| WM["MEMBER"]
+    end
+    
+    subgraph "Project Level"
+        TL["Team Lead (project.teamLead)"] -->|can manage project| PM["Project Member"]
+    end
+```
+
+### 5.2 Permissions Matrix
+
+| Action | Workspace ADMIN | Workspace MEMBER | Project Team Lead | Project Member |
+|:-------|:-:|:-:|:-:|:-:|
+| **Workspace** | | | | |
+| Create workspace | ✅ (via Clerk) | ✅ (via Clerk) | — | — |
+| Update workspace | ✅ (via Clerk) | ❌ | — | — |
+| Delete workspace | ✅ (via Clerk) | ❌ | — | — |
+| Invite members | ✅ | ❌ | — | — |
+| Add members (API) | ✅ | ❌ | — | — |
+| View workspace data | ✅ | ✅ | — | — |
+| **Projects** | | | | |
+| Create project | ✅ | ❌ | — | — |
+| Update project | ✅ | ❌ | ✅ | ❌ |
+| Add project member | ✅ | ❌ | ✅ | ❌ |
+| View project | ✅ | ✅ | ✅ | ✅ |
+| **Tasks** | | | | |
+| Create task | ✅ | ❌ | ✅ | ❌ |
+| Update task status | ✅ | ❌ | ✅ | ❌ |
+| Delete task | ✅ | ❌ | ✅ | ❌ |
+| View tasks | ✅ | ✅ | ✅ | ✅ |
+| **Comments** | | | | |
+| Add comment | — | — | ✅ | ✅ |
+| View comments | — | — | ✅ | ✅ |
+
+### 5.3 Authorization Implementation
+
+**Middleware Layer** (`authMiddleware.js`):
+```
+protect() → extracts userId via req.auth() → returns 401 if missing → calls next()
+```
+
+**Controller-Level Checks** (in each controller function):
+1. **Workspace admin check**: `workspace.members.some(m => m.userId === userId && m.role === "ADMIN")`
+2. **Project lead check**: `project.teamLead === userId`
+3. **Project membership check**: `project.members.find(m => m.userId === userId)`
+4. **Assignee validation**: `project.members.find(m => m.user.id === assigneeId)`
+
+### 5.4 Production Enhancements (Inferred)
+
+> [!TIP]
+> The tutorial implements basic RBAC. For production, consider these additions:
+
+- **OWNER role**: Separate from ADMIN for workspace creators (prevent self-demotion)
+- **VIEWER role**: Read-only access for stakeholders
+- **Permission-based model**: Replace role checks with granular permissions (`project:create`, `task:assign`, etc.)
+- **CASL/AccessControl library**: Centralize authorization logic instead of scattering checks in controllers
+- **Audit logging**: Track who performed what action and when
+
+---
+
+## 6. Folder Structure
+
+### 6.1 Root (Monorepo)
+
+```
+project-management/
+├── client/                    # Frontend (React + Vite)
+├── server/                    # Backend (Express.js)
+├── .gitignore                 # node_modules, .env
+└── vercel.json                # (optional root config)
+```
+
+### 6.2 Frontend (`client/`)
+
+```
+client/
+├── public/
+│   └── favicon.ico
+├── src/
+│   ├── assets/
+│   │   ├── images/            # Logos, icons, backgrounds
+│   │   └── assets.js          # Centralized asset exports
+│   ├── components/
+│   │   ├── AddProjectMember.jsx
+│   │   ├── CreateProjectDialog.jsx
+│   │   ├── CreateTaskDialog.jsx
+│   │   ├── InviteMemberDialog.jsx
+│   │   ├── Navbar.jsx
+│   │   ├── ProjectAnalytics.jsx    # Recharts: status/type/priority charts
+│   │   ├── ProjectCalendar.jsx     # Calendar view with due dates
+│   │   ├── ProjectSettings.jsx
+│   │   ├── ProjectTask.jsx         # Task list + status update + delete
+│   │   ├── Sidebar.jsx
+│   │   ├── StatsGrid.jsx           # Dashboard stat cards
+│   │   ├── TaskSummary.jsx         # Right sidebar task summary
+│   │   ├── WorkspaceDropdown.jsx   # Org switcher
+│   │   └── MyTaskSidebar.jsx       # Sidebar task list
+│   ├── config/
+│   │   └── api.js             # Axios instance with VITE_BASE_URL
+│   ├── features/
+│   │   └── workspaceSlice.js  # Redux: state, reducers, thunks, extraReducers
+│   ├── pages/
+│   │   ├── Dashboard.jsx
+│   │   ├── Layout.jsx         # Main layout: sidebar + navbar + outlet
+│   │   ├── ProjectsPage.jsx
+│   │   ├── ProjectView.jsx    # Tabs: tasks, analytics, calendar, settings
+│   │   ├── TaskDetails.jsx    # Task detail + comments
+│   │   ├── TeamPage.jsx
+│   │   └── SettingsPage.jsx
+│   ├── store/
+│   │   └── store.js           # Redux store configuration
+│   ├── App.jsx                # Route definitions
+│   ├── main.jsx               # ClerkProvider + Redux Provider + BrowserRouter
+│   └── index.css              # Tailwind imports + custom styles
+├── .env                       # VITE_CLERK_PUBLISHABLE_KEY, VITE_BASE_URL
+├── index.html
+├── package.json
+├── tailwind.config.js
+├── vite.config.js
+└── vercel.json                # { "rewrites": [{ "source": "/(.*)", "destination": "/" }] }
+```
+
+### 6.3 Backend (`server/`)
+
+```
+server/
+├── config/
+│   ├── prisma.js              # Prisma client init (PrismaNeon adapter + WebSocket)
+│   └── nodeMailer.js          # SMTP transporter + sendEmail function
+├── controllers/
+│   ├── workspaceController.js # getUserWorkspaces, addMember
+│   ├── projectController.js   # createProject, updateProject, addMember
+│   ├── taskController.js      # createTask, updateTask, deleteTask
+│   └── commentController.js   # addComment, getTaskComments
+├── inngest/
+│   └── index.js               # Inngest client + 8 event functions + functions array
+├── middlewares/
+│   └── authMiddleware.js      # protect() — validates Clerk JWT
+├── prisma/
+│   └── schema.prisma          # Full database schema
+├── routes/
+│   ├── workspaceRoutes.js     # GET /, POST /add-member
+│   ├── projectRoutes.js       # POST /, PUT /, POST /:id/add-member
+│   ├── taskRoutes.js          # POST /, PUT /:id, POST /delete
+│   └── commentRoutes.js       # POST /, GET /:taskId
+├── .env                       # All server env vars (see below)
+├── server.js                  # Express app entry point
+├── package.json               # type: "module", scripts
+└── vercel.json                # Express serverless config
+```
+
+### 6.4 Environment Variables
+
+**Backend `.env`**:
+```env
+NODE_ENV=development
+CLERK_PUBLISHABLE_KEY=pk_test_...
+CLERK_SECRET_KEY=sk_test_...
+CLERK_WEBHOOK_SECRET=whsec_...
+DATABASE_URL=postgresql://...?sslmode=require
+DIRECT_URL=postgresql://...?sslmode=require
+INNGEST_EVENT_KEY=...
+INNGEST_SIGNING_KEY=signkey-...
+SENDER_EMAIL=noreply@yourdomain.com
+SMTP_USER=...
+SMTP_PASS=...
+```
+
+**Frontend `.env`**:
+```env
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
+VITE_BASE_URL=http://localhost:5000
+```
+
+---
+
+## 7. Step-by-Step Development Roadmap
+
+### Phase 1: Foundation & Infrastructure (Week 1)
+
+| # | Task | Details |
+|:-:|:-----|:--------|
+| 1 | **Initialize monorepo** | Create `project-management/` with `client/` and `server/` directories |
+| 2 | **Scaffold frontend** | Fork/clone GreatStack template OR `npx create-vite@latest ./` with React + Tailwind |
+| 3 | **Install frontend deps** | `@clerk/clerk-react`, `@reduxjs/toolkit`, `react-redux`, `react-router-dom`, `axios`, `recharts`, `lucide-react`, `react-hot-toast`, `date-fns` |
+| 4 | **Scaffold backend** | `npm init -y`, install `express`, `cors`, `dotenv`, `nodemon` (dev), set `"type": "module"` |
+| 5 | **Create basic Express server** | `server.js` with JSON parsing, CORS, health route, `app.listen(5000)` |
+| 6 | **Setup Neon PostgreSQL** | Create project on [neon.tech](https://neon.tech), get connection strings |
+| 7 | **Configure Prisma** | Install `prisma`, `@prisma/client`, `@prisma/adapter-neon`, `ws`. Create `schema.prisma`, run `npx prisma db push` |
+| 8 | **Setup Clerk** | Create app on [clerk.com](https://clerk.com), enable Google + Email sign-in. Install `@clerk/clerk-react` (client) + `@clerk/express` (server) |
+| 9 | **Integrate Clerk in frontend** | Add `ClerkProvider` in `main.jsx`, add auth guards in `Layout.jsx` |
+| 10 | **Add Clerk middleware to backend** | `app.use(clerkMiddleware())`, create `protect` middleware |
+
+### Phase 2: User & Workspace Management (Week 2)
+
+| # | Task | Details |
+|:-:|:-----|:--------|
+| 11 | **Setup Inngest** | Create account, install `inngest`, create `inngest/index.js` with client |
+| 12 | **Configure Clerk → Inngest webhooks** | Connect Clerk webhooks to Inngest endpoint |
+| 13 | **Implement user sync functions** | `syncUserCreation`, `syncUserDeletion`, `syncUserUpdation` (3 Inngest functions) |
+| 14 | **Enable Clerk Organizations** | Dashboard → Configure → Organization Management → Enable |
+| 15 | **Implement workspace sync functions** | `syncWorkspaceCreation` (+ add creator as ADMIN), `syncWorkspaceUpdation`, `syncWorkspaceDeletion`, `syncWorkspaceMemberCreation` (4 functions) |
+| 16 | **Build workspace API** | `workspaceController.js` + `workspaceRoutes.js`: get workspaces, add member |
+| 17 | **Build workspace frontend** | `WorkspaceDropdown.jsx` with Clerk `useOrganizationList`, `CreateOrganization` component, `fetchWorkspaces` thunk |
+| 18 | **Deploy backend to Vercel** | Push to GitHub, deploy `server/` on Vercel, sync Inngest app |
+| 19 | **Test workspace flow** | Create org → verify DB entry → switch orgs → invite member → verify invitation email |
+
+### Phase 3: Project Management (Week 3)
+
+| # | Task | Details |
+|:-:|:-----|:--------|
+| 20 | **Build project API** | `projectController.js`: createProject (admin check, team lead lookup, member assignment), updateProject (admin OR lead), addMember (lead only) |
+| 21 | **Add project routes** | `POST /`, `PUT /`, `POST /:id/add-member` |
+| 22 | **Build project frontend** | `CreateProjectDialog.jsx` form → API → Redux, `ProjectSettings.jsx` update form, `AddProjectMember.jsx` |
+| 23 | **Build dashboard** | `StatsGrid.jsx` (total projects, active, completed, my tasks, overdue), `TaskSummary.jsx`, project overview cards |
+| 24 | **Test project flow** | Create project → verify in DB → update settings → add member → verify permissions |
+
+### Phase 4: Task System & Email Notifications (Week 4)
+
+| # | Task | Details |
+|:-:|:-----|:--------|
+| 25 | **Build task API** | `taskController.js`: createTask (lead check, assignee validation), updateTask (lead check), deleteTask (bulk, lead check) |
+| 26 | **Add task routes** | `POST /`, `PUT /:id`, `POST /delete` |
+| 27 | **Configure NodeMailer** | Install `nodemailer`, create `nodeMailer.js` with Brevo SMTP transporter |
+| 28 | **Implement email Inngest function** | `sendTaskAssignmentEmail`: send on creation + `step.sleepUntil(dueDate)` + send reminder if not DONE |
+| 29 | **Build task frontend** | `CreateTaskDialog.jsx` form, `ProjectTask.jsx` (list, status dropdown, bulk delete), task detail page |
+| 30 | **Test task flow** | Create task → verify email sent → change status → delete → verify reminder scheduling |
+
+### Phase 5: Comments, Analytics & Polish (Week 5)
+
+| # | Task | Details |
+|:-:|:-----|:--------|
+| 31 | **Build comment API** | `commentController.js`: addComment (member check), getTaskComments |
+| 32 | **Add comment routes** | `POST /`, `GET /:taskId` |
+| 33 | **Comment frontend** | `TaskDetails.jsx` comment list + input field + post button |
+| 34 | **Analytics page** | `ProjectAnalytics.jsx` with Recharts: task by status (pie), task by type (bar), task by priority (bar) |
+| 35 | **Calendar view** | `ProjectCalendar.jsx` showing tasks by due date |
+| 36 | **Theme system** | Light/dark mode toggle, persist preference in `localStorage` |
+| 37 | **Sidebar navigation** | Expandable project list, my tasks list, settings opens Clerk UserProfile |
+| 38 | **Search** functionality | Filter projects and tasks in lists |
+
+### Phase 6: Testing, Deployment & Hardening (Week 6)
+
+| # | Task | Details |
+|:-:|:-----|:--------|
+| 39 | **Backend tests** | Jest: test Clerk webhook sync, test RBAC on each endpoint, test email sending |
+| 40 | **Frontend tests** | Cypress E2E: signup → create org → create project → add task → verify email → comment |
+| 41 | **Deploy frontend to Vercel** | Root directory: `client/`, set `VITE_BASE_URL` to backend URL |
+| 42 | **Configure Clerk redirect URLs** | Set fallback development host + production domain |
+| 43 | **Update environment variables** | Change `NODE_ENV=production`, update all URLs |
+| 44 | **Security hardening** | Rate limiting, input validation (Zod/Joi), SQL injection prevention (Prisma handles), XSS protection, CORS whitelist |
+| 45 | **Monitoring** | Add Sentry (frontend + backend), structured logging (Pino), Vercel Analytics |
+| 46 | **Performance** | Add Redis caching for frequent queries, pagination on task/comment lists, lazy loading |
+
+---
+
+## Production Enhancements (Beyond Tutorial)
+
+> [!IMPORTANT]
+> The tutorial covers a complete MVP. For production readiness, add these:
+
+| Category | Enhancement |
+|:---------|:------------|
+| **Security** | Rate limiting (`express-rate-limit`), input validation (Zod), helmet.js, CORS whitelist |
+| **Performance** | Redis caching (dashboard metrics), DB query optimization (indexes), pagination, infinite scroll |
+| **Real-time** | WebSocket (Socket.io) for live task updates, comment notifications, presence indicators |
+| **File handling** | Attachment uploads on tasks/comments via S3/Cloudinary |
+| **Search** | Full-text search with PostgreSQL `tsvector` or Elasticsearch |
+| **Notifications** | In-app notification center, push notifications (FCM), Slack/Discord integrations |
+| **Activity feed** | Audit log with `ActivityLog` model tracking all user actions |
+| **Billing** | Stripe integration for premium workspace features (more members, storage) |
+| **Testing** | Unit tests (Jest), integration tests (Supertest), E2E (Cypress/Playwright) |
+| **CI/CD** | GitHub Actions for lint, test, deploy pipeline with staging environment |
+| **Mobile** | React Native or Flutter client consuming the same REST API |
