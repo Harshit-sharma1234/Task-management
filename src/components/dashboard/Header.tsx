@@ -4,25 +4,47 @@ import { Search, Moon, LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useEffect, useState } from 'react';
+function stringToColor(str: string) {
+    if (!str) return '#CBD5E1'
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
+    return '#' + '00000'.substring(0, 6 - c.length) + c;
+}
 
 export function Header() {
   const router = useRouter();
-  const [initial, setInitial] = useState('?');
+  const [userProfile, setUserProfile] = useState<{ name: string, avatar_url: string | null } | null>(null)
 
   useEffect(() => {
-    async function getUser() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+    async function fetchUser() {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
       if (user) {
-        // Try to get name from metadata, otherwise use email first letter
-        const name = user.user_metadata?.full_name || user.email || '';
-        if (name) {
-          setInitial(name[0].toUpperCase());
+        // Use email-based fetching to match the Settings page (more reliable in this DB)
+        const { data } = await supabase
+            .from('users')
+            .select('name, avatar_url')
+            .eq('email', user.email)
+        
+        if (data && data.length > 0) {
+          setUserProfile({ 
+            name: data[0].name, 
+            avatar_url: data[0].avatar_url 
+          })
+        } else {
+          // Fallback to auth metadata
+          setUserProfile({ 
+            name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User', 
+            avatar_url: null 
+          })
         }
       }
     }
-    getUser();
-  }, []);
+    fetchUser()
+  }, [])
 
   const handleSignOut = async () => {
     const supabase = createClient();
@@ -50,9 +72,20 @@ export function Header() {
         </button>
         
         {/* User Profile avatar */}
-        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-600 text-white text-sm font-semibold cursor-pointer">
-          {initial}
-        </div>
+        {userProfile?.avatar_url ? (
+            <img 
+              src={userProfile.avatar_url} 
+              alt="Profile" 
+              className="w-8 h-8 rounded-full object-cover shadow-sm border border-gray-100 cursor-pointer" 
+            />
+        ) : (
+            <div 
+              className="flex items-center justify-center w-8 h-8 rounded-full text-white text-sm font-semibold cursor-pointer shadow-sm"
+              style={{ backgroundColor: userProfile ? stringToColor(userProfile.name) : '#4f46e5' }}
+            >
+              {userProfile?.name ? userProfile.name.charAt(0).toUpperCase() : ''}
+            </div>
+        )}
 
         {/* Separator */}
         <div className="w-px h-6 bg-gray-200 mx-1"></div>

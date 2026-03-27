@@ -31,14 +31,15 @@ export async function getUserProfile(
         .from('users')
         .select('*, roles(role_name)')
         .eq('email', email)
-        .single()
+    
+    const userRow = data?.[0] || null
 
     console.log('[getUserProfile] email:', email)
     console.log('[getUserProfile] data:', JSON.stringify(data))
     console.log('[getUserProfile] error:', JSON.stringify(error))
 
-    if (error || !data) return null
-    return data as UserProfile
+    if (error || !userRow) return null
+    return userRow as UserProfile
 }
 
 /**
