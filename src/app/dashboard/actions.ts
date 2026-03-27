@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { getUserProfile } from '@/lib/roles'
 
@@ -285,4 +286,67 @@ export async function updateUserAvatar(userId: string, avatarUrl: string) {
 
     console.log('[Avatar Update] Successfully synced user profile and avatar.')
     return { success: true }
+}
+
+export async function provisionEmployee(formData: FormData) {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+        return { error: 'You must be logged in to provision employees' }
+    }
+
+    // 1. Verify caller is Admin
+    const adminProfile = await getUserProfile(supabase, user.email!)
+    if (adminProfile?.roles?.role_name !== 'Admin') {
+        return { error: 'Unauthorized: Only Admins can provision new employees' }
+    }
+
+    const email = (formData.get('email') as string).trim().toLowerCase()
+    const name = formData.get('name') as string
+    const employeeId = formData.get('employee_id') as string
+    const roleId = formData.get('role_id') as string
+    const tempPassword = (formData.get('password') as string) || 'Welcome123!'
+
+    if (!email || !name || !employeeId || !roleId) {
+        return { error: 'All fields are required' }
+    }
+
+    const adminClient = createAdminClient()
+
+    // 2. Create Auth User (Silently)
+    const { data: authData, error: createAuthError } = await adminClient.auth.admin.createUser({
+        email,
+        password: tempPassword,
+        email_confirm: true, // Auto-confirm so they can log in immediately
+        user_metadata: { full_name: name }
+    })
+
+    if (createAuthError) {
+        console.error('ERROR CREATING AUTH USER:', createAuthError)
+        return { error: `Auth Error: ${createAuthError.message}` }
+    }
+
+    const newUserId = authData.user.id
+
+    // 3. Insert into public.users
+    const { error: dbError } = await adminClient
+        .from('users')
+        .insert({
+            id: newUserId,
+            email,
+            name,
+            employee_id: employeeId,
+            role_id: roleId
+        })
+
+    if (dbError) {
+        console.error('ERROR CREATING DB PROFILE:', dbError)
+        // Cleanup Auth user if DB insert fails to prevent orphaned auth users
+        await adminClient.auth.admin.deleteUser(newUserId)
+        return { error: `Database Error: ${dbError.message}` }
+    }
+
+    revalidatePath('/dashboard/admin/team')
+    return { success: true, message: `Account created for ${name}. Temporary password: ${tempPassword}` }
 }
