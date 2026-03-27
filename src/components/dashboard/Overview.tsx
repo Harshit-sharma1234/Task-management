@@ -24,6 +24,12 @@ export default async function DashboardOverview() {
 
     const projects = projectsData || []
 
+    // Fetch users for the Lead dropdown
+    const { data: usersData } = await supabase
+        .from('users')
+        .select('id, name')
+    const users = usersData || []
+
     return (
         <div className="p-8 max-w-7xl mx-auto">
             {/* Header Section */}
@@ -32,7 +38,7 @@ export default async function DashboardOverview() {
                     <h1 className="text-2xl font-bold text-gray-900">Welcome back, {userName}</h1>
                     <p className="text-sm text-gray-500 mt-1">Here's what's happening with your projects today</p>
                 </div>
-                <CreateProjectButton variant="header" />
+                <CreateProjectButton variant="header" users={users} />
             </div>
 
             {/* Stats Cards */}
@@ -113,7 +119,7 @@ export default async function DashboardOverview() {
                                     <Folder size={32} />
                                 </div>
                                 <h3 className="text-gray-900 font-medium mb-4">No projects yet</h3>
-                                <CreateProjectButton variant="empty-state" />
+                                <CreateProjectButton variant="empty-state" users={users} />
                             </div>
                         ) : (
                             <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden flex flex-col min-h-[320px]">

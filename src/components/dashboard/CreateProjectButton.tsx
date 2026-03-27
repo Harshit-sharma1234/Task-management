@@ -4,11 +4,17 @@ import { useState } from 'react'
 import { Plus } from 'lucide-react'
 import { createProject } from '@/app/dashboard/actions'
 
-interface CreateProjectButtonProps {
-  variant?: 'header' | 'empty-state'
+interface User {
+  id: string
+  name: string
 }
 
-export function CreateProjectButton({ variant = 'header' }: CreateProjectButtonProps) {
+interface CreateProjectButtonProps {
+  variant?: 'header' | 'empty-state'
+  users: User[]
+}
+
+export function CreateProjectButton({ variant = 'header', users }: CreateProjectButtonProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
@@ -58,7 +64,7 @@ export function CreateProjectButton({ variant = 'header' }: CreateProjectButtonP
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md m-4 overflow-hidden relative">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-white">
               <h2 className="text-xl font-semibold text-gray-900">Create New Project</h2>
               <button 
                 onClick={closeModal} 
@@ -88,6 +94,70 @@ export function CreateProjectButton({ variant = 'header' }: CreateProjectButtonP
                   placeholder="e.g. Website Redesign"
                 />
               </div>
+
+              <div className="mb-4 grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="lead_id" className="block text-sm font-medium text-gray-700 mb-1">
+                    Lead *
+                  </label>
+                  <select
+                    id="lead_id"
+                    name="lead_id"
+                    required
+                    className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+                  >
+                    <option value="" disabled selected>Select a Lead</option>
+                    {users.map(u => (
+                      <option key={u.id} value={u.id}>{u.name || 'Unnamed User'}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="priority" className="block text-sm font-medium text-gray-700 mb-1">
+                    Priority *
+                  </label>
+                  <select
+                    id="priority"
+                    name="priority"
+                    required
+                    className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+                  >
+                    <option value="urgent">Urgent</option>
+                    <option value="high">High</option>
+                    <option value="medium" selected>Medium</option>
+                    <option value="low">Low</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="mb-4 grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="assigned_to" className="block text-sm font-medium text-gray-700 mb-1">
+                    Assignee
+                  </label>
+                  <select
+                    id="assigned_to"
+                    name="assigned_to"
+                    className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+                  >
+                    <option value="">None</option>
+                    {users.map(u => (
+                      <option key={u.id} value={u.id}>{u.name || 'Unnamed User'}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="start_date" className="block text-sm font-medium text-gray-700 mb-1">
+                    Start Date
+                  </label>
+                  <input
+                    type="date"
+                    id="start_date"
+                    name="start_date"
+                    className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white font-sans"
+                  />
+                </div>
+              </div>
               
               <div className="mb-6">
                 <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
@@ -102,7 +172,7 @@ export function CreateProjectButton({ variant = 'header' }: CreateProjectButtonP
                 />
               </div>
               
-              <div className="flex justify-end gap-3">
+              <div className="flex justify-end gap-3 pt-2">
                 <button
                   type="button"
                   onClick={closeModal}

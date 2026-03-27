@@ -1,0 +1,226 @@
+'use client';
+
+import { useState, useRef, useEffect, useTransition } from 'react';
+import { updateProjectTargetDate } from '@/app/dashboard/actions';
+import { Calendar, ChevronLeft, ChevronRight, CornerDownLeft } from 'lucide-react';
+
+interface TargetDateSelectorProps {
+    projectId: string;
+    currentTargetDate: string | null;
+}
+
+const MONTHS = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+];
+
+const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+
+export function TargetDateSelector({ projectId, currentTargetDate }: TargetDateSelectorProps) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [isPending, startTransition] = useTransition();
+    const dropdownRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
+    const [searchValue, setSearchValue] = useState('');
+
+    // Calendar state
+    const [viewDate, setViewDate] = useState(() => {
+        return currentTargetDate ? new Date(currentTargetDate) : new Date();
+    });
+
+    // Reset view date whenever opened
+    useEffect(() => {
+        if (isOpen) {
+            setViewDate(currentTargetDate ? new Date(currentTargetDate) : new Date());
+            setTimeout(() => inputRef.current?.focus(), 50);
+        }
+    }, [isOpen, currentTargetDate]);
+
+    // Click outside logic
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        }
+        if (isOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [isOpen]);
+
+    // Handle selection
+    const handleSelect = (dateStr: string | null) => {
+        if (dateStr === currentTargetDate) {
+            setIsOpen(false);
+            return;
+        }
+
+        setIsOpen(false);
+        startTransition(async () => {
+            const res = await updateProjectTargetDate(projectId, dateStr);
+            if (res.error) {
+                alert(res.error);
+            }
+        });
+    };
+
+    // Calendar grid calculations
+    const year = viewDate.getFullYear();
+    const month = viewDate.getMonth();
+    
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const firstDayOfMonth = new Date(year, month, 1).getDay();
+    // Adjust to Monday=0 instead of Sunday=0
+    const startingEmptyCells = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1;
+
+    const daysList = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+    const blanksList = Array.from({ length: startingEmptyCells }, (_, i) => i);
+    
+    // Previous month filler days
+    const prevMonthDays = new Date(year, month, 0).getDate();
+
+    // Format display string
+    const formatDisplayDate = (isoString: string | null) => {
+        if (!isoString) return '---';
+        const d = new Date(isoString);
+        return `${d.toLocaleString('default', { month: 'short' })} ${d.getDate()}`;
+    };
+
+    const isToday = (day: number) => {
+        const today = new Date();
+        return today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
+    };
+
+    const isSelected = (day: number) => {
+        if (!currentTargetDate) return false;
+        const target = new Date(currentTargetDate);
+        return target.getFullYear() === year && target.getMonth() === month && target.getDate() === day;
+    };
+
+    const toggleMonth = (direction: number) => {
+        setViewDate(new Date(year, month + direction, 1));
+    };
+
+    return (
+        <div className="relative flex items-center" ref={dropdownRef}>
+            <button 
+                onClick={(e) => {
+                    e.stopPropagation();
+                    setIsOpen(!isOpen);
+                }}
+                className={`flex items-center gap-2 px-2 py-1 -ml-2 rounded-md hover:bg-gray-100/80 transition-colors text-gray-500 hover:text-gray-900 ${isPending ? 'opacity-50' : ''}`}
+            >
+                <Calendar size={14} className={currentTargetDate ? "text-gray-900" : "text-gray-400"} />
+                <span className={`text-xs ${currentTargetDate ? "font-medium text-gray-900" : ""}`}>
+                    {formatDisplayDate(currentTargetDate)}
+                </span>
+            </button>
+
+            {isOpen && (
+                <div className="absolute top-8 left-0 w-[280px] bg-[#252528] rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] border border-[#3e3e42] py-3 z-50 text-white font-sans select-none">
+                    
+                    <div className="px-3 mb-4">
+                        <div className="text-xs text-gray-400 mb-2 font-medium">Start date</div>
+                        <div className="relative">
+                            <input
+                                ref={inputRef}
+                                type="text"
+                                value={searchValue}
+                                onChange={(e) => setSearchValue(e.target.value)}
+                                placeholder="try: May 2027, Q4, 20/05/2027"
+                                className="w-full bg-[#1c1c1f] border border-[#52525a]/50 text-gray-300 text-[13px] rounded-md py-1.5 px-3 focus:outline-none focus:border-[#7c7c85] transition-colors placeholder:text-[#52525a]"
+                            />
+                            {searchValue && (
+                                <button className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 bg-[#343438] rounded-sm p-0.5 border border-[#3e3e42]">
+                                    <CornerDownLeft size={10} />
+                                </button>
+                            )}
+                        </div>
+                        
+                        <div className="flex items-center gap-1.5 mt-3 overflow-x-auto no-scrollbar scroll-smooth">
+                            {['Day', 'Month', 'Quarter', 'Half-year', 'Year'].map((filter) => (
+                                <button key={filter} className={`text-[11px] px-2.5 py-1 rounded-full border border-[#3e3e42] whitespace-nowrap transition-colors ${filter === 'Day' ? 'bg-[#3e3e42] text-white' : 'text-gray-400 hover:bg-[#343438] hover:text-white'}`}>
+                                    {filter}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="border-t border-[#3e3e42]/50 pt-3 px-3">
+                        <div className="flex items-center justify-between mb-3">
+                            <span className="text-sm font-medium text-gray-100">{MONTHS[month]} {year}</span>
+                            <div className="flex items-center gap-1">
+                                <button onClick={() => toggleMonth(-1)} className="p-1 rounded hover:bg-[#343438] text-gray-400 transition-colors">
+                                    <ChevronLeft size={16} />
+                                </button>
+                                <button onClick={() => toggleMonth(1)} className="p-1 rounded hover:bg-[#343438] text-gray-400 transition-colors">
+                                    <ChevronRight size={16} />
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-7 gap-1 mb-1">
+                            {WEEKDAYS.map(day => (
+                                <div key={day} className="text-[11px] text-gray-500 text-center font-medium py-1">
+                                    {day}
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="grid grid-cols-7 gap-[2px]">
+                            {/* Previous month blanks */}
+                            {blanksList.map((_, i) => {
+                                const dayNum = prevMonthDays - startingEmptyCells + i + 1;
+                                return (
+                                    <div key={`blank-${i}`} className="w-8 h-8 flex items-center justify-center text-[12px] text-[#3e3e42]">
+                                        {dayNum}
+                                    </div>
+                                );
+                            })}
+                            
+                            {/* Current month days */}
+                            {daysList.map((day) => {
+                                const dateIso = new Date(Date.UTC(year, month, day)).toISOString().split('T')[0];
+                                const isCurrentDate = isToday(day);
+                                const isSelectedDate = isSelected(day);
+                                
+                                let cellStyle = "text-gray-300 hover:bg-[#343438] hover:text-white cursor-pointer";
+                                if (isSelectedDate) cellStyle = "bg-[#ffffff] text-black font-semibold shadow-sm";
+                                else if (isCurrentDate) cellStyle = "text-blue-400 font-semibold hover:bg-[#343438]";
+
+                                return (
+                                    <button
+                                        key={day}
+                                        onClick={() => handleSelect(dateIso)}
+                                        className={`w-8 h-8 rounded-full flex items-center justify-center text-[12px] transition-colors ${cellStyle}`}
+                                    >
+                                        {day}
+                                    </button>
+                                );
+                            })}
+                            
+                            {/* Next month blanks to fill grid */}
+                            {Array.from({ length: 42 - (blanksList.length + daysList.length) }, (_, i) => (
+                                <div key={`next-blank-${i}`} className="w-8 h-8 flex items-center justify-center text-[12px] text-[#3e3e42]">
+                                    {i + 1}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    
+                    <div className="mt-3 px-3 pt-3 border-t border-[#3e3e42]/50">
+                        {currentTargetDate && (
+                            <button 
+                                onClick={() => handleSelect(null)}
+                                className="w-full py-1.5 text-xs text-gray-400 hover:text-white hover:bg-[#343438] rounded-md transition-colors"
+                            >
+                                Clear start date
+                            </button>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
