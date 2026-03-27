@@ -4,7 +4,6 @@ import { Search, Moon, LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useEffect, useState } from 'react';
-
 function stringToColor(str: string) {
     if (!str) return '#CBD5E1'
     let hash = 0;
