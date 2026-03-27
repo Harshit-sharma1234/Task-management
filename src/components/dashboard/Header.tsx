@@ -3,9 +3,26 @@
 import { Search, Moon, LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { useEffect, useState } from 'react';
 
 export function Header() {
   const router = useRouter();
+  const [initial, setInitial] = useState('?');
+
+  useEffect(() => {
+    async function getUser() {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // Try to get name from metadata, otherwise use email first letter
+        const name = user.user_metadata?.full_name || user.email || '';
+        if (name) {
+          setInitial(name[0].toUpperCase());
+        }
+      }
+    }
+    getUser();
+  }, []);
 
   const handleSignOut = async () => {
     const supabase = createClient();
@@ -34,7 +51,7 @@ export function Header() {
         
         {/* User Profile avatar */}
         <div className="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-600 text-white text-sm font-semibold cursor-pointer">
-          K
+          {initial}
         </div>
 
         {/* Separator */}
