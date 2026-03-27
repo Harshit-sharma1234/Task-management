@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
-import { TeamList } from '@/components/dashboard/TeamList'
+import { createClient } from '../../../lib/supabase/server'
+import { TeamList } from '../../../components/dashboard/TeamList'
 import { Users, FolderKanban, Shield } from 'lucide-react'
 
 export default async function TeamPage() {
