@@ -9,7 +9,8 @@ import {
   FolderKanban, 
   Users, 
   Settings, 
-  ChevronRight
+  ChevronRight,
+  CircleDot
 } from 'lucide-react';
 
 export function Sidebar() {
@@ -56,6 +57,19 @@ export function Sidebar() {
             pathname.startsWith('/dashboard/projects') ? 'text-gray-700' : 'text-gray-500 group-hover:text-gray-700'
           } />
           <span className="text-sm font-medium">Projects</span>
+        </Link>
+        <Link 
+          href="/dashboard/issues" 
+          className={`flex items-center gap-3 px-3 py-2 rounded-md group transition-colors ${
+            pathname.startsWith('/dashboard/issues') 
+              ? 'bg-gray-100 text-gray-900' 
+              : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+          }`}
+        >
+          <CircleDot size={18} className={
+            pathname.startsWith('/dashboard/issues') ? 'text-gray-700' : 'text-gray-500 group-hover:text-gray-700'
+          } />
+          <span className="text-sm font-medium">Issues</span>
         </Link>
         <Link 
           href="/dashboard/team" 
