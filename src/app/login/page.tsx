@@ -65,12 +65,6 @@ export default async function Login({ searchParams }: { searchParams: { message:
           </button>
         </form>
         
-        <div className="mt-6 text-center text-xs text-[var(--color-linear-muted)]">
-          Don't have an account?{' '}
-          <Link href="/signup" className="text-[var(--color-linear-text)] hover:text-[var(--color-linear-accent)] transition-colors">
-            Sign up
-          </Link>
-        </div>
       </div>
     </div>
   );

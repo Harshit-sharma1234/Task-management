@@ -67,9 +67,6 @@ export function Header() {
       </div>
       
       <div className="flex items-center gap-4">
-        <button className="text-gray-500 hover:text-gray-700 flex items-center justify-center p-2 rounded-full hover:bg-gray-50 transition-colors">
-          <Moon size={18} />
-        </button>
         
         {/* User Profile avatar */}
         {userProfile?.avatar_url ? (
