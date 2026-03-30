@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '../../../lib/supabase/server'
 import { TeamList } from '../../../components/dashboard/TeamList'
+import { TeamHeader } from '../../../components/dashboard/TeamHeader'
+import { getUserProfile } from '../../../lib/roles'
 import { Users, FolderKanban, Shield } from 'lucide-react'
 
 export default async function TeamPage() {
@@ -8,6 +10,10 @@ export default async function TeamPage() {
     const { data: authData, error: authError } = await supabase.auth.getUser()
 
     if (authError || !authData?.user) redirect('/login')
+
+    // 0. Get current user profile for role check
+    const currentUserProfile = await getUserProfile(supabase, authData.user.email!)
+    const isAdmin = currentUserProfile?.roles?.role_name === 'Admin'
 
     // 1. Fetch Users + Roles
     const { data: usersData, error: usersError } = await supabase
@@ -35,16 +41,7 @@ export default async function TeamPage() {
     return (
         <div className="p-8 max-w-7xl mx-auto flex flex-col gap-8 w-full h-full">
             {/* Header */}
-            <div className="flex justify-between items-start">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Team</h1>
-                    <p className="text-sm text-gray-500 mt-1">Manage team members and their contributions</p>
-                </div>
-                <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2">
-                    <span className="flex items-center justify-center border border-white/40 rounded-full w-4 h-4 text-[10px] font-bold leading-none">+</span>
-                    Invite Member
-                </button>
-            </div>
+            <TeamHeader isAdmin={isAdmin} />
 
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
