@@ -1,0 +1,88 @@
+'use server'
+
+import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { revalidatePath } from 'next/cache'
+
+/**
+ * Internal helper to create notifications using the Admin Client 
+ * (bypasses RLS for insertion).
+ */
+export async function createNotification(params: {
+    userId: string,
+    actorId: string,
+    entityType: 'ticket' | 'project',
+    entityId: string,
+    type: 'assignment' | 'comment' | 'mention' | 'status_change' | 'project_update',
+    message: string
+}) {
+    const adminClient = createAdminClient()
+    
+    const { error } = await adminClient
+        .from('notifications')
+        .insert({
+            user_id: params.userId,
+            actor_id: params.actorId,
+            entity_type: params.entityType,
+            entity_id: params.entityId,
+            type: params.type,
+            message: params.message
+        })
+
+    if (error) {
+        console.error('[Notification] Error creating notification:', error)
+    }
+}
+
+/**
+ * Mark a specific notification as read.
+ */
+export async function markAsRead(notificationId: string) {
+    const supabase = await createClient()
+    const { error } = await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('id', notificationId)
+
+    if (error) {
+        console.error('[Notification] Error marking as read:', error)
+        return { error: error.message }
+    }
+
+    revalidatePath('/dashboard/inbox')
+    return { success: true }
+}
+
+/**
+ * Mark all notifications as read for the current user.
+ */
+export async function markAllAsRead() {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Not authenticated' }
+
+    const { error } = await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('user_id', user.id)
+
+    if (error) {
+        console.error('[Notification] Error marking all as read:', error)
+        return { error: error.message }
+    }
+
+    revalidatePath('/dashboard/inbox')
+    return { success: true }
+}
+
+/**
+ * Utility to parse mentions (@Name) from a text block.
+ */
+export async function parseMentions(text: string): Promise<string[]> {
+    // Matches @FollowedByMultipleWordNames (simple heuristic: up to 3 words or until next special char)
+    // For this implementation, we'll look for @ capitalized words.
+    const mentionRegex = /@([A-Z][a-z]+(?:\s[A-Z][a-z]+)*)/g
+    const matches = text.matchAll(mentionRegex)
+    const names = Array.from(matches, m => m[1])
+    return Array.from(new Set(names)) // Unique names
+}
