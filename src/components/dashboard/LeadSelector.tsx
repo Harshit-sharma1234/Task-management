@@ -7,17 +7,25 @@ import { User as UserIcon } from 'lucide-react';
 interface User {
     id: string;
     name: string;
+    email: string;
 }
 
 interface LeadSelectorProps {
     projectId: string;
     currentLeadId: string | null;
     users: User[];
+    showEmail?: boolean;
 }
 
 export const getBadgeColor = (name: string) => {
     if (name === 'Unassigned' || name === '?') return 'bg-gray-200 text-gray-500'
-    const colors = ['bg-orange-500', 'bg-blue-500', 'bg-emerald-500', 'bg-purple-500', 'bg-pink-500']
+    const colors = [
+        'bg-gradient-to-br from-orange-400 to-orange-500', 
+        'bg-gradient-to-br from-blue-400 to-blue-500', 
+        'bg-gradient-to-br from-emerald-400 to-emerald-500', 
+        'bg-gradient-to-br from-purple-400 to-purple-500', 
+        'bg-gradient-to-br from-pink-400 to-pink-500'
+    ]
     let hash = 0
     for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash)
     return `${colors[Math.abs(hash) % colors.length]} text-white`
@@ -28,15 +36,15 @@ export const getInitials = (name: string) => {
     return name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()
 }
 
-export function LeadSelector({ projectId, currentLeadId, users }: LeadSelectorProps) {
+export function LeadSelector({ projectId, currentLeadId, users, showEmail = false }: LeadSelectorProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     // Current lead processing
     const currentLead = users.find(u => u.id === currentLeadId);
-    const leadName = currentLead ? currentLead.name : 'Unassigned';
-    const initials = getInitials(leadName);
+    const leadLabel = currentLead ? (showEmail ? currentLead.email : currentLead.name) : 'Unassigned';
+    const initials = getInitials(currentLead ? currentLead.name : 'Unassigned');
 
     // Click outside logic
     useEffect(() => {
@@ -74,9 +82,16 @@ export function LeadSelector({ projectId, currentLeadId, users }: LeadSelectorPr
                     e.stopPropagation();
                     setIsOpen(!isOpen);
                 }}
-                className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 shadow-sm hover:ring-2 hover:ring-gray-200 transition-all ${getBadgeColor(leadName)} ${isPending ? 'opacity-50' : ''}`}
+                className={`flex items-center gap-2 rounded-full text-[10px] font-bold shrink-0 hover:bg-gray-100 transition-all ${isPending ? 'opacity-50' : ''} ${showEmail ? 'pr-2 w-auto' : 'w-6 h-6 justify-center'}`}
             >
-                {initials}
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 border border-white shadow-sm ${getBadgeColor(currentLead ? currentLead.name : 'Unassigned')}`}>
+                    {initials}
+                </div>
+                {showEmail && (
+                    <span className="text-[11px] font-medium text-gray-700 truncate max-w-[200px]">
+                        {leadLabel}
+                    </span>
+                )}
             </button>
 
             {isOpen && (
@@ -117,15 +132,20 @@ export function LeadSelector({ projectId, currentLeadId, users }: LeadSelectorPr
                                     }}
                                     className="flex items-center justify-between px-3 py-1.5 hover:bg-[#343438] transition-colors w-full text-left"
                                 >
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-3 overflow-hidden">
                                         <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold shrink-0 ${getBadgeColor(u.name)}`}>
                                             {uInitials}
                                         </div>
-                                        <span className={`text-sm truncate ${isSelected ? 'text-white' : 'text-gray-300'}`}>
-                                            {u.name}
-                                        </span>
+                                        <div className="flex flex-col overflow-hidden">
+                                            <span className={`text-[11px] font-medium truncate ${isSelected ? 'text-white' : 'text-gray-300'}`}>
+                                                {u.email}
+                                            </span>
+                                            <span className="text-[10px] text-gray-500 truncate">
+                                                {u.name}
+                                            </span>
+                                        </div>
                                     </div>
-                                    {isSelected && <span className="text-gray-400 text-[10px]">✓</span>}
+                                    {isSelected && <span className="text-gray-400 text-[10px] shrink-0">✓</span>}
                                 </button>
                             );
                         })}

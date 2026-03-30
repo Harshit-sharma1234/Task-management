@@ -14,6 +14,7 @@ import { PrioritySelector } from './PrioritySelector';
 import { LeadSelector } from './LeadSelector';
 import { TargetDateSelector } from './TargetDateSelector';
 import { MemberSelector } from './MemberSelector';
+import { StatusSelector } from './StatusSelector';
 
 interface ProjectSidebarProps {
   project: any;
@@ -35,19 +36,18 @@ export function ProjectSidebar({ project, users, currentMemberIds }: ProjectSide
         
         <div className="grid grid-cols-[100px_1fr] gap-y-4 items-center text-sm">
           <span className="text-gray-400 font-medium">Status</span>
-          <div className="flex items-center gap-2 text-gray-700">
-            <div className="w-3.5 h-3.5 rounded-full border border-dashed border-gray-300"></div>
-            <span className="font-medium text-gray-600 text-[13px]">Backlog</span>
+          <div className="w-full">
+            <StatusSelector projectId={project.id} currentStatus={project.status} />
           </div>
 
           <span className="text-gray-400 font-medium">Priority</span>
           <div className="w-full">
-            <PrioritySelector projectId={project.id} currentPriority={project.priority} />
+            <PrioritySelector projectId={project.id} currentPriority={project.priority} showLabel={true} />
           </div>
 
           <span className="text-gray-400 font-medium">Lead</span>
           <div className="w-full">
-            <LeadSelector projectId={project.id} currentLeadId={project.lead_id} users={users} />
+            <LeadSelector projectId={project.id} currentLeadId={project.lead_id} users={users} showEmail={true} />
           </div>
 
           <span className="text-gray-400 font-medium">Members</span>
@@ -55,6 +55,7 @@ export function ProjectSidebar({ project, users, currentMemberIds }: ProjectSide
             projectId={project.id} 
             users={users} 
             currentMemberIds={currentMemberIds} 
+            showEmails={true}
           />
 
           <span className="text-gray-400 font-medium">Dates</span>
