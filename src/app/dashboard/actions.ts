@@ -6,6 +6,7 @@ import { createClient } from '../../lib/supabase/server'
 import { createAdminClient } from '../../lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { getUserProfile } from '../../lib/roles'
+import { createNotification } from './notifications/actions'
 
 export async function createProject(formData: FormData) {
     const supabase = await createClient()
@@ -70,8 +71,18 @@ export async function createProject(formData: FormData) {
 
     if (memberError) {
         console.error('SUPABASE ERROR ADDING MEMBERS:', memberError)
-        // We don't necessarily fail project creation if member insertion fails, 
-        // but it's good practice to at least log it.
+    } else {
+        // Notify the Lead (if not the creator)
+        if (leadId && leadId !== profile.id) {
+            await createNotification({
+                userId: leadId,
+                actorId: profile.id,
+                entityType: 'project',
+                entityId: newProject.id,
+                type: 'assignment',
+                message: `${profile.name} assigned you as Lead for project: ${projectName}`
+            })
+        }
     }
 
     revalidatePath('/dashboard')
@@ -209,6 +220,19 @@ export async function toggleProjectMember(projectId: string, userId: string) {
             console.error('ERROR ADDING MEMBER:', insertError)
             return { error: 'Failed to add member' }
         }
+
+        // --- Notification Trigger ---
+        // Fetch project name first
+        const { data: project } = await supabase.from('projects').select('project_name').eq('id', projectId).single()
+        
+        await createNotification({
+            userId: userId,
+            actorId: user.id, // Current authenticated user
+            entityType: 'project',
+            entityId: projectId,
+            type: 'assignment',
+            message: `${user.user_metadata?.full_name || 'Someone'} added you to project: ${project?.project_name || 'New Project'}`
+        })
     }
 
     revalidatePath(`/dashboard/projects/${projectId}`)
