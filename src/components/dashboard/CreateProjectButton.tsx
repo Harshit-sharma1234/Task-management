@@ -130,6 +130,26 @@ export function CreateProjectButton({ variant = 'header', users }: CreateProject
                 </div>
               </div>
 
+              <div className="mb-4">
+                <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
+                  Status *
+                </label>
+                <select
+                  id="status"
+                  name="status"
+                  required
+                  className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+                >
+                  <option value="backlog">Backlog</option>
+                  <option value="to_do">To Do</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="review">Review</option>
+                  <option value="in_review">In Review</option>
+                  <option value="done">Done</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </div>
+
               <div className="mb-4 grid grid-cols-2 gap-4">
                 <div>
                   <label htmlFor="assigned_to" className="block text-sm font-medium text-gray-700 mb-1">

@@ -7,6 +7,7 @@ import { AlertCircle, SignalHigh, SignalMedium, SignalLow, Ban } from 'lucide-re
 interface PrioritySelectorProps {
     projectId: string;
     currentPriority: string | null;
+    showLabel?: boolean;
 }
 
 const priorities = [
@@ -17,10 +18,12 @@ const priorities = [
     { value: 'low', label: 'Low', shortcut: '4', icon: <SignalLow size={14} className="text-gray-400" /> },
 ];
 
-export function PrioritySelector({ projectId, currentPriority }: PrioritySelectorProps) {
+export function PrioritySelector({ projectId, currentPriority, showLabel = false }: PrioritySelectorProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
     const dropdownRef = useRef<HTMLDivElement>(null);
+
+    const activePriority = priorities.find(p => p.value === currentPriority) || priorities[0];
 
     // Click outside logic
     useEffect(() => {
@@ -93,9 +96,14 @@ export function PrioritySelector({ projectId, currentPriority }: PrioritySelecto
                     e.stopPropagation();
                     setIsOpen(!isOpen);
                 }}
-                className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-gray-200/50 transition-colors"
+                className={`flex items-center gap-2 rounded-md hover:bg-gray-200/50 transition-colors ${showLabel ? 'px-2 py-1' : 'w-8 h-8 justify-center'}`}
             >
                 {renderTriggerIcon()}
+                {showLabel && (
+                    <span className="text-sm font-medium text-gray-700">
+                        {activePriority.label}
+                    </span>
+                )}
             </button>
 
             {isOpen && (

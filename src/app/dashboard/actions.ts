@@ -24,6 +24,7 @@ export async function createProject(formData: FormData) {
     const description = formData.get('description') as string
     const leadId = formData.get('lead_id') as string
     const priority = formData.get('priority') as string
+    const status = formData.get('status') as string
     const startDate = formData.get('start_date') as string
     const assignedTo = formData.get('assigned_to') as string
 
@@ -36,6 +37,9 @@ export async function createProject(formData: FormData) {
     if (!priority) {
         return { error: 'Priority is required' }
     }
+    if (!status) {
+        return { error: 'Status is required' }
+    }
 
     const { data: newProject, error: projectError } = await supabase
         .from('projects')
@@ -45,6 +49,7 @@ export async function createProject(formData: FormData) {
             created_by: profile.id,
             lead_id: leadId,
             priority: priority,
+            status: status,
             start_date: startDate || null,
             assigned_to: assignedTo || null
         })
@@ -166,6 +171,74 @@ export async function updateProjectTargetDate(projectId: string, startDate: stri
     return { success: true }
 }
 
+export async function updateProjectStatus(projectId: string, status: string | null) {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+        return { error: 'You must be logged in to update a project' }
+    }
+
+    console.log(`[updateProjectStatus] User: ${user.id}, Project: ${projectId}, New Status: ${status}`)
+
+    // 1. Try regular update (respects RLS)
+    const { data, error } = await supabase
+        .from('projects')
+        .update({ status })
+        .eq('id', projectId)
+        .select()
+
+    if (error) {
+        console.error('SUPABASE ERROR UPDATING STATUS:', error)
+        if (error.code === 'PGRST204') {
+             return { error: `Database schema mismatch: The "status" column might not exist or is not updatable.` }
+        }
+        return { error: `Failed to update status: ${error.message || JSON.stringify(error)}` }
+    }
+
+    // 2. If regular update failed to return data, try with admin client (bypasses RLS)
+    // but ONLY if the user is the project lead or an admin.
+    if (!data || data.length === 0) {
+        console.warn(`[updateProjectStatus] Regular update returned no data for project ${projectId}. Attempting admin update...`)
+        
+        const profile = await getUserProfile(supabase, user.email!)
+        const { data: project } = await supabase.from('projects').select('lead_id, created_by').eq('id', projectId).single()
+        
+        const isAdmin = profile?.roles?.role_name === 'Admin'
+        const isLead = project?.lead_id === profile?.id || project?.created_by === profile?.id
+        
+        if (isAdmin || isLead) {
+            const adminClient = createAdminClient()
+            const { data: adminData, error: adminError } = await adminClient
+                .from('projects')
+                .update({ status })
+                .eq('id', projectId)
+                .select()
+            
+            if (adminError) {
+                 console.error('ADMIN SUPABASE ERROR UPDATING STATUS:', adminError)
+                 return { error: `Admin update failed: ${adminError.message}` }
+            }
+            
+            if (adminData && adminData.length > 0) {
+                console.log(`[updateProjectStatus] Admin update succeeded for project ${projectId}.`)
+                revalidatePath('/dashboard/projects')
+                revalidatePath('/dashboard')
+                revalidatePath(`/dashboard/projects/${projectId}`)
+                return { success: true }
+            }
+        }
+
+        console.error(`[updateProjectStatus] All update attempts failed for project ${projectId}.`)
+        return { error: 'Failed to update: You do not have permission to update this project (Check Supabase UPDATE RLS Policy for "projects" table).' }
+    }
+
+    revalidatePath('/dashboard/projects')
+    revalidatePath('/dashboard')
+    revalidatePath(`/dashboard/projects/${projectId}`)
+    return { success: true }
+}
+
 export async function toggleProjectMember(projectId: string, userId: string) {
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -174,8 +247,30 @@ export async function toggleProjectMember(projectId: string, userId: string) {
         return { error: 'You must be logged in' }
     }
 
-    // Check if user is already a member
-    const { data: existing, error: checkError } = await supabase
+    // 1. Get permissions first
+    const profile = await getUserProfile(supabase, user.email!)
+    const { data: project, error: projectError } = await supabase
+        .from('projects')
+        .select('lead_id, created_by')
+        .eq('id', projectId)
+        .single()
+
+    if (projectError) {
+        console.error('ERROR FETCHING PROJECT:', projectError)
+        return { error: 'Project not found' }
+    }
+
+    const isAdmin = profile?.roles?.role_name === 'Admin'
+    const isLead = project?.lead_id === profile?.id || project?.created_by === profile?.id
+    const canManage = isAdmin || isLead
+
+    // 2. Choose client based on permissions
+    const apiClient = canManage ? createAdminClient() : supabase
+
+    console.log(`[toggleProjectMember] User: ${user.id}, Project: ${projectId}, Target: ${userId}, Admin: ${isAdmin}, Lead: ${isLead}`)
+
+    // 3. Perform check using chosen client
+    const { data: existing, error: checkError } = await apiClient
         .from('project_members')
         .select('*')
         .eq('project_id', projectId)
@@ -184,12 +279,12 @@ export async function toggleProjectMember(projectId: string, userId: string) {
 
     if (checkError) {
         console.error('ERROR CHECKING MEMBERSHIP:', checkError)
-        return { error: 'Failed to check membership' }
+        return { error: `Failed to check membership: ${checkError.message}` }
     }
 
     if (existing) {
         // Remove member
-        const { error: deleteError } = await supabase
+        const { error: deleteError } = await apiClient
             .from('project_members')
             .delete()
             .eq('project_id', projectId)
@@ -197,21 +292,23 @@ export async function toggleProjectMember(projectId: string, userId: string) {
 
         if (deleteError) {
             console.error('ERROR REMOVING MEMBER:', deleteError)
-            return { error: 'Failed to remove member' }
+            return { error: `Failed to remove member: ${deleteError.message}` }
         }
     } else {
         // Add member
-        const { error: insertError } = await supabase
+        const { error: insertError } = await apiClient
             .from('project_members')
             .insert({ project_id: projectId, user_id: userId })
 
         if (insertError) {
             console.error('ERROR ADDING MEMBER:', insertError)
-            return { error: 'Failed to add member' }
+            return { error: `Failed to add member: ${insertError.message}` }
         }
     }
 
     revalidatePath(`/dashboard/projects/${projectId}`)
+    revalidatePath('/dashboard/projects')
+    revalidatePath('/dashboard')
     return { success: true }
 }
 

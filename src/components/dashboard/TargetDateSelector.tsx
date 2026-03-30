@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useTransition } from 'react';
 import { updateProjectTargetDate } from '@/app/dashboard/actions';
-import { Calendar, ChevronLeft, ChevronRight, CornerDownLeft } from 'lucide-react';
+import { CalendarPlus, ChevronLeft, ChevronRight, CornerDownLeft } from 'lucide-react';
 
 interface TargetDateSelectorProps {
     projectId: string;
@@ -111,17 +111,17 @@ export function TargetDateSelector({ projectId, currentTargetDate }: TargetDateS
                 }}
                 className={`flex items-center gap-2 px-2 py-1 -ml-2 rounded-md hover:bg-gray-100/80 transition-colors text-gray-500 hover:text-gray-900 ${isPending ? 'opacity-50' : ''}`}
             >
-                <Calendar size={14} className={currentTargetDate ? "text-gray-900" : "text-gray-400"} />
+                <CalendarPlus size={14} className={currentTargetDate ? "text-gray-900" : "text-gray-400"} />
                 <span className={`text-xs ${currentTargetDate ? "font-medium text-gray-900" : ""}`}>
                     {formatDisplayDate(currentTargetDate)}
                 </span>
             </button>
 
             {isOpen && (
-                <div className="absolute top-8 left-0 w-[280px] bg-[#252528] rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] border border-[#3e3e42] py-3 z-50 text-white font-sans select-none">
+                <div className="absolute top-8 right-0 w-[280px] bg-[#252528] rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] border border-[#3e3e42] py-3 z-50 text-white font-sans select-none">
                     
                     <div className="px-3 mb-4">
-                        <div className="text-xs text-gray-400 mb-2 font-medium">Start date</div>
+                        <div className="text-xs text-gray-400 mb-2 font-medium">Target date</div>
                         <div className="relative">
                             <input
                                 ref={inputRef}
@@ -129,7 +129,7 @@ export function TargetDateSelector({ projectId, currentTargetDate }: TargetDateS
                                 value={searchValue}
                                 onChange={(e) => setSearchValue(e.target.value)}
                                 placeholder="try: May 2027, Q4, 20/05/2027"
-                                className="w-full bg-[#1c1c1f] border border-[#52525a]/50 text-gray-300 text-[13px] rounded-md py-1.5 px-3 focus:outline-none focus:border-[#7c7c85] transition-colors placeholder:text-[#52525a]"
+                                className="w-full bg-[#1c1c1f] border border-[#52525a]/50 text-gray-300 text-[13px] rounded-md py-1.5 px-3 focus:outline-none focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500/30 transition-all placeholder:text-[#52525a]"
                             />
                             {searchValue && (
                                 <button className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 bg-[#343438] rounded-sm p-0.5 border border-[#3e3e42]">
@@ -186,14 +186,14 @@ export function TargetDateSelector({ projectId, currentTargetDate }: TargetDateS
                                 const isSelectedDate = isSelected(day);
                                 
                                 let cellStyle = "text-gray-300 hover:bg-[#343438] hover:text-white cursor-pointer";
-                                if (isSelectedDate) cellStyle = "bg-[#ffffff] text-black font-semibold shadow-sm";
+                                if (isSelectedDate) cellStyle = "border-2 border-white text-white font-semibold";
                                 else if (isCurrentDate) cellStyle = "text-blue-400 font-semibold hover:bg-[#343438]";
 
                                 return (
                                     <button
                                         key={day}
                                         onClick={() => handleSelect(dateIso)}
-                                        className={`w-8 h-8 rounded-full flex items-center justify-center text-[12px] transition-colors ${cellStyle}`}
+                                        className={`w-8 h-8 rounded-full flex items-center justify-center text-[12px] transition-all ${cellStyle}`}
                                     >
                                         {day}
                                     </button>
@@ -207,17 +207,6 @@ export function TargetDateSelector({ projectId, currentTargetDate }: TargetDateS
                                 </div>
                             ))}
                         </div>
-                    </div>
-                    
-                    <div className="mt-3 px-3 pt-3 border-t border-[#3e3e42]/50">
-                        {currentTargetDate && (
-                            <button 
-                                onClick={() => handleSelect(null)}
-                                className="w-full py-1.5 text-xs text-gray-400 hover:text-white hover:bg-[#343438] rounded-md transition-colors"
-                            >
-                                Clear start date
-                            </button>
-                        )}
                     </div>
                 </div>
             )}

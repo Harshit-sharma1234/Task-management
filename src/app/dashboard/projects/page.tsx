@@ -26,9 +26,9 @@ export default async function ProjectsPage() {
     // Fetch users for the Lead dropdown and name mapping
     const { data: usersData } = await supabase
         .from('users')
-        .select('id, name')
+        .select('id, name, email')
         
-    const users = usersData || []
+    const users = (usersData || []) as { id: string, name: string, email: string }[]
     
     // Create an efficient dictionary to map lead_id to actual user names
     const userMap = users.reduce((acc, u) => {
@@ -85,7 +85,7 @@ export default async function ProjectsPage() {
                                 <div className="w-32 hidden md:block">Health</div>
                                 <div className="w-24 hidden md:block">Priority</div>
                                 <div className="w-32 hidden sm:block">Lead</div>
-                                <div className="w-32 hidden lg:block">Start date</div>
+                                <div className="w-32 hidden lg:block text-right pr-5">Target date</div>
                                 <div className="w-24 text-right pr-5">Status</div>
                             </div>
 
@@ -102,7 +102,13 @@ export default async function ProjectsPage() {
                                     // Base color mapping for initials (hash based on name string for consistent colors)
                                     const getBadgeColor = (name: string) => {
                                         if (name === 'Unassigned') return 'bg-gray-200 text-gray-500'
-                                        const colors = ['bg-orange-500', 'bg-blue-500', 'bg-emerald-500', 'bg-purple-500', 'bg-pink-500']
+                                        const colors = [
+                                            'bg-gradient-to-br from-orange-400 to-orange-500', 
+                                            'bg-gradient-to-br from-blue-400 to-blue-500', 
+                                            'bg-gradient-to-br from-emerald-400 to-emerald-500', 
+                                            'bg-gradient-to-br from-purple-400 to-purple-500', 
+                                            'bg-gradient-to-br from-pink-400 to-pink-500'
+                                        ]
                                         let hash = 0
                                         for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash)
                                         return `${colors[Math.abs(hash) % colors.length]} text-white`
@@ -111,13 +117,13 @@ export default async function ProjectsPage() {
                                     return (
                                         <div 
                                             key={project.id} 
-                                            className="flex items-center py-3.5 hover:bg-gray-50/80 transition-colors group cursor-pointer text-sm"
+                                            className="relative flex items-center py-3.5 hover:bg-gray-50/80 transition-colors group cursor-pointer text-sm z-0"
                                         >
                                             {/* Name */}
                                             <div className="flex-1 min-w-[200px] flex items-center gap-3 pl-5">
                                                 <Link 
                                                     href={`/dashboard/projects/${project.id}`}
-                                                    className="flex items-center gap-3 group/link hover:underline decoration-gray-400 underline-offset-4"
+                                                    className="flex items-center gap-3 group/link hover:underline decoration-gray-400 underline-offset-4 after:absolute after:inset-0 after:z-0"
                                                 >
                                                     <Folder size={15} className="text-gray-400 group-hover/link:text-gray-600 shrink-0" />
                                                     <span className="font-medium text-gray-900 truncate">{project.project_name}</span>
@@ -125,30 +131,37 @@ export default async function ProjectsPage() {
                                             </div>
                                             
                                             {/* Health */}
-                                            <div className="w-32 hidden md:flex items-center gap-2 text-gray-500">
+                                            <div className="w-32 hidden md:flex items-center gap-2 text-gray-500 relative z-10">
                                                 <div className="w-3.5 h-3.5 rounded-full border border-dashed border-gray-300"></div>
                                                 <span className="text-xs">No updates</span>
                                             </div>
                                             
                                             {/* Priority */}
-                                            <div className="w-24 hidden md:flex items-center">
+                                            <div className="w-24 hidden md:flex items-center relative z-10">
                                                 <PrioritySelector projectId={project.id} currentPriority={project.priority} />
                                             </div>
                                             
                                             {/* Lead */}
-                                            <div className="w-32 hidden sm:flex items-center gap-2">
+                                            <div className="w-32 hidden sm:flex items-center gap-2 relative z-10">
                                                 <LeadSelector projectId={project.id} currentLeadId={project.lead_id} users={users} />
                                             </div>
                                             
                                             {/* Target date */}
-                                            <div className="w-32 hidden lg:flex items-center gap-2">
+                                            <div className="w-32 hidden lg:flex items-center justify-end pr-5 relative z-10">
                                                 <TargetDateSelector projectId={project.id} currentTargetDate={project.start_date || null} />
                                             </div>
                                             
                                             {/* Status */}
-                                            <div className="w-24 flex items-center justify-end pr-5 text-gray-500 gap-2">
-                                                <div className="w-3.5 h-3.5 rounded-full border border-dashed border-orange-300"></div>
-                                                <span className="text-xs font-medium">0%</span>
+                                            <div className="w-24 flex items-center justify-end pr-5 text-gray-500 gap-2 relative z-10">
+                                                <div className={`w-3.5 h-3.5 rounded-full border border-dashed ${
+                                                    project.status === 'done' ? 'border-green-300' :
+                                                    project.status === 'cancelled' ? 'border-red-300' :
+                                                    project.status === 'in_progress' ? 'border-yellow-300' :
+                                                    'border-orange-300'
+                                                }`}></div>
+                                                <span className="text-xs font-medium">
+                                                    {project.status ? project.status.split('_').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') : 'Backlog'}
+                                                </span>
                                             </div>
                                         </div>
                                     )
