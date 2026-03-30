@@ -1,9 +1,9 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '../../lib/supabase/server'
+import { createAdminClient } from '../../lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
-import { getUserProfile } from '@/lib/roles'
+import { getUserProfile } from '../../lib/roles'
 
 export async function createProject(formData: FormData) {
     const supabase = await createClient()
