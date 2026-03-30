@@ -1,6 +1,5 @@
 import Link from 'next/link';
-import { Mail, Lock, AlertCircle } from 'lucide-react';
-import { login } from './actions';
+import LoginForm from './LoginForm';
 
 export const metadata = {
   title: 'Log in | Linear Clone',
@@ -17,54 +16,16 @@ export default async function Login({ searchParams }: { searchParams: { message:
           <p className="text-sm text-[var(--color-linear-muted)]">Enter your details to continue.</p>
         </div>
         
-        {resolvedSearchParams?.message && (
-          <div className="mb-4 p-3 rounded-md bg-red-500/10 border border-red-500/20 text-red-500 text-xs flex items-center gap-2">
-            <AlertCircle size={14} />
-            <span>{resolvedSearchParams.message}</span>
-          </div>
-        )}
-
-        <form className="space-y-4" action={login}>
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-[var(--color-linear-muted)]">Email</label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-[var(--color-linear-muted)]">
-                <Mail size={16} />
-              </div>
-              <input 
-                type="email" 
-                name="email"
-                required
-                className="w-full pl-10 pr-3 py-2 bg-[var(--color-linear-bg)] border border-[var(--color-linear-border)] rounded-md text-sm focus:outline-none focus:border-[var(--color-linear-accent)] transition-colors"
-                placeholder="you@example.com"
-              />
-            </div>
-          </div>
-          
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-[var(--color-linear-muted)]">Password</label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-[var(--color-linear-muted)]">
-                <Lock size={16} />
-              </div>
-              <input 
-                type="password" 
-                name="password"
-                required
-                className="w-full pl-10 pr-3 py-2 bg-[var(--color-linear-bg)] border border-[var(--color-linear-border)] rounded-md text-sm focus:outline-none focus:border-[var(--color-linear-accent)] transition-colors"
-                placeholder="••••••••"
-              />
-            </div>
-          </div>
-          
-          <button 
-            type="submit" 
-            className="w-full py-2 px-4 mt-6 bg-[var(--color-linear-accent)] hover:bg-[var(--color-linear-accent-hover)] text-white text-sm font-medium rounded-md transition-colors shadow-sm"
-          >
-            Continue
-          </button>
-        </form>
+        <LoginForm initialMessage={resolvedSearchParams?.message} />
         
+        <div className="mt-8 text-center">
+          <p className="text-xs text-[var(--color-linear-muted)]">
+            Don't have an account?{' '}
+            <Link href="/signup" className="text-[var(--color-linear-accent)] hover:underline">
+              Sign up
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );
