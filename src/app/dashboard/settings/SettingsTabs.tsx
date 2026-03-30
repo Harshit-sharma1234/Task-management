@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { UserCircle, Shield, Plus, MoreHorizontal, Monitor, Lock } from 'lucide-react'
+import { UserCircle, Shield, Plus, Lock } from 'lucide-react'
 import { updateUserPassword, updateUserAvatar } from '@/app/dashboard/actions'
 import { createClient } from '@/lib/supabase/client'
 
@@ -237,31 +237,6 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
                                     </div>
                                 </div>
                             </div>
-
-                            {/* Connected Accounts Row */}
-                            <div>
-                                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-5">Connected Accounts</h4>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="p-4 rounded-2xl border border-gray-100 flex items-center justify-between opacity-50 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-300 bg-gray-50/20">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center">
-                                                <MoreHorizontal size={16} className="text-gray-400" />
-                                            </div>
-                                            <span className="text-sm font-bold text-gray-900">GitHub</span>
-                                        </div>
-                                        <span className="text-[10px] font-bold text-gray-400 uppercase">Disconnected</span>
-                                    </div>
-                                    <div className="p-4 rounded-2xl border border-gray-100 flex items-center justify-between opacity-50 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-300 bg-gray-50/20">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center">
-                                                <MoreHorizontal size={16} className="text-gray-400" />
-                                            </div>
-                                            <span className="text-sm font-bold text-gray-900">Google</span>
-                                        </div>
-                                        <span className="text-[10px] font-bold text-gray-400 uppercase">Disconnected</span>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 ) : (
@@ -365,37 +340,6 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
                                         </div>
                                     </div>
                                 )}
-                            </div>
-
-                            {/* Active Devices Row */}
-                            <div className="p-6 rounded-2xl border border-gray-100 flex items-center justify-between hover:bg-gray-50/30 transition-all duration-300 shadow-sm">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 rounded-2xl bg-gray-100/80 flex items-center justify-center text-gray-700">
-                                        <Monitor size={22} />
-                                    </div>
-                                    <div>
-                                        <div className="flex items-center gap-2 mb-0.5">
-                                            <h4 className="text-sm font-bold text-gray-900">Current Session</h4>
-                                            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-100 text-emerald-700 uppercase tracking-tighter">Active Now</span>
-                                        </div>
-                                        <p className="text-xs text-gray-500 font-medium">MacBook Air · Chrome · India</p>
-                                    </div>
-                                </div>
-                                <button className="text-xs font-bold text-gray-400 hover:text-red-500 transition-colors">Terminate All</button>
-                            </div>
-
-                            {/* Danger Zone */}
-                            <div className="pt-8 mt-10 border-t border-gray-100">
-                                <h4 className="text-[10px] font-bold text-red-500 uppercase tracking-[0.2em] mb-4">Danger Zone</h4>
-                                <div className="p-6 rounded-2xl border border-red-100 bg-red-50/10 flex items-center justify-between group hover:bg-red-50/30 transition-all duration-300">
-                                    <div>
-                                        <p className="text-sm font-bold text-gray-900 mb-0.5">Delete This Account</p>
-                                        <p className="text-xs text-gray-500">Once deleted, your account and all data are gone forever.</p>
-                                    </div>
-                                    <button className="px-5 py-2.5 text-xs font-bold text-red-600 bg-white border border-red-100 hover:bg-red-600 hover:text-white rounded-xl shadow-sm transition-all active:scale-95">
-                                        Delete Account
-                                    </button>
-                                </div>
                             </div>
                         </div>
                     </div>
