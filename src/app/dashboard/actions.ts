@@ -1,5 +1,7 @@
 'use server'
 
+// Action definitions for the dashboard components
+
 import { createClient } from '../../lib/supabase/server'
 import { createAdminClient } from '../../lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
