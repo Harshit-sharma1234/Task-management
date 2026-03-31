@@ -2,22 +2,31 @@
 
 import { useState, useRef, useEffect, useTransition } from 'react';
 import { updateProjectLead } from '@/app/dashboard/actions';
-import { User as UserIcon } from 'lucide-react';
+import { User as UserIcon, Search, Check } from 'lucide-react';
 
 interface User {
     id: string;
     name: string;
+    email: string;
 }
 
 interface LeadSelectorProps {
     projectId: string;
     currentLeadId: string | null;
     users: User[];
+    showEmail?: boolean;
+    align?: 'left' | 'right';
 }
 
 export const getBadgeColor = (name: string) => {
     if (name === 'Unassigned' || name === '?') return 'bg-gray-200 text-gray-500'
-    const colors = ['bg-orange-500', 'bg-blue-500', 'bg-emerald-500', 'bg-purple-500', 'bg-pink-500']
+    const colors = [
+        'bg-gradient-to-br from-orange-400 to-orange-500', 
+        'bg-gradient-to-br from-blue-400 to-blue-500', 
+        'bg-gradient-to-br from-emerald-400 to-emerald-500', 
+        'bg-gradient-to-br from-purple-400 to-purple-500', 
+        'bg-gradient-to-br from-pink-400 to-pink-500'
+    ]
     let hash = 0
     for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash)
     return `${colors[Math.abs(hash) % colors.length]} text-white`
@@ -28,15 +37,28 @@ export const getInitials = (name: string) => {
     return name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()
 }
 
-export function LeadSelector({ projectId, currentLeadId, users }: LeadSelectorProps) {
+export function LeadSelector({ 
+    projectId, 
+    currentLeadId, 
+    users, 
+    showEmail = false,
+    align = 'left'
+}: LeadSelectorProps) {
     const [isOpen, setIsOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
     const [isPending, startTransition] = useTransition();
     const dropdownRef = useRef<HTMLDivElement>(null);
 
+    // Filter users based on search
+    const filteredUsers = users.filter(user => 
+        user.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        user.email.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
     // Current lead processing
     const currentLead = users.find(u => u.id === currentLeadId);
-    const leadName = currentLead ? currentLead.name : 'Unassigned';
-    const initials = getInitials(leadName);
+    const leadLabel = currentLead ? (showEmail ? currentLead.email : currentLead.name) : 'Unassigned';
+    const initials = getInitials(currentLead ? currentLead.name : 'Unassigned');
 
     // Click outside logic
     useEffect(() => {
@@ -74,37 +96,56 @@ export function LeadSelector({ projectId, currentLeadId, users }: LeadSelectorPr
                     e.stopPropagation();
                     setIsOpen(!isOpen);
                 }}
-                className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 shadow-sm hover:ring-2 hover:ring-gray-200 transition-all ${getBadgeColor(leadName)} ${isPending ? 'opacity-50' : ''}`}
+                className={`flex items-center gap-2 py-1 rounded-md hover:bg-gray-100/80 transition-colors text-gray-500 hover:text-gray-900 ${isPending ? 'opacity-50' : ''}`}
             >
-                {initials}
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 border border-white shadow-sm ${getBadgeColor(currentLead ? currentLead.name : 'Unassigned')}`}>
+                    {initials}
+                </div>
+                {showEmail && (
+                    <span className="text-[11px] font-medium text-gray-700 truncate max-w-[200px]">
+                        {leadLabel}
+                    </span>
+                )}
             </button>
 
             {isOpen && (
-                <div className="absolute top-8 left-0 w-56 bg-[#252528] rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.3)] border border-[#3e3e42] py-2 z-50 text-white font-sans overflow-hidden">
-                    <div className="px-3 pb-2 mb-2 border-b border-[#3e3e42]/50 text-xs text-gray-400">
-                        Assign lead...
+                <div className={`absolute ${align === 'left' ? 'left-0' : 'right-0'} top-full mt-2 w-64 bg-white border border-gray-100 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200`}>
+                    <div className="p-2 border-b border-gray-50 flex items-center gap-2 bg-gray-50/50">
+                        <Search size={14} className="text-gray-400 ml-2" />
+                        <input 
+                            type="text"
+                            placeholder="Assign lead..."
+                            className="w-full bg-transparent border-none outline-none text-xs py-1"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            autoFocus
+                        />
                     </div>
                     
-                    <div className="flex flex-col max-h-64 overflow-y-auto">
+                    <div className="flex flex-col max-h-64 overflow-y-auto p-1">
                         <button
                             onClick={(e) => {
                                 e.stopPropagation();
                                 handleSelect(null);
                             }}
-                            className="flex items-center justify-between px-3 py-1.5 hover:bg-[#343438] transition-colors w-full text-left"
+                            className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 transition-colors w-full text-left group"
                         >
-                            <div className="flex items-center gap-3">
-                                <div className="w-5 h-5 rounded-full bg-[#1c1c1f] border border-[#3e3e42] flex items-center justify-center text-gray-500 shrink-0">
-                                    <UserIcon size={10} />
+                            <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-400 shrink-0">
+                                    <UserIcon size={12} />
                                 </div>
-                                <span className={`text-sm ${!currentLeadId ? 'text-white' : 'text-gray-300'}`}>
+                                <span className={`text-xs font-semibold ${!currentLeadId ? 'text-gray-900' : 'text-gray-600'}`}>
                                     Unassigned
                                 </span>
                             </div>
-                            {!currentLeadId && <span className="text-gray-400 text-[10px]">✓</span>}
+                            {!currentLeadId && <Check size={14} className="text-indigo-600" />}
                         </button>
 
-                        {users.map((u) => {
+                        {filteredUsers.length === 0 && searchQuery && (
+                            <div className="p-3 text-center text-xs text-gray-400">No users found</div>
+                        )}
+
+                        {filteredUsers.map((u) => {
                             const isSelected = currentLeadId === u.id;
                             const uInitials = getInitials(u.name);
                             
@@ -115,17 +156,22 @@ export function LeadSelector({ projectId, currentLeadId, users }: LeadSelectorPr
                                         e.stopPropagation();
                                         handleSelect(u.id);
                                     }}
-                                    className="flex items-center justify-between px-3 py-1.5 hover:bg-[#343438] transition-colors w-full text-left"
+                                    className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 transition-colors text-left group"
                                 >
-                                    <div className="flex items-center gap-3">
-                                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold shrink-0 ${getBadgeColor(u.name)}`}>
+                                    <div className="flex items-center gap-2 overflow-hidden">
+                                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 ${getBadgeColor(u.name)}`}>
                                             {uInitials}
                                         </div>
-                                        <span className={`text-sm truncate ${isSelected ? 'text-white' : 'text-gray-300'}`}>
-                                            {u.name}
-                                        </span>
+                                        <div className="flex flex-col overflow-hidden">
+                                            <span className="text-xs font-semibold text-gray-900 truncate">
+                                                {u.email}
+                                            </span>
+                                            <span className="text-[10px] text-gray-500 truncate">
+                                                {u.name}
+                                            </span>
+                                        </div>
                                     </div>
-                                    {isSelected && <span className="text-gray-400 text-[10px]">✓</span>}
+                                    {isSelected && <Check size={14} className="text-indigo-600 shrink-0" />}
                                 </button>
                             );
                         })}

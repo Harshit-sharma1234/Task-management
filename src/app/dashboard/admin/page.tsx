@@ -1,11 +1,10 @@
-import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getUserProfile } from '@/lib/roles'
 import { Shield } from 'lucide-react'
 import DashboardOverview from '@/components/dashboard/Overview'
 import { DashboardSkeleton } from '@/components/dashboard/DashboardSkeleton'
-
+import { Suspense } from 'react'
 export default async function AdminDashboard() {
     const supabase = await createClient()
     const { data, error } = await supabase.auth.getUser()

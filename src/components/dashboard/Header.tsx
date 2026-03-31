@@ -2,6 +2,7 @@
 
 import { Search, Moon, LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import { useEffect, useState } from 'react';
 function stringToColor(str: string) {
@@ -19,12 +20,14 @@ export function Header() {
   const [userProfile, setUserProfile] = useState<{ name: string, avatar_url: string | null } | null>(null)
   const [signingOut, setSigningOut] = useState(false)
   const supabase = createClient()
+  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false)
 
   useEffect(() => {
+    const supabase = createClient()
+
     async function fetchUser() {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
-        // Use email-based fetching to match the Settings page (more reliable in this DB)
         const { data } = await supabase
             .from('users')
             .select('name, avatar_url')
@@ -36,7 +39,6 @@ export function Header() {
             avatar_url: data[0].avatar_url 
           })
         } else {
-          // Fallback to auth metadata
           setUserProfile({ 
             name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User', 
             avatar_url: null 
@@ -44,7 +46,19 @@ export function Header() {
         }
       }
     }
+
     fetchUser()
+
+    // Re-fetch profile when session recovers (e.g. after network change)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        fetchUser()
+      }
+    })
+
+    return () => {
+      subscription.unsubscribe()
+    }
   }, [])
 
   const handleSignOut = async () => {
@@ -111,8 +125,8 @@ export function Header() {
             </div>
         )}
 
-        {/* Separator */}
-        <div className="w-px h-6 bg-gray-200 mx-1"></div>
+          {/* Separator */}
+          <div className="w-px h-6 bg-gray-200 mx-1"></div>
 
         {/* Sign Out Button */}
         <button 
@@ -127,3 +141,4 @@ export function Header() {
     </>
   );
 }
+

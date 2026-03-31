@@ -130,8 +130,16 @@ export default async function DashboardOverview() {
                                                     <p className="text-xs text-gray-500 mt-1 line-clamp-1">{project.description || 'No description'}</p>
                                                 </div>
                                             </div>
-                                            <div className="text-right flex flex-col items-end">
-                                                <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">Active</span>
+                                            <div className="text-right flex items-center gap-2">
+                                                <div className={`w-2 h-2 rounded-full ${
+                                                    project.status === 'done' ? 'bg-green-500' :
+                                                    project.status === 'in_progress' ? 'bg-blue-500' :
+                                                    project.status === 'cancelled' ? 'bg-red-500' :
+                                                    'bg-orange-500'
+                                                }`}></div>
+                                                <span className="text-[10px] font-bold uppercase text-gray-400 tracking-tight">
+                                                    {project.status ? project.status.replace('_', ' ') : 'backlog'}
+                                                </span>
                                             </div>
                                         </div>
                                     ))}

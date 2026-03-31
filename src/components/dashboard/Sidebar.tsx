@@ -11,7 +11,8 @@ import {
   Users, 
   Settings, 
   ChevronRight,
-  CircleDot
+  CircleDot,
+  Bell
 } from 'lucide-react';
 
 export function Sidebar() {
@@ -58,6 +59,24 @@ export function Sidebar() {
             pathname === '/dashboard' || pathname === '/dashboard/pm' || pathname === '/dashboard/dev' || pathname === '/dashboard/admin' ? 'text-gray-700' : 'text-gray-500 group-hover:text-gray-700'
           } />
           <span className="text-sm font-medium">Dashboard</span>
+        </Link>
+        <Link 
+          href="/dashboard/inbox" 
+          className={`flex items-center justify-between px-3 py-2 rounded-md group transition-colors ${
+            pathname === '/dashboard/inbox' 
+              ? 'bg-gray-100 text-indigo-600' 
+              : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <Bell size={18} className={
+              pathname === '/dashboard/inbox' ? 'text-indigo-600' : 'text-gray-500 group-hover:text-gray-700'
+            } />
+            <span className="text-sm font-medium">Inbox</span>
+          </div>
+          {unreadCount > 0 && (
+            <span className="w-2 h-2 rounded-full bg-indigo-600" />
+          )}
         </Link>
         <Link 
           href="/dashboard/projects" 
@@ -117,7 +136,6 @@ export function Sidebar() {
           <div className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-gray-50 rounded-md transition-colors">
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold text-gray-600">My Tasks</span>
-              <span className="flex items-center justify-center bg-gray-100 text-gray-600 text-[10px] h-4 w-4 rounded-full font-medium">0</span>
             </div>
             <ChevronRight size={14} className="text-gray-400" />
           </div>
