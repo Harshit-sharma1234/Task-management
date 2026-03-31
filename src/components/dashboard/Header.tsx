@@ -2,6 +2,7 @@
 
 import { Search, Moon, LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import { useEffect, useState } from 'react';
 function stringToColor(str: string) {
@@ -83,9 +84,11 @@ export function Header() {
           
           {/* User Profile avatar */}
           {userProfile?.avatar_url ? (
-              <img 
+              <Image 
                 src={userProfile.avatar_url} 
                 alt="Profile" 
+                width={32}
+                height={32}
                 className="w-8 h-8 rounded-full object-cover shadow-sm border border-gray-100 cursor-pointer" 
               />
           ) : (
