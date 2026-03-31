@@ -105,7 +105,7 @@ export function ProjectOverview({ project, users, currentMemberIds, currentUser 
               </div>
               
               <div className="flex items-center gap-2">
-                <div className={`w-5 h-5 rounded-full bg-gradient-to-br ${getGradient(currentUser?.email || 'user@example.com')} flex items-center justify-center text-[9px] font-bold text-white shadow-sm ring-1 ring-white/10`}>
+                <div className={`w-5 h-5 rounded-full bg-linear-to-br ${getGradient(currentUser?.email || 'user@example.com')} flex items-center justify-center text-[9px] font-bold text-white shadow-sm ring-1 ring-white/10`}>
                   {(currentUser?.email?.[0] || 'U').toUpperCase()}
                 </div>
                 <span className="text-xs text-gray-400">{currentUser?.email}</span>
