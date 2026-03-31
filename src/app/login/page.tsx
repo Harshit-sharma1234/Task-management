@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import LoginForm from './LoginForm';
+import { createClient } from '@/lib/supabase/client';
+import { redirect } from 'next/navigation';
 
 export const metadata = {
   title: 'Log in | Linear Clone',
@@ -7,6 +9,12 @@ export const metadata = {
 
 export default async function Login({ searchParams }: { searchParams: { message: string } }) {
   const resolvedSearchParams = await searchParams;
+  const supabase = await createClient()
+  const { data, error } = await supabase.auth.getUser()
+
+  if (data.user) {
+    redirect('/dashboard')
+  }
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-[var(--color-linear-bg)] text-[var(--color-linear-text)]">
