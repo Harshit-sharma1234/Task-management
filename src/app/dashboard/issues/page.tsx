@@ -33,7 +33,7 @@ const priorityIcons: Record<string, any> = {
   'urgent': { label: 'Urgent', icon: SignalHigh, color: 'text-red-600' },
   'high': { label: 'High', icon: SignalHigh, color: 'text-red-500' },
   'medium': { label: 'Medium', icon: SignalMedium, color: 'text-yellow-500' },
-  'low': { label: 'Low', icon: SignalLow, color: 'text-blue-500' },
+  'low': { label: 'Low', icon: SignalLow, color: 'text-indigo-500' },
   'no_priority': { label: 'No priority', icon: MoreHorizontal, color: 'text-gray-400' },
 };
 
@@ -57,9 +57,19 @@ async function IssueListContent() {
 
   // Fetch all required data in parallel
   const [ticketsRes, projectsRes, usersRes] = await Promise.all([
-    supabase.from('tickets').select('*, projects(id, project_name)').order('created_at', { ascending: false }),
-    supabase.from('projects').select('id, project_name').order('project_name'),
-    supabase.from('users').select('id, name').order('name')
+    supabase
+      .from('tickets')
+      .select('*, projects(id, project_name)')
+      .order('created_at', { ascending: false })
+      .limit(100),
+    supabase
+      .from('projects')
+      .select('id, project_name')
+      .order('project_name'),
+    supabase
+      .from('users')
+      .select('id, name')
+      .order('name')
   ]);
 
   const tickets = ticketsRes.data || [];
@@ -84,7 +94,6 @@ async function IssueListContent() {
         users={users}
       />
 
-      {/* List Content */}
       <div className="flex-1 overflow-y-auto p-8 max-w-5xl">
         {Object.keys(groupedTickets).length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -97,7 +106,6 @@ async function IssueListContent() {
         ) : (
           Object.entries(groupedTickets).map(([projectName, projectTickets]: [string, any]) => (
             <div key={projectName} className="mb-8 last:mb-0">
-              {/* Project Group Header */}
               <div className="flex items-center gap-3 mb-3 px-2 text-gray-900">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-indigo-500" />
@@ -106,7 +114,6 @@ async function IssueListContent() {
                 <span className="text-xs text-gray-400 font-medium">{projectTickets.length}</span>
               </div>
 
-              {/* Issues List */}
               <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
                 {projectTickets.map((ticket: any, index: number) => {
                   const statusData = statusIcons[ticket.status] || statusIcons['to_do'];
@@ -126,12 +133,10 @@ async function IssueListContent() {
                       )}
                     >
                       <div className="flex items-center gap-4 min-w-0">
-                        {/* Status Icon */}
                         <div className={clsx("shrink-0", statusColor)}>
                           <StatusIcon size={18} strokeWidth={2.5} />
                         </div>
                         
-                        {/* Issue Identifier & Title */}
                         <div className="flex items-center gap-3 min-w-0">
                           <span className="text-xs font-medium text-gray-400 uppercase shrink-0">
                             {projectName.substring(0, 3)}-{ticket.id.substring(0, 4)}
@@ -143,19 +148,16 @@ async function IssueListContent() {
                       </div>
 
                       <div className="flex items-center gap-6 shrink-0">
-                        {/* Priority */}
                         <div className={clsx("flex items-center gap-1", priorityColor)} title={`Priority: ${ticket.priority}`}>
                           <PriorityIcon size={16} />
                         </div>
 
-                        {/* Assignee / Info (Simplified) */}
                         <div className="flex items-center -space-x-1">
                           <div className="w-6 h-6 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-[10px] font-bold text-gray-600 uppercase">
                             {ticket.assignee_id ? '?' : 'U'}
                           </div>
                         </div>
 
-                        {/* Date */}
                         <span className="text-xs text-gray-400 font-medium">
                           {new Date(ticket.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                         </span>

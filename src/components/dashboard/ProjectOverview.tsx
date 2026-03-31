@@ -1,16 +1,42 @@
 'use client';
 
-import { Building2, MessageCircle, Plus, FileText, Milestone, ChevronRight } from 'lucide-react';
+import { useState, useTransition } from 'react';
+import { Building2, Plus, Check, X } from 'lucide-react';
 import { PrioritySelector } from './PrioritySelector';
 import { LeadSelector } from './LeadSelector';
 import { TargetDateSelector } from './TargetDateSelector';
+import { StatusSelector } from './StatusSelector';
+import { MemberSelector } from './MemberSelector';
+import { updateProjectDescription } from '@/app/dashboard/actions';
 
 interface ProjectOverviewProps {
   project: any;
   users: any[];
+  currentMemberIds: string[];
+  currentUser?: any;
 }
 
-export function ProjectOverview({ project, users }: ProjectOverviewProps) {
+export function ProjectOverview({ project, users, currentMemberIds, currentUser }: ProjectOverviewProps) {
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [descriptionValue, setDescriptionValue] = useState(project.description || '');
+  const [isPending, startTransition] = useTransition();
+
+  const handleSaveDescription = () => {
+    if (descriptionValue === project.description) {
+      setIsEditingDescription(false);
+      return;
+    }
+
+    startTransition(async () => {
+      const res = await updateProjectDescription(project.id, descriptionValue);
+      if (res.error) {
+        alert(res.error);
+      } else {
+        setIsEditingDescription(false);
+      }
+    });
+  };
+
   return (
     <div className="p-8 max-w-4xl mx-auto space-y-12 bg-white">
       {/* Title Section */}
@@ -21,9 +47,6 @@ export function ProjectOverview({ project, users }: ProjectOverviewProps) {
           </div>
           <div className="flex flex-col">
             <h1 className="text-3xl font-bold text-gray-900 tracking-tight">{project.project_name}</h1>
-            <button className="text-gray-400 text-sm hover:text-gray-600 text-left transition-colors">
-              Add a short summary...
-            </button>
           </div>
         </div>
 
@@ -31,12 +54,10 @@ export function ProjectOverview({ project, users }: ProjectOverviewProps) {
         <div className="flex flex-wrap items-center gap-x-8 gap-y-3 pt-4 border-t border-gray-100">
           <div className="flex items-center gap-2 text-sm text-gray-500">
             <span className="text-gray-400 font-medium tracking-tight">Properties</span>
-            <div className="flex items-center gap-1 bg-gray-50 px-2 py-1 rounded border border-gray-200/50 text-gray-600">
-              <div className="w-2 h-2 rounded-full border border-gray-400"></div>
-              <span className="text-xs">Backlog</span>
-            </div>
-            <PrioritySelector projectId={project.id} currentPriority={project.priority} />
-            <LeadSelector projectId={project.id} currentLeadId={project.lead_id} users={users} />
+            <StatusSelector projectId={project.id} currentStatus={project.status} />
+            <PrioritySelector projectId={project.id} currentPriority={project.priority} showLabel={true} />
+            <LeadSelector projectId={project.id} currentLeadId={project.lead_id} users={users} showEmail={true} />
+            <MemberSelector projectId={project.id} users={users} currentMemberIds={currentMemberIds} showEmails={true} />
             <TargetDateSelector projectId={project.id} currentTargetDate={project.start_date || null} />
           </div>
         </div>
@@ -51,20 +72,53 @@ export function ProjectOverview({ project, users }: ProjectOverviewProps) {
         </button>
       </div>
 
-      {/* Update Card */}
-      <div className="bg-white border border-gray-200 rounded-xl p-6 hover:border-indigo-200 hover:shadow-sm transition-all cursor-pointer group">
-        <div className="flex items-center gap-3 text-gray-500">
-          <FileText size={20} className="text-indigo-500" />
-          <span className="group-hover:text-gray-900">Write first project update</span>
-        </div>
-      </div>
-
       {/* Description */}
       <div className="space-y-4">
-        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Description</h3>
-        <p className="text-gray-600 text-sm leading-relaxed">
-          {project.description || "Add description..."}
-        </p>
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Description</h3>
+          {isEditingDescription && (
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => setIsEditingDescription(false)}
+                className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                disabled={isPending}
+              >
+                <X size={16} />
+              </button>
+              <button 
+                onClick={handleSaveDescription}
+                className="p-1 text-indigo-600 hover:text-indigo-700 transition-colors"
+                disabled={isPending}
+              >
+                <Check size={16} />
+              </button>
+            </div>
+          )}
+        </div>
+        
+        {isEditingDescription ? (
+          <textarea
+            value={descriptionValue}
+            onChange={(e) => setDescriptionValue(e.target.value)}
+            onBlur={(e) => {
+              // Only save if clicking outside the save button area
+              // For simplicity, we'll rely on the buttons for now
+            }}
+            placeholder="Add description..."
+            autoFocus
+            className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm text-gray-600 focus:outline-none focus:ring-1 focus:ring-indigo-500/30 focus:border-indigo-500/50 transition-all min-h-[120px] resize-none"
+            disabled={isPending}
+          />
+        ) : (
+          <div 
+            onClick={() => setIsEditingDescription(true)}
+            className="group cursor-text"
+          >
+            <p className={`text-gray-600 text-sm leading-relaxed ${!project.description ? 'text-gray-400 italic' : ''}`}>
+              {project.description || "Add description..."}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Milestones */}
