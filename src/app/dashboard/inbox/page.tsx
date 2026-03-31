@@ -1,132 +1,651 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { InboxSidebar } from '@/components/dashboard/inbox/InboxSidebar';
-import { NotificationItem } from '@/components/dashboard/inbox/NotificationItem';
-import { markAsRead, markAllAsRead } from '@/app/dashboard/notifications/actions';
-import { Loader2, BellOff } from 'lucide-react';
+import { 
+    markAsRead, 
+    markAllAsRead, 
+    deleteAllNotifications, 
+    deleteAllReadNotifications 
+} from '@/app/dashboard/notifications/actions';
+import { formatDistanceToNow } from 'date-fns';
+import { 
+    Loader2, 
+    BellOff, 
+    MoreHorizontal, 
+    Filter, 
+    Settings2, 
+    Check, 
+    Trash2, 
+    CheckCircle2, 
+    X,
+    ChevronRight,
+    MessageSquare,
+    UserPlus,
+    Zap,
+    FileText,
+    Circle,
+    CircleEllipsis,
+    SignalHigh,
+    SignalMedium,
+    SignalLow,
+    FolderKanban,
+    Clock,
+    ArrowLeft
+} from 'lucide-react';
+
+// Color palette for avatars
+const avatarColors = [
+    'bg-indigo-500', 'bg-emerald-500', 'bg-amber-500', 'bg-rose-500',
+    'bg-violet-500', 'bg-cyan-500', 'bg-pink-500', 'bg-teal-500'
+];
+
+function getAvatarColor(name: string) {
+    if (!name) return avatarColors[0];
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return avatarColors[Math.abs(hash) % avatarColors.length];
+}
+
+// Status icons for tickets
+const statusIcons: Record<string, any> = {
+    'to_do': { label: 'Todo', icon: Circle, color: 'text-gray-400' },
+    'in_progress': { label: 'In Progress', icon: CircleEllipsis, color: 'text-yellow-500' },
+    'done': { label: 'Done', icon: CheckCircle2, color: 'text-indigo-500' },
+    'backlog': { label: 'Backlog', icon: Circle, color: 'text-gray-300' },
+    'review': { label: 'Review', icon: CircleEllipsis, color: 'text-orange-500' },
+    'in_review': { label: 'In Review', icon: CircleEllipsis, color: 'text-orange-600' },
+    'cancelled': { label: 'Cancelled', icon: X, color: 'text-red-400' },
+};
+
+const priorityIcons: Record<string, any> = {
+    'urgent': { label: 'Urgent', icon: SignalHigh, color: 'text-red-600' },
+    'high': { label: 'High', icon: SignalHigh, color: 'text-red-500' },
+    'medium': { label: 'Medium', icon: SignalMedium, color: 'text-yellow-500' },
+    'low': { label: 'Low', icon: SignalLow, color: 'text-blue-500' },
+    'no_priority': { label: 'No priority', icon: MoreHorizontal, color: 'text-gray-400' },
+};
+
+type ViewOptions = {
+    ordering: 'newest' | 'oldest';
+    showRead: boolean;
+    unreadFirst: boolean;
+};
 
 export default function InboxPage() {
-  const [activeTab, setActiveTab] = useState('unread');
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [currentUser, setCurrentUser] = useState<any>(null);
-  const supabase = createClient();
+    const [notifications, setNotifications] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [currentUser, setCurrentUser] = useState<any>(null);
+    const [selectedId, setSelectedId] = useState<string | null>(null);
+    const [entityDetail, setEntityDetail] = useState<any>(null);
+    const [entityActivity, setEntityActivity] = useState<any[]>([]);
+    const [detailLoading, setDetailLoading] = useState(false);
+    const [viewOptions, setViewOptions] = useState<ViewOptions>({
+        ordering: 'newest',
+        showRead: true,
+        unreadFirst: true,
+    });
+    const [showActions, setShowActions] = useState(false);
+    const [showFilters, setShowFilters] = useState(false);
+    const [showViewOptions, setShowViewOptions] = useState(false);
+    const [typeFilter, setTypeFilter] = useState<string[]>([]);
 
-  useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      setCurrentUser(user);
-      if (user) {
-        fetchNotifications(user.id);
-        
-        // Real-time subscription
-        const channel = supabase
-          .channel('schema-db-changes')
-          .on(
-            'postgres_changes',
-            {
-              event: 'INSERT',
-              schema: 'public',
-              table: 'notifications',
-              filter: `user_id=eq.${user.id}`,
-            },
-            () => {
-              fetchNotifications(user.id);
+    const supabase = createClient();
+
+    useEffect(() => {
+        let channel: ReturnType<typeof supabase.channel> | null = null;
+
+        async function init() {
+            const { data: { user } } = await supabase.auth.getUser();
+            setCurrentUser(user);
+            if (user) {
+                fetchNotifications(user.id);
+                
+                if (channel) supabase.removeChannel(channel);
+
+                channel = supabase
+                    .channel('inbox-realtime')
+                    .on(
+                        'postgres_changes',
+                        { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+                        () => fetchNotifications(user.id)
+                    )
+                    .subscribe();
             }
-          )
-          .subscribe();
+        }
+
+        init();
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+            if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+                init();
+            }
+        });
 
         return () => {
-          supabase.removeChannel(channel);
+            if (channel) supabase.removeChannel(channel);
+            subscription.unsubscribe();
         };
-      }
+    }, []);
+
+    async function fetchNotifications(userId: string) {
+        const { data, error } = await supabase
+            .from('notifications')
+            .select(`
+                *,
+                actor:actor_id(id, name, email)
+            `)
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
+
+        if (!error) {
+            setNotifications(data || []);
+            // Auto-select first notification if none selected
+            if (!selectedId && data && data.length > 0) {
+                setSelectedId(data[0].id);
+                fetchEntityDetail(data[0]);
+            }
+        }
+        setLoading(false);
     }
-    init();
-  }, []);
 
-  async function fetchNotifications(userId: string) {
-    const { data, error } = await supabase
-      .from('notifications')
-      .select('*, actor:actor_id(name, email)')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
+    async function fetchEntityDetail(notification: any) {
+        setDetailLoading(true);
+        setEntityDetail(null);
+        setEntityActivity([]);
 
-    if (!error) {
-      setNotifications(data || []);
+        if (notification.entity_type === 'ticket') {
+            const [ticketRes, commentsRes, logsRes] = await Promise.all([
+                supabase
+                    .from('tickets')
+                    .select(`
+                        *,
+                        projects (id, project_name),
+                        created_by_user: users!tickets_created_by_fkey (id, name, email),
+                        assigned_to_user: users!tickets_assignee_id_fkey (id, name, email)
+                    `)
+                    .eq('id', notification.entity_id)
+                    .single(),
+                supabase
+                    .from('comments')
+                    .select('*, users(id, name, email)')
+                    .eq('ticket_id', notification.entity_id)
+                    .order('created_at', { ascending: true }),
+                supabase
+                    .from('logs')
+                    .select('*, users(id, name)')
+                    .eq('ticket_id', notification.entity_id)
+                    .order('created_at', { ascending: true })
+            ]);
+
+            if (ticketRes.data) {
+                setEntityDetail({ type: 'ticket', data: ticketRes.data });
+            }
+
+            const activity = [
+                ...(commentsRes.data || []).map(c => ({ ...c, activityType: 'comment' })),
+                ...(logsRes.data || []).map(l => ({ ...l, activityType: 'log' })),
+            ].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+            setEntityActivity(activity);
+
+        } else if (notification.entity_type === 'project') {
+            const { data } = await supabase
+                .from('projects')
+                .select('*, lead:users!projects_lead_id_fkey(id, name, email)')
+                .eq('id', notification.entity_id)
+                .single();
+
+            if (data) {
+                setEntityDetail({ type: 'project', data });
+            }
+        }
+
+        setDetailLoading(false);
     }
-    setLoading(false);
-  }
 
-  const handleMarkRead = async (id: string) => {
-    const result = await markAsRead(id);
-    if (result.success && currentUser) {
-      fetchNotifications(currentUser.id);
+    const filteredAndSorted = useMemo(() => {
+        let result = [...notifications];
+
+        if (!viewOptions.showRead) {
+            result = result.filter(n => !n.is_read);
+        }
+        if (typeFilter.length > 0) {
+            result = result.filter(n => typeFilter.includes(n.type));
+        }
+
+        result.sort((a, b) => {
+            if (viewOptions.unreadFirst) {
+                if (a.is_read !== b.is_read) return a.is_read ? 1 : -1;
+            }
+            const dateA = new Date(a.created_at).getTime();
+            const dateB = new Date(b.created_at).getTime();
+            return viewOptions.ordering === 'newest' ? dateB - dateA : dateA - dateB;
+        });
+
+        return result;
+    }, [notifications, viewOptions, typeFilter]);
+
+    const selectedNotification = notifications.find(n => n.id === selectedId);
+
+    function handleSelect(notification: any) {
+        setSelectedId(notification.id);
+        fetchEntityDetail(notification);
+        // Auto-mark as read
+        if (!notification.is_read) {
+            markAsRead(notification.id);
+            setNotifications(prev => prev.map(n => n.id === notification.id ? { ...n, is_read: true } : n));
+        }
     }
-  };
 
-  const handleMarkAllRead = async () => {
-    const result = await markAllAsRead();
-    if (result.success && currentUser) {
-      fetchNotifications(currentUser.id);
-    }
-  };
+    const handleMarkAllRead = async () => {
+        await markAllAsRead();
+        if (currentUser) fetchNotifications(currentUser.id);
+        setShowActions(false);
+    };
 
-  // Filtering Logic
-  const filteredNotifications = notifications.filter((n) => {
-    if (activeTab === 'unread') return !n.is_read;
-    if (activeTab === 'mentions') return n.type === 'mention';
-    if (activeTab === 'assigned') return n.type === 'assignment';
-    return true; // 'all'
-  });
+    const handleDeleteAll = async () => {
+        if (confirm('Are you sure you want to delete ALL notifications?')) {
+            await deleteAllNotifications();
+            if (currentUser) fetchNotifications(currentUser.id);
+            setSelectedId(null);
+            setEntityDetail(null);
+            setShowActions(false);
+        }
+    };
 
-  const counts = {
-    all: notifications.length,
-    unread: notifications.filter(n => !n.is_read).length,
-    mentions: notifications.filter(n => n.type === 'mention').length,
-    assigned: notifications.filter(n => n.type === 'assignment').length,
-  };
+    const handleDeleteRead = async () => {
+        await deleteAllReadNotifications();
+        if (currentUser) fetchNotifications(currentUser.id);
+        setShowActions(false);
+    };
 
-  return (
-    <div className="flex h-full bg-white overflow-hidden">
-      <InboxSidebar 
-        activeTab={activeTab} 
-        setActiveTab={setActiveTab} 
-        counts={counts}
-        onMarkAllRead={handleMarkAllRead}
-      />
+    const clearFilters = () => setTypeFilter([]);
 
-      <main className="flex-1 overflow-y-auto bg-white">
-        <div className="max-w-4xl mx-auto">
-          {loading ? (
-            <div className="flex flex-col items-center justify-center h-64 text-gray-400 gap-4">
-              <Loader2 className="animate-spin" size={24} />
-              <p className="text-sm font-medium">Loading your inbox...</p>
-            </div>
-          ) : filteredNotifications.length > 0 ? (
-            <div className="divide-y divide-gray-50">
-              {filteredNotifications.map((notification) => (
-                <NotificationItem 
-                  key={notification.id} 
-                  notification={notification} 
-                  onMarkRead={handleMarkRead}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-96 text-center px-6">
-                <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4 ring-1 ring-gray-100">
-                    <BellOff className="text-gray-300" size={24} />
+    const toggleTypeFilter = (type: string) => {
+        setTypeFilter(prev => 
+            prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]
+        );
+    };
+
+    const typeIcon = (type: string) => {
+        switch (type) {
+            case 'assignment': return <UserPlus size={13} />;
+            case 'comment': return <MessageSquare size={13} />;
+            case 'mention': return <span className="text-[11px] font-bold">@</span>;
+            case 'status_change': return <Zap size={13} />;
+            default: return <FileText size={13} />;
+        }
+    };
+
+    return (
+        <div className="flex h-full bg-white">
+            {/* ── LEFT PANEL: Notification List ─────────────────── */}
+            <div className="w-[380px] shrink-0 border-r border-gray-200 flex flex-col h-full bg-white">
+                {/* List Header */}
+                <header className="h-12 border-b border-gray-100 px-4 flex items-center justify-between bg-white shrink-0">
+                    <div className="flex items-center gap-3">
+                        <h1 className="text-[14px] font-bold text-gray-900">Inbox</h1>
+                        {/* Actions Menu */}
+                        <div className="relative">
+                            <button 
+                                onClick={() => setShowActions(!showActions)}
+                                className={`p-1 rounded transition-colors ${showActions ? 'bg-gray-100' : 'hover:bg-gray-50'}`}
+                            >
+                                <MoreHorizontal size={14} className="text-gray-400" />
+                            </button>
+                            {showActions && (
+                                <>
+                                    <div className="fixed inset-0 z-30" onClick={() => setShowActions(false)} />
+                                    <div className="absolute left-0 mt-1 w-52 bg-white border border-gray-200 rounded-lg shadow-xl z-40 py-1 overflow-hidden">
+                                        <button onClick={handleMarkAllRead} className="w-full px-3 py-2 text-left text-[12px] text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                                            <CheckCircle2 size={13} className="text-gray-400" />
+                                            Mark all as read
+                                        </button>
+                                        <button onClick={handleDeleteRead} className="w-full px-3 py-2 text-left text-[12px] text-gray-700 hover:bg-gray-50 flex items-center gap-2 border-t border-gray-50">
+                                            <X size={13} className="text-gray-400" />
+                                            Delete all read
+                                        </button>
+                                        <button onClick={handleDeleteAll} className="w-full px-3 py-2 text-left text-[12px] text-red-600 hover:bg-red-50 flex items-center gap-2">
+                                            <Trash2 size={13} className="text-red-400" />
+                                            Delete all
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                        {typeFilter.length > 0 && (
+                            <button 
+                                onClick={clearFilters}
+                                className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded flex items-center gap-1 mr-1"
+                            >
+                                Clear <X size={8} />
+                            </button>
+                        )}
+                        {/* Filter button */}
+                        <div className="relative">
+                            <button 
+                                onClick={() => setShowFilters(!showFilters)}
+                                className={`p-1 rounded transition-colors ${showFilters ? 'bg-gray-100' : 'hover:bg-gray-50'}`}
+                            >
+                                <Filter size={14} className="text-gray-400" />
+                            </button>
+                            {showFilters && (
+                                <>
+                                    <div className="fixed inset-0 z-30" onClick={() => setShowFilters(false)} />
+                                    <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-xl z-40 py-1">
+                                        <div className="px-3 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Type</div>
+                                        {['assignment', 'comment', 'mention', 'status_change'].map(t => (
+                                            <button 
+                                                key={t}
+                                                onClick={() => toggleTypeFilter(t)}
+                                                className="w-full px-3 py-1.5 text-left text-[12px] text-gray-700 hover:bg-gray-50 flex items-center justify-between"
+                                            >
+                                                <span className="capitalize">{t.replace('_', ' ')}</span>
+                                                {typeFilter.includes(t) && <Check size={12} className="text-indigo-600" />}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                        {/* View Options */}
+                        <div className="relative">
+                            <button 
+                                onClick={() => setShowViewOptions(!showViewOptions)}
+                                className={`p-1 rounded transition-colors ${showViewOptions ? 'bg-gray-100' : 'hover:bg-gray-50'}`}
+                            >
+                                <Settings2 size={14} className="text-gray-400" />
+                            </button>
+                            {showViewOptions && (
+                                <>
+                                    <div className="fixed inset-0 z-30" onClick={() => setShowViewOptions(false)} />
+                                    <div className="absolute right-0 mt-1 w-52 bg-white border border-gray-200 rounded-lg shadow-xl z-40 py-2">
+                                        <div className="px-3 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Ordering</div>
+                                        <select 
+                                            value={viewOptions.ordering}
+                                            onChange={(e) => setViewOptions(prev => ({ ...prev, ordering: e.target.value as any }))}
+                                            className="mx-3 my-1 bg-gray-50 border border-gray-100 rounded px-2 py-1 text-[12px] w-[calc(100%-24px)] focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                        >
+                                            <option value="newest">Newest first</option>
+                                            <option value="oldest">Oldest first</option>
+                                        </select>
+                                        <div className="h-px bg-gray-50 my-1.5" />
+                                        <button 
+                                            onClick={() => setViewOptions(prev => ({ ...prev, showRead: !prev.showRead }))}
+                                            className="w-full px-3 py-1.5 hover:bg-gray-50 flex items-center justify-between text-[12px] text-gray-700"
+                                        >
+                                            <span>Show read</span>
+                                            <div className={`w-7 h-3.5 rounded-full transition-colors relative ${viewOptions.showRead ? 'bg-indigo-600' : 'bg-gray-300'}`}>
+                                                <div className={`absolute top-0.5 w-2.5 h-2.5 bg-white rounded-full transition-transform ${viewOptions.showRead ? 'translate-x-3.5' : 'translate-x-0.5'}`} />
+                                            </div>
+                                        </button>
+                                        <button 
+                                            onClick={() => setViewOptions(prev => ({ ...prev, unreadFirst: !prev.unreadFirst }))}
+                                            className="w-full px-3 py-1.5 hover:bg-gray-50 flex items-center justify-between text-[12px] text-gray-700"
+                                        >
+                                            <span>Unread first</span>
+                                            <div className={`w-7 h-3.5 rounded-full transition-colors relative ${viewOptions.unreadFirst ? 'bg-indigo-600' : 'bg-gray-300'}`}>
+                                                <div className={`absolute top-0.5 w-2.5 h-2.5 bg-white rounded-full transition-transform ${viewOptions.unreadFirst ? 'translate-x-3.5' : 'translate-x-0.5'}`} />
+                                            </div>
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </header>
+
+                {/* Notification List */}
+                <div className="flex-1 overflow-y-auto">
+                    {loading ? (
+                        <div className="flex flex-col items-center justify-center h-64 text-gray-400 gap-3">
+                            <Loader2 className="animate-spin text-indigo-600" size={24} />
+                            <p className="text-xs font-medium">Loading inbox...</p>
+                        </div>
+                    ) : filteredAndSorted.length > 0 ? (
+                        filteredAndSorted.map((notification) => (
+                            <button
+                                key={notification.id}
+                                onClick={() => handleSelect(notification)}
+                                className={`w-full text-left px-4 py-3 border-b border-gray-50 transition-colors flex items-start gap-3 group ${
+                                    selectedId === notification.id
+                                        ? 'bg-indigo-50/60'
+                                        : 'hover:bg-gray-50/50'
+                                }`}
+                            >
+                                {/* Avatar */}
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-[11px] font-bold shrink-0 mt-0.5 ${getAvatarColor(notification.actor?.name)}`}>
+                                    {notification.actor?.name?.charAt(0)?.toUpperCase() || 'U'}
+                                </div>
+
+                                <div className="flex-1 min-w-0">
+                                    {/* Title row */}
+                                    <div className="flex items-start justify-between gap-2 mb-0.5">
+                                        <div className="flex items-center gap-1.5 min-w-0">
+                                            {!notification.is_read && (
+                                                <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 shrink-0" />
+                                            )}
+                                            <span className={`text-[13px] truncate ${!notification.is_read ? 'font-semibold text-gray-900' : 'font-medium text-gray-600'}`}>
+                                                {notification.message.length > 50 
+                                                    ? notification.message.substring(0, 50) + '...' 
+                                                    : notification.message}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-1 shrink-0">
+                                            {!notification.is_read && (
+                                                <span className="w-2 h-2 rounded-full bg-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                            )}
+                                        </div>
+                                    </div>
+                                    {/* Subtitle row */}
+                                    <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                                        <span className="text-gray-500">{notification.actor?.name || notification.actor?.email}</span>
+                                        <span>·</span>
+                                        <span>{formatDistanceToNow(new Date(notification.created_at), { addSuffix: false })}</span>
+                                    </div>
+                                </div>
+                            </button>
+                        ))
+                    ) : (
+                        <div className="flex flex-col items-center justify-center h-full text-center px-6 py-20">
+                            <div className="w-14 h-14 bg-gray-50 rounded-full flex items-center justify-center mb-4 border border-gray-100">
+                                <BellOff className="text-gray-300" size={24} />
+                            </div>
+                            <h2 className="text-sm font-semibold text-gray-700 mb-1">No notifications</h2>
+                            <p className="text-xs text-gray-400 max-w-[200px]">
+                                {typeFilter.length > 0 ? "No matches for your filters." : "You're all caught up!"}
+                            </p>
+                            {typeFilter.length > 0 && (
+                                <button onClick={clearFilters} className="mt-3 px-3 py-1.5 bg-indigo-600 text-white rounded-md text-xs font-semibold hover:bg-indigo-700 transition-colors">
+                                    Clear filters
+                                </button>
+                            )}
+                        </div>
+                    )}
                 </div>
-              <h2 className="text-lg font-bold text-gray-900 mb-1">All caught up!</h2>
-              <p className="text-sm text-gray-500 max-w-xs">
-                You don't have any {activeTab !== 'all' ? activeTab : ''} notifications at the moment.
-              </p>
             </div>
-          )}
+
+            {/* ── RIGHT PANEL: Detail View ─────────────────── */}
+            <div className="flex-1 flex flex-col h-full overflow-hidden bg-white">
+                {!selectedNotification ? (
+                    <div className="flex-1 flex items-center justify-center text-gray-300">
+                        <div className="text-center">
+                            <MessageSquare size={40} className="mx-auto mb-3 text-gray-200" />
+                            <p className="text-sm font-medium text-gray-400">Select a notification</p>
+                            <p className="text-xs text-gray-300 mt-1">Details will appear here</p>
+                        </div>
+                    </div>
+                ) : (
+                    <>
+                        {/* Breadcrumb */}
+                        <div className="h-12 flex items-center px-6 border-b border-gray-100 bg-white shrink-0">
+                            <div className="flex items-center gap-2 text-[12px] font-medium text-gray-400">
+                                {entityDetail?.type === 'ticket' && entityDetail.data?.projects?.project_name && (
+                                    <>
+                                        <span className="text-gray-500">{entityDetail.data.projects.project_name}</span>
+                                        <ChevronRight size={12} className="text-gray-300" />
+                                    </>
+                                )}
+                                <span className="text-gray-500 uppercase">
+                                    {selectedNotification.entity_type === 'ticket' ? 'KAP-' : 'PRJ-'}
+                                    {selectedNotification.entity_id?.slice(0, 4)}
+                                </span>
+                                <ChevronRight size={12} className="text-gray-300" />
+                                <span className="text-gray-700 font-semibold truncate max-w-[300px]">
+                                    {entityDetail?.data?.title || entityDetail?.data?.project_name || 'Loading...'}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Detail Content */}
+                        <div className="flex-1 overflow-y-auto">
+                            {detailLoading ? (
+                                <div className="flex items-center justify-center h-64">
+                                    <Loader2 className="animate-spin text-indigo-500" size={24} />
+                                </div>
+                            ) : entityDetail?.type === 'ticket' ? (
+                                <div className="max-w-3xl mx-auto px-8 py-8">
+                                    {/* Title */}
+                                    <h1 className="text-2xl font-bold text-gray-900 mb-6">
+                                        {entityDetail.data.title}
+                                    </h1>
+
+                                    {/* Description */}
+                                    <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap mb-8">
+                                        {entityDetail.data.description || 'No description provided.'}
+                                    </div>
+
+                                    {/* Properties Row */}
+                                    <div className="flex flex-wrap items-center gap-4 mb-8 py-4 border-y border-gray-100">
+                                        {/* Status */}
+                                        {entityDetail.data.status && (() => {
+                                            const s = statusIcons[entityDetail.data.status] || statusIcons['to_do'];
+                                            const Icon = s.icon;
+                                            return (
+                                                <div className="flex items-center gap-1.5 text-xs font-medium text-gray-600 bg-gray-50 px-2.5 py-1.5 rounded-md">
+                                                    <Icon size={14} className={s.color} />
+                                                    <span>{s.label}</span>
+                                                </div>
+                                            );
+                                        })()}
+
+                                        {/* Priority */}
+                                        {entityDetail.data.priority && (() => {
+                                            const p = priorityIcons[entityDetail.data.priority] || priorityIcons['no_priority'];
+                                            const Icon = p.icon;
+                                            return (
+                                                <div className="flex items-center gap-1.5 text-xs font-medium text-gray-600 bg-gray-50 px-2.5 py-1.5 rounded-md">
+                                                    <Icon size={14} className={p.color} />
+                                                    <span>{p.label}</span>
+                                                </div>
+                                            );
+                                        })()}
+
+                                        {/* Assignee */}
+                                        {entityDetail.data.assigned_to_user && (
+                                            <div className="flex items-center gap-1.5 text-xs font-medium text-gray-600 bg-gray-50 px-2.5 py-1.5 rounded-md">
+                                                <div className={`w-4 h-4 rounded-full flex items-center justify-center text-white text-[8px] font-bold ${getAvatarColor(entityDetail.data.assigned_to_user.name)}`}>
+                                                    {entityDetail.data.assigned_to_user.name?.charAt(0)?.toUpperCase()}
+                                                </div>
+                                                <span>{entityDetail.data.assigned_to_user.name}</span>
+                                            </div>
+                                        )}
+
+                                        {/* Project */}
+                                        {entityDetail.data.projects?.project_name && (
+                                            <div className="flex items-center gap-1.5 text-xs font-medium text-gray-600 bg-gray-50 px-2.5 py-1.5 rounded-md">
+                                                <FolderKanban size={12} className="text-gray-400" />
+                                                <span>{entityDetail.data.projects.project_name}</span>
+                                            </div>
+                                        )}
+
+                                        {/* Due Date */}
+                                        {entityDetail.data.due_date && (
+                                            <div className="flex items-center gap-1.5 text-xs font-medium text-gray-600 bg-gray-50 px-2.5 py-1.5 rounded-md">
+                                                <Clock size={12} className="text-gray-400" />
+                                                <span>{new Date(entityDetail.data.due_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Activity Section */}
+                                    <div className="mt-4">
+                                        <div className="flex items-center justify-between mb-6">
+                                            <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                                                <MessageSquare size={15} />
+                                                <span>Activity</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-5">
+                                            {entityActivity.map((item, idx) => (
+                                                <div key={`${item.activityType}-${item.id}`} className="flex gap-3">
+                                                    {/* Avatar */}
+                                                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0 ${getAvatarColor(item.users?.name)}`}>
+                                                        {item.users?.name?.charAt(0)?.toUpperCase() || 'U'}
+                                                    </div>
+
+                                                    <div className="flex-1 min-w-0">
+                                                        {/* Name + time */}
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <span className="text-[13px] font-semibold text-gray-900">
+                                                                {item.users?.email || item.users?.name}
+                                                            </span>
+                                                            <span className="text-[11px] text-gray-400">
+                                                                {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
+                                                            </span>
+                                                        </div>
+
+                                                        {/* Content */}
+                                                        {item.activityType === 'comment' ? (
+                                                            <div className="text-[13px] text-gray-700 bg-gray-50 rounded-lg p-3 border border-gray-100 leading-relaxed">
+                                                                {item.comment}
+                                                            </div>
+                                                        ) : (
+                                                            <div className="text-[12px] text-gray-500 italic">
+                                                                {item.message || `${item.users?.name} updated the issue`}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
+
+                                            {entityActivity.length === 0 && (
+                                                <p className="text-xs text-gray-400 italic py-4">No activity yet.</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : entityDetail?.type === 'project' ? (
+                                <div className="max-w-3xl mx-auto px-8 py-8">
+                                    <h1 className="text-2xl font-bold text-gray-900 mb-4">
+                                        {entityDetail.data.project_name}
+                                    </h1>
+                                    <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap mb-6">
+                                        {entityDetail.data.description || 'No description provided.'}
+                                    </div>
+                                    {entityDetail.data.lead && (
+                                        <div className="flex items-center gap-2 text-xs font-medium text-gray-600 bg-gray-50 px-3 py-2 rounded-md w-fit">
+                                            <div className={`w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-bold ${getAvatarColor(entityDetail.data.lead.name)}`}>
+                                                {entityDetail.data.lead.name?.charAt(0)?.toUpperCase()}
+                                            </div>
+                                            <span>Lead: {entityDetail.data.lead.name}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="flex items-center justify-center h-64 text-gray-400">
+                                    <p className="text-sm">Could not load details for this notification.</p>
+                                </div>
+                            )}
+                        </div>
+                    </>
+                )}
+            </div>
         </div>
-      </main>
-    </div>
-  );
+    );
 }

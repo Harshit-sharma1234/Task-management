@@ -86,3 +86,48 @@ export async function parseMentions(text: string): Promise<string[]> {
     const names = Array.from(matches, m => m[1])
     return Array.from(new Set(names)) // Unique names
 }
+
+/**
+ * Delete all notifications for the current user.
+ */
+export async function deleteAllNotifications() {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Not authenticated' }
+
+    const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('user_id', user.id)
+
+    if (error) {
+        console.error('[Notification] Error deleting all:', error)
+        return { error: error.message }
+    }
+
+    revalidatePath('/dashboard/inbox')
+    return { success: true }
+}
+
+/**
+ * Delete all read notifications for the current user.
+ */
+export async function deleteAllReadNotifications() {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Not authenticated' }
+
+    const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('is_read', true)
+
+    if (error) {
+        console.error('[Notification] Error deleting all read:', error)
+        return { error: error.message }
+    }
+
+    revalidatePath('/dashboard/inbox')
+    return { success: true }
+}
