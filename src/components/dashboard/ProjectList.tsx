@@ -88,12 +88,11 @@ export function ProjectList({ projects, users, userMap }: ProjectListProps) {
                     ) : (
                         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
                             {/* List Header */}
-                            <div className="grid grid-cols-[1fr_120px_100px_140px_140px_140px] items-center border-b border-gray-100 bg-gray-50/50 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                            <div className="grid grid-cols-[1fr_100px_140px_140px_140px] items-center border-b border-gray-100 bg-gray-50/50 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
                                 <div className="pl-5">Name</div>
-                                <div className="hidden md:block">Health</div>
                                 <div className="hidden md:block">Priority</div>
                                 <div className="hidden sm:block">Lead</div>
-                                <div className="hidden lg:block text-right pr-5">Target date</div>
+                                <div className="hidden lg:block text-right pr-5">Start date</div>
                                 <div className="text-right pr-5">Status</div>
                             </div>
 
@@ -103,7 +102,7 @@ export function ProjectList({ projects, users, userMap }: ProjectListProps) {
                                     return (
                                         <div 
                                             key={project.id} 
-                                            className="grid grid-cols-[1fr_120px_100px_140px_140px_140px] items-center py-3.5 hover:bg-gray-50/50 transition-colors group text-sm relative hover:z-20 focus-within:z-20"
+                                            className="grid grid-cols-[1fr_100px_140px_140px_140px] items-center py-3.5 hover:bg-gray-50/50 transition-colors group text-sm relative hover:z-20 focus-within:z-20"
                                             style={{ zIndex: filteredProjects.length - index }}
                                         >
                                             {/* Name */}
@@ -115,12 +114,6 @@ export function ProjectList({ projects, users, userMap }: ProjectListProps) {
                                                 >
                                                     {project.project_name}
                                                 </Link>
-                                            </div>
-                                            
-                                            {/* Health */}
-                                            <div className="hidden md:flex items-center gap-2 text-gray-400 relative z-10">
-                                                <div className="w-3 h-3 rounded-full border border-dashed border-gray-300"></div>
-                                                <span className="text-[10px] font-bold uppercase">No updates</span>
                                             </div>
                                             
                                             {/* Priority */}
