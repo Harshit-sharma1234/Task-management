@@ -37,17 +37,17 @@ export function ProjectSidebar({ project, users, currentMemberIds }: ProjectSide
         <div className="grid grid-cols-[100px_1fr] gap-y-4 items-center text-sm">
           <span className="text-gray-400 font-medium">Status</span>
           <div className="w-full">
-            <StatusSelector projectId={project.id} currentStatus={project.status} />
+            <StatusSelector projectId={project.id} currentStatus={project.status} align="right" />
           </div>
 
           <span className="text-gray-400 font-medium">Priority</span>
           <div className="w-full">
-            <PrioritySelector projectId={project.id} currentPriority={project.priority} showLabel={true} />
+            <PrioritySelector projectId={project.id} currentPriority={project.priority} showLabel={true} align="right" />
           </div>
 
           <span className="text-gray-400 font-medium">Lead</span>
           <div className="w-full">
-            <LeadSelector projectId={project.id} currentLeadId={project.lead_id} users={users} showEmail={true} />
+            <LeadSelector projectId={project.id} currentLeadId={project.lead_id} users={users} showEmail={true} align="right" />
           </div>
 
           <span className="text-gray-400 font-medium">Members</span>
@@ -56,19 +56,20 @@ export function ProjectSidebar({ project, users, currentMemberIds }: ProjectSide
             users={users} 
             currentMemberIds={currentMemberIds} 
             showEmails={true}
+            align="right"
           />
 
           <span className="text-gray-400 font-medium">Dates</span>
           <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-2">
-               <span className="text-[11px] text-gray-400 uppercase w-10">Start</span>
-               <TargetDateSelector projectId={project.id} currentTargetDate={project.start_date || null} />
+            <div className="flex items-center justify-between w-full">
+               <span className="text-[11px] text-gray-400 uppercase">Start</span>
+               <TargetDateSelector projectId={project.id} currentTargetDate={project.start_date || null} align="right" />
             </div>
-            <div className="flex items-center gap-2">
-               <span className="text-[11px] text-gray-400 uppercase w-10">Target</span>
+            <div className="flex items-center justify-between w-full">
+               <span className="text-[11px] text-gray-400 uppercase">Target</span>
                <div className="flex items-center gap-1.5 text-gray-400 cursor-pointer hover:text-gray-600 px-2 py-1 rounded bg-white border border-gray-100/50">
                   <Calendar size={12} />
-                  <span className="text-xs">Add target...</span>
+                  <span className="text-xs text-right">Add target...</span>
                </div>
             </div>
           </div>

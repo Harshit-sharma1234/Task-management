@@ -35,7 +35,7 @@ export function ProjectUpdateModal({ isOpen, onClose, onPost, projectName }: Pro
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-[2px] transition-all p-4">
+        <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/60 backdrop-blur-[2px] transition-all p-4">
             <div 
                 ref={modalRef}
                 className="w-full max-w-2xl bg-[#1c1c1f] rounded-2xl shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] border border-[#2e2e32] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200"

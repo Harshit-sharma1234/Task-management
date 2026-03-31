@@ -15,9 +15,16 @@ interface MemberSelectorProps {
   users: User[];
   currentMemberIds: string[];
   showEmails?: boolean;
+  align?: 'left' | 'right';
 }
 
-export function MemberSelector({ projectId, users, currentMemberIds, showEmails = false }: MemberSelectorProps) {
+export function MemberSelector({ 
+  projectId, 
+  users, 
+  currentMemberIds, 
+  showEmails = false,
+  align = 'left' 
+}: MemberSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -103,7 +110,7 @@ export function MemberSelector({ projectId, users, currentMemberIds, showEmails 
       </button>
 
       {isOpen && (
-        <div className="absolute left-0 top-full mt-2 w-64 bg-white border border-gray-100 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+        <div className={`absolute ${align === 'left' ? 'left-0' : 'right-0'} top-full mt-2 w-64 bg-white border border-gray-100 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200`}>
           <div className="p-2 border-b border-gray-50 flex items-center gap-2 bg-gray-50/50">
             <Search size={14} className="text-gray-400 ml-2" />
             <input 
