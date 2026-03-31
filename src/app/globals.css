@@ -8,6 +8,13 @@
   --color-linear-border: #2c2d33;
   --color-linear-accent: #5e6ad2;
   --color-linear-accent-hover: #4b55b2;
+  
+  --animate-shimmer: shimmer 2s linear infinite;
+  
+  @keyframes shimmer {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(100%); }
+  }
 }
 
 body {
