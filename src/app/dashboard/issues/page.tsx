@@ -43,30 +43,32 @@ export default async function IssuesPage() {
     redirect('/login');
   }
 
-  // Fetch tickets with project info
-  const { data: tickets, error } = await supabase
-    .from('tickets')
-    .select('*, projects(id, project_name)')
-    .order('created_at', { ascending: false });
+  // Fetch data in parallel
+  const [ticketsResponse, projectsResponse, usersResponse] = await Promise.all([
+    supabase
+      .from('tickets')
+      .select('id, title, status, priority, created_at, assignee_id, project_id, projects(id, project_name)')
+      .order('created_at', { ascending: false })
+      .limit(50),
+    supabase
+      .from('projects')
+      .select('id, project_name')
+      .order('project_name'),
+    supabase
+      .from('users')
+      .select('id, name')
+      .order('name')
+  ]);
 
-  if (error) {
-    console.error('Error fetching tickets:', error);
+  const { data: tickets, error: ticketsError } = ticketsResponse;
+  const { data: projectsData } = projectsResponse;
+  const { data: usersData } = usersResponse;
+
+  if (ticketsError) {
+    console.error('Error fetching tickets:', ticketsError);
   }
 
-  // Fetch projects for the modal
-  const { data: projectsData } = await supabase
-    .from('projects')
-    .select('id, project_name')
-    .order('project_name');
-  
   const projects = (projectsData || []).map(p => ({ id: p.id, name: p.project_name }));
-
-  // Fetch users for the modal
-  const { data: usersData } = await supabase
-    .from('users')
-    .select('id, name')
-    .order('name');
-  
   const users = usersData || [];
 
   // Group tickets by project

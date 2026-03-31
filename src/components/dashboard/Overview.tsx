@@ -12,22 +12,24 @@ import { CreateProjectButton } from '@/components/dashboard/CreateProjectButton'
 
 export default async function DashboardOverview() {
     const supabase = await createClient()
-    const { data, error } = await supabase.auth.getUser()
+    // Fetch all data in parallel
+    const [userResponse, projectsResponse, usersResponse] = await Promise.all([
+        supabase.auth.getUser(),
+        supabase
+            .from('projects')
+            .select('id, project_name, description, created_at')
+            .order('created_at', { ascending: false }),
+        supabase
+            .from('users')
+            .select('id, name')
+    ]);
 
-    const userName = data?.user?.user_metadata?.full_name || 'Khushi Tailor'
+    const { data: userData } = userResponse;
+    const { data: projectsData } = projectsResponse;
+    const { data: usersData } = usersResponse;
 
-    // Fetch all projects in the workspace/system
-    const { data: projectsData } = await supabase
-        .from('projects')
-        .select('*')
-        .order('created_at', { ascending: false })
-
+    const userName = userData?.user?.user_metadata?.full_name || 'Khushi Tailor'
     const projects = projectsData || []
-
-    // Fetch users for the Lead dropdown
-    const { data: usersData } = await supabase
-        .from('users')
-        .select('id, name')
     const users = usersData || []
 
     return (
