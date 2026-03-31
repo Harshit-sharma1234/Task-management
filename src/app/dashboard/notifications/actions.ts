@@ -131,3 +131,22 @@ export async function deleteAllReadNotifications() {
     revalidatePath('/dashboard/inbox')
     return { success: true }
 }
+
+/**
+ * Delete a specific notification by ID.
+ */
+export async function deleteNotification(notificationId: string) {
+    const supabase = await createClient()
+    const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('id', notificationId)
+
+    if (error) {
+        console.error('[Notification] Error deleting notification:', error)
+        return { error: error.message }
+    }
+
+    revalidatePath('/dashboard/inbox')
+    return { success: true }
+}

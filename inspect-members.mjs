@@ -5,11 +5,10 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PU
 const supabase = createClient(supabaseUrl, supabaseKey)
 
 async function run() {
-  const { data: members, error } = await supabase.from('project_members').select('*')
-  console.log('Error?', error)
-  console.log('Project Members count:', members?.length)
-  if (members && members.length > 0) {
-      console.log('Sample members:', members.slice(0, 5))
-  }
+  const { data: cols, error } = await supabase.rpc('get_table_columns', { table_name: 'project_members' })
+  console.log('Columns:', cols)
+  
+  const { data: members } = await supabase.from('project_members').select('*').limit(5)
+  console.log('Sample members:', members)
 }
 run()
