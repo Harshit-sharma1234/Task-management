@@ -16,19 +16,14 @@ export default async function DashboardOverview() {
 
     const userName = data?.user?.user_metadata?.full_name || 'Khushi Tailor'
 
-    // Fetch all projects in the workspace/system
-    const { data: projectsData } = await supabase
-        .from('projects')
-        .select('*')
-        .order('created_at', { ascending: false })
+    // Fetch all required data in parallel
+    const [projectsRes, usersRes] = await Promise.all([
+        supabase.from('projects').select('*').order('created_at', { ascending: false }),
+        supabase.from('users').select('id, name')
+    ]);
 
-    const projects = projectsData || []
-
-    // Fetch users for the Lead dropdown
-    const { data: usersData } = await supabase
-        .from('users')
-        .select('id, name')
-    const users = usersData || []
+    const projects = projectsRes.data || []
+    const users = usersRes.data || []
 
     return (
         <div className="p-8 max-w-7xl mx-auto">

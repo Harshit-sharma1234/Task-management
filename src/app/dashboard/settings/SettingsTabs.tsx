@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { UserCircle, Shield, Plus, MoreHorizontal, Monitor } from 'lucide-react'
+import { UserCircle, Shield, Plus, Lock } from 'lucide-react'
 import { updateUserPassword, updateUserAvatar } from '@/app/dashboard/actions'
 import { createClient } from '@/lib/supabase/client'
 
@@ -36,7 +36,6 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
         const file = e.target.files?.[0]
         if (!file) return
         
-        // Show local preview instantly but don't upload yet
         const objectUrl = URL.createObjectURL(file)
         setPreviewUrl(objectUrl)
         setSelectedFile(file)
@@ -46,7 +45,6 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
         if (!selectedFile) return
         setIsUploading(true)
         
-        // Upload to Supabase Storage
         const supabase = createClient()
         const fileExt = selectedFile.name.split('.').pop()
         const filePath = `${user.id}-${Date.now()}.${fileExt}`
@@ -57,29 +55,26 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
 
         if (uploadError) {
             console.error('Error uploading image:', uploadError)
-            alert(`Storage Error: ${uploadError.message}. Did you run the SQL snippet exactly?`)
+            alert(`Storage Error: ${uploadError.message}`)
             setIsUploading(false)
             return
         }
 
-        // Get the permanent public URL
         const { data: { publicUrl } } = supabase.storage
             .from('avatars')
             .getPublicUrl(filePath)
 
-        // Save URL to the custom users table using Server Action
         const result = await updateUserAvatar(user.id, publicUrl)
 
         if (result.error) {
-            console.error('Error saving image URL to profile:', result.error)
-            alert(`Database Error: ${result.error}.`)
+            console.error('Error saving image URL:', result.error)
+            alert(`Database Error: ${result.error}`)
             setIsUploading(false)
             return
         }
 
         setIsUploading(false)
         setSelectedFile(null)
-        // Reload to instantly sync the top Header navigation avatar
         window.location.reload()
     }
 
@@ -105,7 +100,6 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
             setPasswordSuccess(true)
             setNewPassword('')
             setConfirmPassword('')
-            // Close after brief success indication
             setTimeout(() => {
                 setIsChangingPassword(false)
                 setPasswordSuccess(false)
@@ -117,259 +111,235 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
     const bgColor = stringToColor(user.name)
 
     return (
-        <div className="bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.08)] w-full max-w-4xl flex overflow-hidden min-h-[600px] border border-gray-100">
+        <div className="bg-white rounded-[24px] shadow-[0_20px_50px_rgba(0,0,0,0.05)] w-full max-w-5xl flex overflow-hidden min-h-[640px] border border-gray-100/50">
             {/* Sidebar Left */}
-            <div className="w-1/3 bg-[#fdfdfd] border-r border-gray-100 p-6 flex flex-col justify-between">
+            <div className="w-[280px] bg-[#f9fafb]/50 border-r border-gray-100 p-8 flex flex-col justify-between">
                 <div>
-                    <h2 className="text-2xl font-bold text-gray-900 mb-1">Account</h2>
-                    <p className="text-sm text-gray-500 mb-8">Manage your account info.</p>
+                    <div className="mb-10">
+                        <h2 className="text-xl font-bold text-gray-900 tracking-tight">Settings</h2>
+                        <p className="text-xs font-medium text-gray-400 mt-1 uppercase tracking-widest">Personal Account</p>
+                    </div>
 
-                    <nav className="space-y-1">
+                    <nav className="space-y-1.5">
                         <button 
                             onClick={() => setActiveTab('profile')}
-                            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
                                 activeTab === 'profile' 
-                                ? 'bg-gray-100/80 text-gray-900' 
-                                : 'text-gray-600 hover:bg-gray-50'
+                                ? 'bg-white shadow-[0_2px_10px_rgba(0,0,0,0.04)] text-indigo-600 border border-gray-100' 
+                                : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100/50'
                             }`}
                         >
-                            <UserCircle size={18} className={activeTab === 'profile' ? 'text-gray-900' : 'text-gray-500'} />
-                            Profile
+                            <UserCircle size={18} className={activeTab === 'profile' ? 'text-indigo-600' : 'text-gray-400'} />
+                            Profile Details
                         </button>
                         <button 
                             onClick={() => setActiveTab('security')}
-                            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
                                 activeTab === 'security' 
-                                ? 'bg-gray-100/80 text-gray-900' 
-                                : 'text-gray-600 hover:bg-gray-50'
+                                ? 'bg-white shadow-[0_2px_10px_rgba(0,0,0,0.04)] text-indigo-600 border border-gray-100' 
+                                : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100/50'
                             }`}
                         >
-                            <Shield size={18} className={activeTab === 'security' ? 'text-gray-900' : 'text-gray-500'} />
-                            Security
+                            <Shield size={18} className={activeTab === 'security' ? 'text-indigo-600' : 'text-gray-400'} />
+                            Security & Access
                         </button>
                     </nav>
                 </div>
 
                 {/* Footer Brand */}
-                <div className="flex flex-col items-center">
-                    <p className="text-xs text-gray-400 font-medium">Secured by <span className="text-gray-600 font-bold tracking-tight">Supabase</span></p>
+                <div className="pt-6 border-t border-gray-100/80">
+                    <div className="flex items-center gap-2 opacity-40 hover:opacity-100 transition-opacity duration-300">
+                        <div className="w-5 h-5 bg-gray-900 rounded-sm flex items-center justify-center">
+                            <Shield size={10} className="text-white" />
+                        </div>
+                        <p className="text-[10px] text-gray-500 font-bold tracking-tighter uppercase">Secured by Supabase</p>
+                    </div>
                 </div>
             </div>
 
             {/* Content Right */}
-            <div className="w-2/3 p-10 bg-white">
+            <div className="flex-1 bg-white relative">
                 {activeTab === 'profile' ? (
-                    <div className="animate-in fade-in duration-300">
-                        <h3 className="text-xl font-bold text-gray-900 mb-8">Profile details</h3>
+                    <div className="p-12 animate-in fade-in slide-in-from-right-4 duration-500">
+                        <div className="mb-10">
+                            <h3 className="text-2xl font-bold text-gray-900 leading-tight">Profile Details</h3>
+                            <p className="text-sm text-gray-500 mt-1">Manage how you appear to your team.</p>
+                        </div>
                         
-                        <div className="space-y-8">
+                        <div className="space-y-10">
                             {/* Profile Row */}
-                            <div className="flex items-center justify-between py-5 border-b border-gray-100">
-                                <div className="w-1/3">
-                                    <p className="text-sm font-semibold text-gray-900">Profile</p>
-                                </div>
-                                <div className="w-2/3 flex items-center justify-between">
-                                    <div className="flex items-center gap-4">
-                                        {previewUrl ? (
-                                            <img src={previewUrl} alt="Profile" className="w-12 h-12 rounded-full object-cover shadow-inner" />
-                                        ) : (
-                                            <div 
-                                                className="w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-bold shadow-inner"
-                                                style={{ backgroundColor: bgColor }}
-                                            >
-                                                {user.name.charAt(0).toUpperCase()}
-                                            </div>
-                                        )}
-                                        <span className="text-sm font-medium text-gray-900">{user.name}</span>
+                            <div className="group">
+                                <div className="flex items-center justify-between pb-8 border-b border-gray-50">
+                                    <div className="w-[140px]">
+                                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Your Photo</p>
                                     </div>
-                                    <div>
-                                        <input 
-                                            type="file" 
-                                            id="avatar-upload"
-                                            accept="image/*" 
-                                            ref={fileInputRef} 
-                                            className="hidden" 
-                                            onChange={handleImageSelect} 
-                                        />
-                                        {selectedFile ? (
-                                            <div className="flex items-center gap-2">
-                                                <button 
-                                                    onClick={() => {
-                                                        setSelectedFile(null)
-                                                        setPreviewUrl(user.avatar_url)
-                                                    }}
-                                                    disabled={isUploading}
-                                                    className="px-3 py-1.5 text-xs font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors disabled:opacity-50"
-                                                >
-                                                    Cancel
-                                                </button>
-                                                <button 
-                                                    onClick={confirmImageUpload}
-                                                    disabled={isUploading}
-                                                    className="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors disabled:opacity-50"
-                                                >
-                                                    {isUploading ? 'Saving...' : 'Save image'}
-                                                </button>
+                                    <div className="flex-1 flex items-center justify-between bg-gray-50/30 p-4 rounded-2xl border border-transparent hover:border-gray-100 hover:bg-white hover:shadow-sm transition-all duration-300">
+                                        <div className="flex items-center gap-5">
+                                            <div className="relative group/avatar">
+                                                {previewUrl ? (
+                                                    <img src={previewUrl} alt="Profile" className="w-16 h-16 rounded-full object-cover shadow-[0_4px_12px_rgba(0,0,0,0.1)] border-2 border-white" />
+                                                ) : (
+                                                    <div 
+                                                        className="w-16 h-16 rounded-full flex items-center justify-center text-white text-2xl font-bold border-2 border-white shadow-[0_4px_12px_rgba(0,0,0,0.1)]"
+                                                        style={{ backgroundColor: bgColor }}
+                                                    >
+                                                        {user.name.charAt(0).toUpperCase()}
+                                                    </div>
+                                                )}
+                                                <div className="absolute inset-0 rounded-full bg-black/0 group-hover/avatar:bg-black/20 flex items-center justify-center transition-all duration-200">
+                                                    <Plus size={20} className="text-white opacity-0 group-hover/avatar:opacity-100" />
+                                                </div>
                                             </div>
-                                        ) : (
-                                            <label 
-                                                htmlFor="avatar-upload"
-                                                className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors cursor-pointer"
-                                            >
-                                                Update profile
-                                            </label>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
+                                            <div>
+                                                <p className="text-base font-bold text-gray-900">{user.name}</p>
+                                                <p className="text-sm text-gray-500 font-medium">{user.email}</p>
+                                            </div>
+                                        </div>
 
-                            {/* Connected Accounts Row */}
-                            <div className="flex items-center justify-between py-5">
-                                <div className="w-1/3">
-                                    <p className="text-sm font-semibold text-gray-900">Connected accounts</p>
-                                </div>
-                                <div className="w-2/3 flex justify-between items-center">
-                                    <p className="text-sm text-gray-500 italic">No external accounts connected.</p>
+                                        <div className="flex gap-2">
+                                            <input 
+                                                type="file" 
+                                                id="avatar-upload"
+                                                accept="image/*" 
+                                                ref={fileInputRef} 
+                                                className="hidden" 
+                                                onChange={handleImageSelect} 
+                                            />
+                                            {selectedFile ? (
+                                                <>
+                                                    <button 
+                                                        onClick={() => {
+                                                            setSelectedFile(null)
+                                                            setPreviewUrl(user.avatar_url)
+                                                        }}
+                                                        disabled={isUploading}
+                                                        className="px-4 py-2 text-xs font-bold text-gray-600 hover:text-gray-900 transition-colors"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                    <button 
+                                                        onClick={confirmImageUpload}
+                                                        disabled={isUploading}
+                                                        className="px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-lg shadow-indigo-600/20 transition-all active:scale-95 disabled:opacity-50"
+                                                    >
+                                                        {isUploading ? 'Uploading...' : 'Confirm'}
+                                                    </button>
+                                                </>
+                                            ) : (
+                                                <label 
+                                                    htmlFor="avatar-upload"
+                                                    className="px-5 py-2 text-xs font-bold text-indigo-600 border border-indigo-100 hover:bg-indigo-50/50 rounded-lg transition-all cursor-pointer"
+                                                >
+                                                    Change Photo
+                                                </label>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 ) : (
-                    <div className="animate-in fade-in duration-300">
-                        <h3 className="text-xl font-bold text-gray-900 mb-8">Security</h3>
+                    <div className="p-12 animate-in fade-in slide-in-from-right-4 duration-500">
+                        <div className="mb-10">
+                            <h3 className="text-2xl font-bold text-gray-900 leading-tight">Security & Privacy</h3>
+                            <p className="text-sm text-gray-500 mt-1">Keep your account safe and manage logins.</p>
+                        </div>
                         
-                        <div className="space-y-8">
+                        <div className="space-y-6">
                             {/* Password Row */}
-                            {isChangingPassword ? (
-                                <div className="py-5 border-b border-gray-100 flex items-start justify-between">
-                                    <div className="w-1/3 mt-2">
-                                        <p className="text-sm font-semibold text-gray-900">Password</p>
-                                    </div>
-                                    <div className="w-2/3">
-                                        <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-                                            <h4 className="text-base font-bold text-gray-900 mb-6">Set password</h4>
-                                            
-                                            {passwordError && (
-                                                <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-md border border-red-100">
-                                                    {passwordError}
-                                                </div>
-                                            )}
-                                            {passwordSuccess && (
-                                                <div className="mb-4 p-3 bg-green-50 text-green-700 text-sm rounded-md border border-green-100">
-                                                    Password updated successfully!
-                                                </div>
-                                            )}
-
-                                            <div className="mb-4">
-                                                <label className="block text-sm font-semibold text-gray-900 mb-1.5">New password</label>
-                                                <div className="relative">
-                                                    <input 
-                                                        type="password" 
-                                                        value={newPassword}
-                                                        onChange={(e) => setNewPassword(e.target.value)}
-                                                        className="w-full border border-gray-300 rounded-lg p-2.5 pr-10 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
-                                                    />
-                                                </div>
-                                                <p className="text-xs text-gray-500 mt-1.5">Your password must contain 8 or more characters.</p>
-                                            </div>
-
-                                            <div className="mb-6">
-                                                <label className="block text-sm font-semibold text-gray-900 mb-1.5">Confirm password</label>
-                                                <div className="relative">
-                                                    <input 
-                                                        type="password" 
-                                                        value={confirmPassword}
-                                                        onChange={(e) => setConfirmPassword(e.target.value)}
-                                                        className="w-full border border-gray-300 rounded-lg p-2.5 pr-10 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
-                                                    />
-                                                </div>
-                                            </div>
-
-                                            <div className="mb-8 flex items-start gap-3">
-                                                <div className="flex items-center h-5">
-                                                    <input 
-                                                        id="sign-out" 
-                                                        type="checkbox" 
-                                                        checked={signOutDevices}
-                                                        onChange={(e) => setSignOutDevices(e.target.checked)}
-                                                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
-                                                    />
-                                                </div>
-                                                <label htmlFor="sign-out" className="text-sm cursor-pointer">
-                                                    <span className="font-semibold text-gray-900 block mb-0.5">Sign out of all other devices</span>
-                                                    <span className="text-gray-500">It is recommended to sign out of all other devices which may have used your old password.</span>
-                                                </label>
-                                            </div>
-
-                                            <div className="flex justify-end gap-3">
-                                                <button 
-                                                    onClick={() => {
-                                                        setIsChangingPassword(false)
-                                                        setPasswordError('')
-                                                        setPasswordSuccess(false)
-                                                        setNewPassword('')
-                                                        setConfirmPassword('')
-                                                    }}
-                                                    className="px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 rounded-lg transition-colors border border-gray-200"
-                                                >
-                                                    Cancel
-                                                </button>
-                                                <button 
-                                                    onClick={handlePasswordSubmit}
-                                                    disabled={isSavingPassword || newPassword.length < 8 || newPassword !== confirmPassword}
-                                                    className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-                                                >
-                                                    {isSavingPassword ? 'Saving...' : 'Save'}
-                                                </button>
-                                            </div>
+                            <div className={`p-6 rounded-2xl border transition-all duration-300 ${isChangingPassword ? 'bg-indigo-50/20 border-indigo-100 shadow-sm' : 'bg-white border-gray-100'}`}>
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isChangingPassword ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'bg-gray-100 text-gray-500'}`}>
+                                            <Lock size={18} />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-bold text-gray-900">Account Password</p>
+                                            {!isChangingPassword && <p className="text-xs text-gray-500">Last updated recently</p>}
                                         </div>
                                     </div>
-                                </div>
-                            ) : (
-                                <div className="flex items-center justify-between py-5 border-b border-gray-100">
-                                    <div className="w-1/3">
-                                        <p className="text-sm font-semibold text-gray-900">Password</p>
-                                    </div>
-                                    <div className="w-2/3 flex items-center justify-between">
+                                    {!isChangingPassword && (
                                         <button 
                                             onClick={() => setIsChangingPassword(true)}
-                                            className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+                                            className="px-5 py-2 text-xs font-bold text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all"
                                         >
-                                            Set password
+                                            Change
                                         </button>
-                                    </div>
+                                    )}
                                 </div>
-                            )}
 
-                            {/* Active Devices Row */}
-                            <div className="flex items-start justify-between py-5 border-b border-gray-100">
-                                <div className="w-1/3">
-                                    <p className="text-sm font-semibold text-gray-900">Active devices</p>
-                                </div>
-                                <div className="w-2/3 flex items-start justify-between">
-                                    <div className="flex items-start gap-4">
-                                        <Monitor size={24} className="text-gray-700 mt-1" />
-                                        <div>
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <h4 className="text-sm font-semibold text-gray-900">This Device</h4>
-                                                <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-gray-100 text-gray-600">Current</span>
+                                {isChangingPassword && (
+                                    <div className="pt-4 mt-4 border-t border-indigo-100/50 space-y-5">
+                                        {passwordError && (
+                                            <div className="p-3 bg-red-50 text-red-600 text-xs font-bold rounded-lg border border-red-100">
+                                                {passwordError}
                                             </div>
-                                            <p className="text-xs text-gray-500 mb-1">Authenticated via Supabase</p>
+                                        )}
+                                        {passwordSuccess && (
+                                            <div className="p-3 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-lg border border-emerald-100">
+                                                Password updated successfully!
+                                            </div>
+                                        )}
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">New Password</label>
+                                                <input 
+                                                    type="password" 
+                                                    value={newPassword}
+                                                    onChange={(e) => setNewPassword(e.target.value)}
+                                                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm font-medium focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all shadow-inner"
+                                                    placeholder="8+ characters"
+                                                />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Confirm New</label>
+                                                <input 
+                                                    type="password" 
+                                                    value={confirmPassword}
+                                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm font-medium focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all shadow-inner"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-white/50 p-4 rounded-xl border border-indigo-100/50 flex items-start gap-3">
+                                            <input 
+                                                id="sign-out" 
+                                                type="checkbox" 
+                                                checked={signOutDevices}
+                                                onChange={(e) => setSignOutDevices(e.target.checked)}
+                                                className="w-4 h-4 mt-0.5 text-indigo-600 bg-gray-100 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
+                                            />
+                                            <label htmlFor="sign-out" className="text-xs cursor-pointer text-gray-600 leading-normal">
+                                                Sign out of all other devices after saving. Recommended for security.
+                                            </label>
+                                        </div>
+
+                                        <div className="flex justify-end gap-3 pt-2">
+                                            <button 
+                                                onClick={() => {
+                                                    setIsChangingPassword(false)
+                                                    setPasswordError('')
+                                                    setPasswordSuccess(false)
+                                                    setNewPassword('')
+                                                    setConfirmPassword('')
+                                                }}
+                                                className="px-5 py-2.5 text-xs font-bold text-gray-500 hover:text-gray-900 transition-colors"
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button 
+                                                onClick={handlePasswordSubmit}
+                                                disabled={isSavingPassword || newPassword.length < 8 || newPassword !== confirmPassword}
+                                                className="px-6 py-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-600/30 transition-all active:scale-95 disabled:bg-gray-400 disabled:shadow-none disabled:cursor-not-allowed"
+                                            >
+                                                {isSavingPassword ? 'Saving Changes...' : 'Update Password'}
+                                            </button>
                                         </div>
                                     </div>
-                                </div>
-                            </div>
-
-                            {/* Delete Account Row */}
-                            <div className="flex items-center justify-between py-5">
-                                <div className="w-1/3">
-                                    <p className="text-sm font-semibold text-gray-900">Delete account</p>
-                                </div>
-                                <div className="w-2/3">
-                                    <button className="text-sm font-medium text-red-600 hover:text-red-700 transition-colors">
-                                        Delete account
-                                    </button>
-                                </div>
+                                )}
                             </div>
                         </div>
                     </div>
