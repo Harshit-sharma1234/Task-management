@@ -1,7 +1,8 @@
-'use client';
+'use client'
 
+import { useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { 
   Building2, 
   ChevronDown, 
@@ -9,11 +10,25 @@ import {
   FolderKanban, 
   Users, 
   Settings, 
-  ChevronRight
+  ChevronRight,
+  CircleDot
 } from 'lucide-react';
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+
+  // Prefetch all major routes on mount for "instant" navigation
+  useEffect(() => {
+    const routes = [
+      '/dashboard',
+      '/dashboard/projects',
+      '/dashboard/issues',
+      '/dashboard/team',
+      '/dashboard/settings'
+    ];
+    routes.forEach(route => router.prefetch(route));
+  }, [router]);
 
   return (
     <aside className="w-64 shrink-0 border-r border-gray-200 bg-white flex flex-col h-full">
@@ -56,6 +71,19 @@ export function Sidebar() {
             pathname.startsWith('/dashboard/projects') ? 'text-gray-700' : 'text-gray-500 group-hover:text-gray-700'
           } />
           <span className="text-sm font-medium">Projects</span>
+        </Link>
+        <Link 
+          href="/dashboard/issues" 
+          className={`flex items-center gap-3 px-3 py-2 rounded-md group transition-colors ${
+            pathname.startsWith('/dashboard/issues') 
+              ? 'bg-gray-100 text-gray-900' 
+              : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+          }`}
+        >
+          <CircleDot size={18} className={
+            pathname.startsWith('/dashboard/issues') ? 'text-gray-700' : 'text-gray-500 group-hover:text-gray-700'
+          } />
+          <span className="text-sm font-medium">Issues</span>
         </Link>
         <Link 
           href="/dashboard/team" 
