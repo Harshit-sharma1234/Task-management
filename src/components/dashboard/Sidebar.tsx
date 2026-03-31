@@ -1,7 +1,8 @@
-'use client';
+'use client'
 
+import { useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { 
   Building2, 
   ChevronDown, 
@@ -15,6 +16,19 @@ import {
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+
+  // Prefetch all major routes on mount for "instant" navigation
+  useEffect(() => {
+    const routes = [
+      '/dashboard',
+      '/dashboard/projects',
+      '/dashboard/issues',
+      '/dashboard/team',
+      '/dashboard/settings'
+    ];
+    routes.forEach(route => router.prefetch(route));
+  }, [router]);
 
   return (
     <aside className="w-64 shrink-0 border-r border-gray-200 bg-white flex flex-col h-full">

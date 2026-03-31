@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
@@ -14,6 +15,7 @@ import {
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { IssuesHeader } from '@/components/dashboard/issues/IssuesHeader';
+import { IssueListSkeleton } from '@/components/dashboard/issues/IssueListSkeleton';
 
 // Status Icon Mapping
 const statusIcons: Record<string, any> = {
@@ -43,34 +45,29 @@ export default async function IssuesPage() {
     redirect('/login');
   }
 
-  // Fetch tickets with project info
-  const { data: tickets, error } = await supabase
-    .from('tickets')
-    .select('*, projects(id, project_name)')
-    .order('created_at', { ascending: false });
+  return (
+    <Suspense fallback={<IssueListSkeleton />}>
+      <IssueListContent />
+    </Suspense>
+  );
+}
 
-  if (error) {
-    console.error('Error fetching tickets:', error);
-  }
+async function IssueListContent() {
+  const supabase = await createClient();
 
-  // Fetch projects for the modal
-  const { data: projectsData } = await supabase
-    .from('projects')
-    .select('id, project_name')
-    .order('project_name');
-  
-  const projects = (projectsData || []).map(p => ({ id: p.id, name: p.project_name }));
+  // Fetch all required data in parallel
+  const [ticketsRes, projectsRes, usersRes] = await Promise.all([
+    supabase.from('tickets').select('*, projects(id, project_name)').order('created_at', { ascending: false }),
+    supabase.from('projects').select('id, project_name').order('project_name'),
+    supabase.from('users').select('id, name').order('name')
+  ]);
 
-  // Fetch users for the modal
-  const { data: usersData } = await supabase
-    .from('users')
-    .select('id, name')
-    .order('name');
-  
-  const users = usersData || [];
+  const tickets = ticketsRes.data || [];
+  const projects = (projectsRes.data || []).map(p => ({ id: p.id, name: p.project_name }));
+  const users = usersRes.data || [];
 
   // Group tickets by project
-  const groupedTickets = (tickets || []).reduce((acc: any, ticket: any) => {
+  const groupedTickets = tickets.reduce((acc: any, ticket: any) => {
     const projectName = ticket.projects?.project_name || 'No Project';
     if (!acc[projectName]) {
       acc[projectName] = [];
@@ -82,7 +79,7 @@ export default async function IssuesPage() {
   return (
     <div className="flex flex-col h-full bg-[#fbfbfb]">
       <IssuesHeader 
-        totalIssues={tickets?.length || 0} 
+        totalIssues={tickets.length} 
         projects={projects}
         users={users}
       />
@@ -101,7 +98,7 @@ export default async function IssuesPage() {
           Object.entries(groupedTickets).map(([projectName, projectTickets]: [string, any]) => (
             <div key={projectName} className="mb-8 last:mb-0">
               {/* Project Group Header */}
-              <div className="flex items-center gap-3 mb-3 px-2">
+              <div className="flex items-center gap-3 mb-3 px-2 text-gray-900">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-indigo-500" />
                   <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">{projectName}</h2>
