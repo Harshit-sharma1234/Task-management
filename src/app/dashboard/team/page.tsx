@@ -44,7 +44,7 @@ export default async function TeamPage() {
                             <p className="text-sm text-gray-500 font-medium">Total Members</p>
                             <h3 className="text-3xl font-bold text-gray-900 mt-2">{users.length}</h3>
                         </div>
-                        <div className="bg-blue-50 p-2.5 rounded-lg text-blue-500">
+                        <div className="bg-indigo-50 p-2.5 rounded-lg text-indigo-500">
                             <Users size={20} />
                         </div>
                     </div>

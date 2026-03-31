@@ -62,7 +62,7 @@ export function PrioritySelector({
 
     // Render the trigger icon (signal bars)
     const renderTriggerIcon = () => {
-        if (isPending) return <div className="w-3 h-3 rounded-full border-2 border-gray-300 border-t-blue-500 animate-spin"></div>;
+        if (isPending) return <div className="w-3 h-3 rounded-full border-2 border-gray-300 border-t-indigo-500 animate-spin"></div>;
 
         if (currentPriority === 'urgent') return (
             <div className="flex gap-0.5 items-end h-3" title="Urgent">
@@ -141,7 +141,7 @@ export function PrioritySelector({
                                     </div>
                                     <div className="flex items-center gap-2">
                                         {isSelected && (
-                                            <span className="text-blue-500 text-[10px]">✓</span>
+                                            <span className="text-indigo-500 text-[10px]">✓</span>
                                         )}
                                         <span className="text-gray-300 text-[10px] font-mono group-hover:text-gray-400">{p.shortcut}</span>
                                     </div>

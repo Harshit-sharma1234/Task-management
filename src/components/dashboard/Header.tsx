@@ -23,34 +23,44 @@ export function Header() {
   useEffect(() => {
     const supabase = createClient()
 
-    async function fetchUser() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        const { data } = await supabase
-            .from('users')
-            .select('name, avatar_url')
-            .eq('email', user.email)
-        
-        if (data && data.length > 0) {
-          setUserProfile({ 
-            name: data[0].name, 
-            avatar_url: data[0].avatar_url 
-          })
-        } else {
-          setUserProfile({ 
-            name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User', 
-            avatar_url: null 
-          })
+    async function syncHeaderProfile(userOverride?: any) {
+      try {
+        let user = userOverride;
+        if (!user) {
+          const { data: { session } } = await supabase.auth.getSession();
+          user = session?.user;
         }
+        
+        if (user) {
+          const { data } = await supabase
+              .from('users')
+              .select('name, avatar_url')
+              .eq('email', user.email)
+          
+          if (data && data.length > 0) {
+            setUserProfile({ 
+              name: data[0].name, 
+              avatar_url: data[0].avatar_url 
+            })
+          } else {
+            setUserProfile({ 
+              name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User', 
+              avatar_url: null 
+            })
+          }
+        }
+      } catch (err: any) {
+        if (err?.message?.includes('Lock broken')) return;
+        console.error('Header auth error:', err);
       }
     }
 
-    fetchUser()
+    syncHeaderProfile()
 
     // Re-fetch profile when session recovers (e.g. after network change)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        fetchUser()
+        syncHeaderProfile(session?.user)
       }
     })
 
@@ -106,7 +116,7 @@ export function Header() {
           {/* Sign Out Button */}
           <button 
             onClick={() => setShowSignOutConfirm(true)}
-            className="text-gray-500 hover:text-red-600 flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-red-50 transition-colors text-sm font-medium"
+            className="text-gray-500 hover:text-indigo-600 flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-indigo-50 transition-colors text-sm font-medium"
           >
             <LogOut size={16} />
             <span className="hidden sm:inline">Sign out</span>
@@ -135,7 +145,7 @@ export function Header() {
               </button>
               <button
                 onClick={handleSignOut}
-                className="px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+                className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors shadow-lg shadow-indigo-600/20"
               >
                 Sign out
               </button>
