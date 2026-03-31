@@ -18,6 +18,7 @@ import {
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const unreadCount = 0; // Placeholder for future inbox functionality
 
   // Prefetch all major routes on mount for "instant" navigation
   useEffect(() => {

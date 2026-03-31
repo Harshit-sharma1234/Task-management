@@ -63,7 +63,7 @@ export default async function ProjectsPage() {
 // Wrapper for the header button that needs users
 async function CreateProjectButtonWrapper() {
     const supabase = await createClient();
-    const { data: usersData } = await supabase.from('users').select('id, name');
+    const { data: usersData } = await supabase.from('users').select('id, name, email');
     return <CreateProjectButton variant="header" users={usersData || []} />;
 }
 
@@ -74,7 +74,7 @@ async function ProjectList() {
     // Fetch projects and users in parallel
     const [projectsResponse, usersResponse] = await Promise.all([
         supabase.from('projects').select('*').order('created_at', { ascending: false }),
-        supabase.from('users').select('id, name')
+        supabase.from('users').select('id, name, email')
     ]);
 
     const projects = projectsResponse.data || [];

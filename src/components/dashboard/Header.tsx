@@ -20,7 +20,6 @@ export function Header() {
   const [userProfile, setUserProfile] = useState<{ name: string, avatar_url: string | null } | null>(null)
   const [signingOut, setSigningOut] = useState(false)
   const supabase = createClient()
-  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false)
 
   useEffect(() => {
     const supabase = createClient()

@@ -19,7 +19,7 @@ export default async function DashboardOverview() {
     // Fetch all required data in parallel
     const [projectsRes, usersRes] = await Promise.all([
         supabase.from('projects').select('*').order('created_at', { ascending: false }),
-        supabase.from('users').select('id, name')
+        supabase.from('users').select('id, name, email')
     ]);
 
     const projects = projectsRes.data || []

@@ -56,10 +56,10 @@ async function IssueListContent() {
   const supabase = await createClient();
 
   // Fetch all required data in parallel
-  const [ticketsRes, projectsRes, usersRes] = await Promise.all([
+    const [ticketsRes, projectsRes, usersRes] = await Promise.all([
     supabase.from('tickets').select('*, projects(id, project_name)').order('created_at', { ascending: false }),
     supabase.from('projects').select('id, project_name').order('project_name'),
-    supabase.from('users').select('id, name').order('name')
+    supabase.from('users').select('id, name, email').order('name')
   ]);
 
   const tickets = ticketsRes.data || [];
