@@ -5,6 +5,9 @@ import { ProjectDetailHeader } from '@/components/dashboard/ProjectDetailHeader'
 import { ProjectOverview } from '@/components/dashboard/ProjectOverview';
 import { ProjectSidebar } from '@/components/dashboard/ProjectSidebar';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 interface PageProps {
   params: Promise<{ id: string }>;
 }
@@ -31,7 +34,7 @@ export default async function ProjectDetailPage({ params }: PageProps) {
   // Fetch all users for selectors
   const { data: users } = await supabase
     .from('users')
-    .select('id, name, email');
+    .select('id, name, email, avatar_url');
 
   // Fetch current project members - use admin client to bypass RLS visibility limits
   const adminClient = createAdminClient();

@@ -52,7 +52,7 @@ export default async function DashboardOverview() {
                             <p className="text-sm text-gray-500 font-medium">Total Projects</p>
                             <h3 className="text-3xl font-bold text-gray-900 mt-2">{projects.length}</h3>
                         </div>
-                        <div className="bg-blue-50 p-2.5 rounded-lg text-blue-600">
+                        <div className="bg-indigo-50 p-2.5 rounded-lg text-indigo-600">
                             <Folder size={20} />
                         </div>
                     </div>
@@ -129,7 +129,7 @@ export default async function DashboardOverview() {
                                     {projects.map((project: any) => (
                                         <div key={project.id} className="p-5 hover:bg-gray-50 transition-colors flex items-center justify-between">
                                             <div className="flex items-center gap-4">
-                                                <div className="bg-blue-50 p-3 rounded-lg text-blue-600">
+                                                <div className="bg-indigo-50 p-3 rounded-lg text-indigo-600">
                                                     <Folder size={20} />
                                                 </div>
                                                 <div>
@@ -140,7 +140,7 @@ export default async function DashboardOverview() {
                                             <div className="text-right flex items-center gap-2">
                                                 <div className={`w-2 h-2 rounded-full ${
                                                     project.status === 'done' ? 'bg-green-500' :
-                                                    project.status === 'in_progress' ? 'bg-blue-500' :
+                                                    project.status === 'in_progress' ? 'bg-indigo-500' :
                                                     project.status === 'cancelled' ? 'bg-red-500' :
                                                     'bg-orange-500'
                                                 }`}></div>
@@ -203,7 +203,7 @@ export default async function DashboardOverview() {
                                 <Clock size={16} className="text-gray-400" />
                                 <h3 className="text-sm font-semibold text-gray-900">In Progress</h3>
                             </div>
-                            <span className="bg-blue-100 text-blue-700 text-xs font-semibold px-2 py-0.5 rounded">0</span>
+                            <span className="bg-indigo-100 text-indigo-700 text-xs font-semibold px-2 py-0.5 rounded">0</span>
                         </div>
                         <div className="text-center py-6 text-sm text-gray-500">
                             No in progress

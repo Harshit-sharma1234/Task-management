@@ -31,7 +31,7 @@ export function TeamList({ initialUsers }: { initialUsers: any[] }) {
                 </div>
                 <input
                     type="text"
-                    className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                    className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
                     placeholder="Search team members..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
