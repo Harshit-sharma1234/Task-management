@@ -6,7 +6,8 @@ import {
     markAsRead, 
     markAllAsRead, 
     deleteAllNotifications, 
-    deleteAllReadNotifications 
+    deleteAllReadNotifications,
+    deleteNotification
 } from '@/app/dashboard/notifications/actions';
 import { formatDistanceToNow } from 'date-fns';
 import { 
@@ -29,10 +30,11 @@ import {
     SignalHigh,
     SignalMedium,
     SignalLow,
-    FolderKanban,
-    Clock,
+    FolderKanban, 
+    Clock, 
     ArrowLeft
 } from 'lucide-react';
+import { PropertyInlineRow } from '@/components/dashboard/issues/PropertyInlineRow';
 
 // Color palette for avatars
 const avatarColors = [
@@ -64,7 +66,7 @@ const priorityIcons: Record<string, any> = {
     'urgent': { label: 'Urgent', icon: SignalHigh, color: 'text-red-600' },
     'high': { label: 'High', icon: SignalHigh, color: 'text-red-500' },
     'medium': { label: 'Medium', icon: SignalMedium, color: 'text-yellow-500' },
-    'low': { label: 'Low', icon: SignalLow, color: 'text-blue-500' },
+    'low': { label: 'Low', icon: SignalLow, color: 'text-indigo-500' },
     'no_priority': { label: 'No priority', icon: MoreHorizontal, color: 'text-gray-400' },
 };
 
@@ -91,36 +93,52 @@ export default function InboxPage() {
     const [showFilters, setShowFilters] = useState(false);
     const [showViewOptions, setShowViewOptions] = useState(false);
     const [typeFilter, setTypeFilter] = useState<string[]>([]);
+    const [allUsers, setAllUsers] = useState<any[]>([]);
 
     const supabase = createClient();
 
     useEffect(() => {
         let channel: ReturnType<typeof supabase.channel> | null = null;
 
-        async function init() {
-            const { data: { user } } = await supabase.auth.getUser();
-            setCurrentUser(user);
-            if (user) {
-                fetchNotifications(user.id);
+        async function initializeInbox(userOverride?: any) {
+            try {
+                let user = userOverride;
+                if (!user) {
+                    const { data: { session } } = await supabase.auth.getSession();
+                    user = session?.user;
+                }
                 
-                if (channel) supabase.removeChannel(channel);
+                setCurrentUser(user);
+                if (user) {
+                    fetchNotifications(user.id);
+                    
+                    if (channel) supabase.removeChannel(channel);
 
-                channel = supabase
-                    .channel('inbox-realtime')
-                    .on(
-                        'postgres_changes',
-                        { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
-                        () => fetchNotifications(user.id)
-                    )
-                    .subscribe();
+                    channel = supabase
+                        .channel('inbox-realtime')
+                        .on(
+                            'postgres_changes',
+                            { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+                            () => fetchNotifications(user.id)
+                        )
+                        .subscribe();
+                }
+            } catch (err: any) {
+                if (err?.message?.includes('Lock broken')) return;
+                console.error('Inbox auth error:', err);
             }
         }
 
-        init();
+        initializeInbox();
+        
+        // Fetch users for property updates
+        supabase.from('users').select('id, name').order('name').then(({ data }) => {
+            if (data) setAllUsers(data);
+        });
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
             if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-                init();
+                initializeInbox(session?.user);
             }
         });
 
@@ -259,6 +277,16 @@ export default function InboxPage() {
         await deleteAllReadNotifications();
         if (currentUser) fetchNotifications(currentUser.id);
         setShowActions(false);
+    };
+
+    const handleDeleteNotification = async (e: React.MouseEvent, id: string) => {
+        e.stopPropagation();
+        await deleteNotification(id);
+        setNotifications(prev => prev.filter(n => n.id !== id));
+        if (selectedId === id) {
+            setSelectedId(null);
+            setEntityDetail(null);
+        }
     };
 
     const clearFilters = () => setTypeFilter([]);
@@ -435,13 +463,20 @@ export default function InboxPage() {
                                                     : notification.message}
                                             </span>
                                         </div>
-                                        <div className="flex items-center gap-1 shrink-0">
-                                            {!notification.is_read && (
-                                                <span className="w-2 h-2 rounded-full bg-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                            )}
-                                        </div>
+                                    <div className="flex items-center gap-1 shrink-0">
+                                        {!notification.is_read && (
+                                            <span className="w-2 h-2 rounded-full bg-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        )}
+                                        <button
+                                            onClick={(e) => handleDeleteNotification(e, notification.id)}
+                                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-all opacity-0 group-hover:opacity-100"
+                                            title="Delete notification"
+                                        >
+                                            <Trash2 size={13} />
+                                        </button>
                                     </div>
-                                    {/* Subtitle row */}
+                                </div>
+                                {/* Subtitle row */}
                                     <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
                                         <span className="text-gray-500">{notification.actor?.name || notification.actor?.email}</span>
                                         <span>·</span>
@@ -519,55 +554,23 @@ export default function InboxPage() {
                                         {entityDetail.data.description || 'No description provided.'}
                                     </div>
 
-                                    {/* Properties Row */}
-                                    <div className="flex flex-wrap items-center gap-4 mb-8 py-4 border-y border-gray-100">
-                                        {/* Status */}
-                                        {entityDetail.data.status && (() => {
-                                            const s = statusIcons[entityDetail.data.status] || statusIcons['to_do'];
-                                            const Icon = s.icon;
-                                            return (
-                                                <div className="flex items-center gap-1.5 text-xs font-medium text-gray-600 bg-gray-50 px-2.5 py-1.5 rounded-md">
-                                                    <Icon size={14} className={s.color} />
-                                                    <span>{s.label}</span>
-                                                </div>
-                                            );
-                                        })()}
-
-                                        {/* Priority */}
-                                        {entityDetail.data.priority && (() => {
-                                            const p = priorityIcons[entityDetail.data.priority] || priorityIcons['no_priority'];
-                                            const Icon = p.icon;
-                                            return (
-                                                <div className="flex items-center gap-1.5 text-xs font-medium text-gray-600 bg-gray-50 px-2.5 py-1.5 rounded-md">
-                                                    <Icon size={14} className={p.color} />
-                                                    <span>{p.label}</span>
-                                                </div>
-                                            );
-                                        })()}
-
-                                        {/* Assignee */}
-                                        {entityDetail.data.assigned_to_user && (
-                                            <div className="flex items-center gap-1.5 text-xs font-medium text-gray-600 bg-gray-50 px-2.5 py-1.5 rounded-md">
-                                                <div className={`w-4 h-4 rounded-full flex items-center justify-center text-white text-[8px] font-bold ${getAvatarColor(entityDetail.data.assigned_to_user.name)}`}>
-                                                    {entityDetail.data.assigned_to_user.name?.charAt(0)?.toUpperCase()}
-                                                </div>
-                                                <span>{entityDetail.data.assigned_to_user.name}</span>
-                                            </div>
-                                        )}
-
-                                        {/* Project */}
-                                        {entityDetail.data.projects?.project_name && (
-                                            <div className="flex items-center gap-1.5 text-xs font-medium text-gray-600 bg-gray-50 px-2.5 py-1.5 rounded-md">
-                                                <FolderKanban size={12} className="text-gray-400" />
-                                                <span>{entityDetail.data.projects.project_name}</span>
-                                            </div>
-                                        )}
-
-                                        {/* Due Date */}
+                                    <div className="mb-8 py-4 border-y border-gray-100">
+                                        <PropertyInlineRow 
+                                            ticketId={entityDetail.data.id}
+                                            initialStatus={entityDetail.data.status}
+                                            initialPriority={entityDetail.data.priority}
+                                            initialAssigneeId={entityDetail.data.assignee_id}
+                                            projectName={entityDetail.data.projects?.project_name || 'N/A'}
+                                            users={allUsers}
+                                            currentUserId={currentUser?.id || ''}
+                                            reviewerId={entityDetail.data.reviewer_id}
+                                        />
+                                        
+                                        {/* Due Date (keep static for now in this row or integrate into PropertyInlineRow) */}
                                         {entityDetail.data.due_date && (
-                                            <div className="flex items-center gap-1.5 text-xs font-medium text-gray-600 bg-gray-50 px-2.5 py-1.5 rounded-md">
+                                            <div className="flex items-center gap-1.5 text-xs font-medium text-gray-600 bg-gray-50 px-2.5 py-1.5 rounded-md w-fit">
                                                 <Clock size={12} className="text-gray-400" />
-                                                <span>{new Date(entityDetail.data.due_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                                                <span>Due {new Date(entityDetail.data.due_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
                                             </div>
                                         )}
                                     </div>

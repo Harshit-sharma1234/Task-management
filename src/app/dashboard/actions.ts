@@ -27,7 +27,7 @@ export async function createProject(formData: FormData) {
     const priority = formData.get('priority') as string
     const status = formData.get('status') as string
     const startDate = formData.get('start_date') as string
-    const assignedTo = formData.get('assigned_to') as string
+    const assignedTo = formData.getAll('assigned_to') as string[]
 
     if (!projectName?.trim()) {
         return { error: 'Project name is required' }
@@ -52,7 +52,7 @@ export async function createProject(formData: FormData) {
             priority: priority,
             status: status,
             start_date: startDate || null,
-            assigned_to: assignedTo || null
+            assigned_to: null
         })
         .select('id')
         .single()
@@ -70,7 +70,18 @@ export async function createProject(formData: FormData) {
         membersToInsert.push({ project_id: newProject.id, user_id: leadId })
     }
 
-    const { error: memberError } = await supabase
+    // Add all selected assignees
+    if (assignedTo && assignedTo.length > 0) {
+        assignedTo.forEach(id => {
+            if (id && !membersToInsert.some(m => m.user_id === id)) {
+                membersToInsert.push({ project_id: newProject.id, user_id: id })
+            }
+        })
+    }
+
+    // Use admin client to bypass RLS for member insertion during creation
+    const adminClient = createAdminClient()
+    const { error: memberError } = await adminClient
         .from('project_members')
         .insert(membersToInsert)
 
@@ -88,9 +99,28 @@ export async function createProject(formData: FormData) {
                 message: `${profile.name} assigned you as Lead for project: ${projectName}`
             })
         }
+
+        // Notify other assignees
+        if (assignedTo && assignedTo.length > 0) {
+            // Need to await all notifications
+            await Promise.all(assignedTo.map(async (id) => {
+                if (id && id !== profile.id && id !== leadId) {
+                    await createNotification({
+                        userId: id,
+                        actorId: profile.id,
+                        entityType: 'project',
+                        entityId: newProject.id,
+                        type: 'assignment',
+                        message: `${profile.name} added you as a member to project: ${projectName}`
+                    })
+                }
+            }))
+        }
     }
 
     revalidatePath('/dashboard')
+    revalidatePath('/dashboard/projects')
+    revalidatePath(`/dashboard/projects/${newProject.id}`)
 
     return { success: true }
 }
