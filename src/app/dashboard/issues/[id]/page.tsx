@@ -23,6 +23,7 @@ import { clsx } from 'clsx';
 import Link from 'next/link';
 import { CommentSection } from '@/components/dashboard/issues/CommentSection';
 import { IssuePropertyControls } from '@/components/dashboard/issues/IssuePropertyControls';
+import { PropertyInlineRow } from '@/components/dashboard/issues/PropertyInlineRow';
 import { DeleteIssueButton } from '@/components/dashboard/issues/DeleteIssueButton';
 import { getUserProfile } from '@/lib/roles';
 
@@ -42,7 +43,7 @@ const priorityIcons: Record<string, any> = {
   'urgent': { label: 'Urgent', icon: SignalHigh, color: 'text-red-600' },
   'high': { label: 'High', icon: SignalHigh, color: 'text-red-500' },
   'medium': { label: 'Medium', icon: SignalMedium, color: 'text-yellow-500' },
-  'low': { label: 'Low', icon: SignalLow, color: 'text-blue-500' },
+  'low': { label: 'Low', icon: SignalLow, color: 'text-indigo-500' },
   'no_priority': { label: 'No priority', icon: MoreHorizontal, color: 'text-gray-400' },
 };
 
@@ -145,6 +146,17 @@ export default async function IssueDetailsPage({ params }: { params: { id: strin
                 {ticket.description || "No description provided."}
               </p>
             </div>
+
+            <PropertyInlineRow 
+              ticketId={id}
+              initialStatus={ticket.status}
+              initialPriority={ticket.priority}
+              initialAssigneeId={ticket.assignee_id}
+              projectName={ticket.projects?.project_name || 'N/A'}
+              users={allUsers || []}
+              currentUserId={profile?.id || ''}
+              reviewerId={ticket.reviewer_id}
+            />
           </div>
 
           {/* Activity Section */}

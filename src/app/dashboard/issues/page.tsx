@@ -31,7 +31,7 @@ const priorityIcons: Record<string, any> = {
   'urgent': { label: 'Urgent', icon: SignalHigh, color: 'text-red-600' },
   'high': { label: 'High', icon: SignalHigh, color: 'text-red-500' },
   'medium': { label: 'Medium', icon: SignalMedium, color: 'text-yellow-500' },
-  'low': { label: 'Low', icon: SignalLow, color: 'text-blue-500' },
+  'low': { label: 'Low', icon: SignalLow, color: 'text-indigo-500' },
   'no_priority': { label: 'No priority', icon: MoreHorizontal, color: 'text-gray-400' },
 };
 
