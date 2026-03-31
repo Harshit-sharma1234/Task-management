@@ -10,16 +10,8 @@ export default async function Dashboard() {
     redirect('/login')
   }
 
-  // Fetch all projects in the workspace/system
-  const { data: projectsData } = await supabase
-    .from('projects')
-    .select('*')
-    .order('created_at', { ascending: false })
-
-  const projects = projectsData || []
-
   const profile = await getUserProfile(supabase, user.email!)
-
+  
   if (!profile || !profile.roles?.role_name) {
     redirect('/login?message=No authorized profile found. Contact your admin.')
   }

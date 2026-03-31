@@ -1,10 +1,10 @@
 import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
-import { createClient } from '../../../lib/supabase/server'
-import { TeamList } from '../../../components/dashboard/TeamList'
-import { TeamHeader } from '../../../components/dashboard/TeamHeader'
-import { TeamSkeleton } from '../../../components/dashboard/TeamSkeleton'
-import { getUserProfile } from '../../../lib/roles'
+import { createClient } from '@/lib/supabase/server'
+import { TeamList } from '@/components/dashboard/TeamList'
+import { TeamHeader } from '@/components/dashboard/TeamHeader'
+import { TeamSkeleton } from '@/components/dashboard/TeamSkeleton'
+import { getUserProfile } from '@/lib/roles'
 import { Users, FolderKanban, Shield } from 'lucide-react'
 
 export default async function TeamPage() {
@@ -23,18 +23,25 @@ export default async function TeamPage() {
 async function TeamContent({ email }: { email: string }) {
     const supabase = await createClient()
 
-    // Fetch all required data in parallel
-    const [profileRes, usersRes, projectsRes, tasksRes] = await Promise.all([
+    // Fetch all needed data in parallel to avoid waterfalls
+    const [currentUserProfile, usersResponse, projectsResponse, tasksResponse] = await Promise.all([
         getUserProfile(supabase, email),
-        supabase.from('users').select('*, roles(role_name)').order('name'),
-        supabase.from('projects').select('*', { count: 'exact', head: true }),
-        supabase.from('tasks').select('*', { count: 'exact', head: true })
-    ])
+        supabase
+            .from('users')
+            .select('*, roles (role_name)')
+            .order('name'),
+        supabase
+            .from('projects')
+            .select('*', { count: 'exact', head: true }),
+        supabase
+            .from('tasks')
+            .select('*', { count: 'exact', head: true })
+    ]);
 
-    const isAdmin = profileRes?.roles?.role_name === 'Admin'
-    const users = usersRes.data || []
-    const projectsCount = projectsRes.count || 0
-    const tasksCount = tasksRes.count || 0
+    const isAdmin = currentUserProfile?.roles?.role_name === 'Admin'
+    const users = usersResponse.data || []
+    const projectsCount = projectsResponse.count || 0
+    const tasksCount = tasksResponse.count || 0
 
     return (
         <div className="p-8 max-w-7xl mx-auto flex flex-col gap-8 w-full h-full">
@@ -49,7 +56,7 @@ async function TeamContent({ email }: { email: string }) {
                             <p className="text-sm text-gray-500 font-medium">Total Members</p>
                             <h3 className="text-3xl font-bold text-gray-900 mt-2">{users.length}</h3>
                         </div>
-                        <div className="bg-blue-50 p-2.5 rounded-lg text-blue-500">
+                        <div className="bg-indigo-50 p-2.5 rounded-lg text-indigo-500">
                             <Users size={20} />
                         </div>
                     </div>

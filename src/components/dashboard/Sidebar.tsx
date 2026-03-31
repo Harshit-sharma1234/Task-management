@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 import { 
   Building2, 
   ChevronDown, 
@@ -11,24 +12,91 @@ import {
   Users, 
   Settings, 
   ChevronRight,
-  CircleDot
+  CircleDot,
+  Bell
 } from 'lucide-react';
 
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const [unreadCount, setUnreadCount] = useState(0);
+  const supabase = createClient();
 
-  // Prefetch all major routes on mount for "instant" navigation
+  // Prefetch major routes and handle notification counts
   useEffect(() => {
+    // 1. Prefetching for speed
     const routes = [
       '/dashboard',
       '/dashboard/projects',
       '/dashboard/issues',
       '/dashboard/team',
-      '/dashboard/settings'
+      '/dashboard/settings',
+      '/dashboard/inbox'
     ];
     routes.forEach(route => router.prefetch(route));
-  }, [router]);
+
+    // 2. Notification Badge Logic
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    async function loadSidebarData(userOverride?: any) {
+      try {
+        let user = userOverride;
+        if (!user) {
+          const { data: { session } } = await supabase.auth.getSession();
+          user = session?.user;
+        }
+        
+        if (!user) return;
+
+        const { count } = await supabase
+          .from('notifications')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('is_read', false);
+        
+        setUnreadCount(count || 0);
+
+        if (channel) supabase.removeChannel(channel);
+
+        channel = supabase
+          .channel('sidebar-notifications')
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'notifications',
+              filter: `user_id=eq.${user.id}`,
+            },
+            async () => {
+              const { count: newCount } = await supabase
+                .from('notifications')
+                .select('*', { count: 'exact', head: true })
+                .eq('user_id', user.id)
+                .eq('is_read', false);
+              setUnreadCount(newCount || 0);
+            }
+          )
+          .subscribe();
+      } catch (err: any) {
+        if (err?.message?.includes('Lock broken')) return;
+        console.error('Sidebar auth error:', err);
+      }
+    }
+
+    loadSidebarData();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        loadSidebarData(session?.user);
+      }
+    });
+
+    return () => {
+      if (channel) supabase.removeChannel(channel);
+      subscription.unsubscribe();
+    };
+  }, [router, supabase]);
 
   return (
     <aside className="w-64 shrink-0 border-r border-gray-200 bg-white flex flex-col h-full">
@@ -58,6 +126,26 @@ export function Sidebar() {
             pathname === '/dashboard' || pathname === '/dashboard/pm' || pathname === '/dashboard/dev' || pathname === '/dashboard/admin' ? 'text-gray-700' : 'text-gray-500 group-hover:text-gray-700'
           } />
           <span className="text-sm font-medium">Dashboard</span>
+        </Link>
+        <Link 
+          href="/dashboard/inbox" 
+          className={`flex items-center justify-between px-3 py-2 rounded-md group transition-colors ${
+            pathname === '/dashboard/inbox' 
+              ? 'bg-gray-100 text-indigo-600' 
+              : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <Bell size={18} className={
+              pathname === '/dashboard/inbox' ? 'text-indigo-600' : 'text-gray-500 group-hover:text-gray-700'
+            } />
+            <span className="text-sm font-medium">Inbox</span>
+          </div>
+          {unreadCount > 0 && (
+            <span className="bg-indigo-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
         </Link>
         <Link 
           href="/dashboard/projects" 
@@ -111,25 +199,6 @@ export function Sidebar() {
           } />
           <span className="text-sm font-medium">Settings</span>
         </Link>
-
-        {/* My Tasks Section */}
-        <div className="mt-6 flex flex-col gap-1">
-          <div className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-gray-50 rounded-md transition-colors">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-gray-600">My Tasks</span>
-              <span className="flex items-center justify-center bg-gray-100 text-gray-600 text-[10px] h-4 w-4 rounded-full font-medium">0</span>
-            </div>
-            <ChevronRight size={14} className="text-gray-400" />
-          </div>
-        </div>
-
-        {/* Projects Section */}
-        <div className="mt-4 flex flex-col gap-1">
-          <div className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-gray-50 rounded-md transition-colors">
-            <span className="text-xs font-semibold text-gray-500 tracking-wider">PROJECTS</span>
-            <ChevronRight size={14} className="text-gray-400" />
-          </div>
-        </div>
       </nav>
     </aside>
   );

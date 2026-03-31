@@ -23,6 +23,7 @@ import { clsx } from 'clsx';
 import Link from 'next/link';
 import { CommentSection } from '@/components/dashboard/issues/CommentSection';
 import { IssuePropertyControls } from '@/components/dashboard/issues/IssuePropertyControls';
+import { PropertyInlineRow } from '@/components/dashboard/issues/PropertyInlineRow';
 import { DeleteIssueButton } from '@/components/dashboard/issues/DeleteIssueButton';
 import { getUserProfile } from '@/lib/roles';
 
@@ -42,7 +43,7 @@ const priorityIcons: Record<string, any> = {
   'urgent': { label: 'Urgent', icon: SignalHigh, color: 'text-red-600' },
   'high': { label: 'High', icon: SignalHigh, color: 'text-red-500' },
   'medium': { label: 'Medium', icon: SignalMedium, color: 'text-yellow-500' },
-  'low': { label: 'Low', icon: SignalLow, color: 'text-blue-500' },
+  'low': { label: 'Low', icon: SignalLow, color: 'text-indigo-500' },
   'no_priority': { label: 'No priority', icon: MoreHorizontal, color: 'text-gray-400' },
 };
 
@@ -56,44 +57,44 @@ export default async function IssueDetailsPage({ params }: { params: { id: strin
     redirect('/login');
   }
 
-  // Fetch ticket with project and user info
-  const { data: ticket, error } = await supabase
-    .from('tickets')
-    .select(`
-      *,
-      projects (id, project_name),
-      created_by_user: users!tickets_created_by_fkey (id, name, email),
-      assigned_to_user: users!tickets_assignee_id_fkey (id, name, email)
-    `)
-    .eq('id', id)
-    .single();
+  // Fetch all data in parallel to avoid waterfalls
+  const [ticketResponse, commentsResponse, logsResponse, profile, allUsersResponse] = await Promise.all([
+    supabase
+      .from('tickets')
+      .select(`
+        *,
+        projects (id, project_name),
+        created_by_user: users!tickets_created_by_fkey (id, name, email),
+        assigned_to_user: users!tickets_assignee_id_fkey (id, name, email)
+      `)
+      .eq('id', id)
+      .single(),
+    supabase
+      .from('comments')
+      .select('*, users(id, name, email)')
+      .eq('ticket_id', id)
+      .order('created_at', { ascending: true }),
+    supabase
+      .from('logs')
+      .select('*, users(id, name)')
+      .eq('ticket_id', id)
+      .order('created_at', { ascending: true }),
+    getUserProfile(supabase, user.email!),
+    supabase
+      .from('users')
+      .select('id, name')
+      .order('name')
+  ]);
 
-  if (error || !ticket) {
-    console.error('Error fetching ticket:', error);
+  const { data: ticket, error: ticketError } = ticketResponse;
+  const { data: comments } = commentsResponse;
+  const { data: logs } = logsResponse;
+  const { data: allUsers } = allUsersResponse;
+
+  if (ticketError || !ticket) {
+    console.error('Error fetching ticket:', ticketError);
     return notFound();
   }
-
-  // Fetch comments for this ticket
-  const { data: comments } = await supabase
-    .from('comments')
-    .select('*, users(id, name, email)')
-    .eq('ticket_id', id)
-    .order('created_at', { ascending: true });
-
-  // Fetch logs for this ticket
-  const { data: logs } = await supabase
-    .from('logs')
-    .select('*, users(id, name)')
-    .eq('ticket_id', id)
-    .order('created_at', { ascending: true });
-
-  const profile = await getUserProfile(supabase, user.email!);
-
-  // Fetch all users for the assignee/reviewer dropdowns
-  const { data: allUsers } = await supabase
-    .from('users')
-    .select('id, name')
-    .order('name');
 
   // RBAC for deletion
   const canDelete = profile?.roles?.role_name === 'Admin' || profile?.roles?.role_name === 'Project Manager';
@@ -145,6 +146,17 @@ export default async function IssueDetailsPage({ params }: { params: { id: strin
                 {ticket.description || "No description provided."}
               </p>
             </div>
+
+            <PropertyInlineRow 
+              ticketId={id}
+              initialStatus={ticket.status}
+              initialPriority={ticket.priority}
+              initialAssigneeId={ticket.assignee_id}
+              projectName={ticket.projects?.project_name || 'N/A'}
+              users={allUsers || []}
+              currentUserId={profile?.id || ''}
+              reviewerId={ticket.reviewer_id}
+            />
           </div>
 
           {/* Activity Section */}
