@@ -11,32 +11,25 @@ export default async function TeamPage() {
 
     if (authError || !authData?.user) redirect('/login')
 
-    // 0. Get current user profile for role check
-    const currentUserProfile = await getUserProfile(supabase, authData.user.email!)
+    // Fetch all needed data in parallel to avoid waterfalls
+    const [currentUserProfile, usersResponse, projectsResponse, tasksResponse] = await Promise.all([
+        getUserProfile(supabase, authData.user.email!),
+        supabase
+            .from('users')
+            .select('*, roles (role_name)')
+            .order('name'),
+        supabase
+            .from('projects')
+            .select('*', { count: 'exact', head: true }),
+        supabase
+            .from('tasks')
+            .select('*', { count: 'exact', head: true })
+    ]);
+
     const isAdmin = currentUserProfile?.roles?.role_name === 'Admin'
-
-    // 1. Fetch Users + Roles
-    const { data: usersData, error: usersError } = await supabase
-        .from('users')
-        .select(`
-            *,
-            roles (
-                role_name
-            )
-        `)
-        .order('name')
-
-    // 2. Fetch Projects count
-    const { count: projectsCount } = await supabase
-        .from('projects')
-        .select('*', { count: 'exact', head: true })
-
-    // 3. Fetch Tasks count
-    const { count: tasksCount } = await supabase
-        .from('tasks')
-        .select('*', { count: 'exact', head: true })
-
-    const users = usersData || []
+    const users = usersResponse.data || []
+    const projectsCount = projectsResponse.count
+    const tasksCount = tasksResponse.count
 
     return (
         <div className="p-8 max-w-7xl mx-auto flex flex-col gap-8 w-full h-full">
