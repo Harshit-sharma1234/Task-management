@@ -17,10 +17,11 @@ function stringToColor(str: string) {
 export function Header() {
   const router = useRouter();
   const [userProfile, setUserProfile] = useState<{ name: string, avatar_url: string | null } | null>(null)
+  const [signingOut, setSigningOut] = useState(false)
+  const supabase = createClient()
 
   useEffect(() => {
     async function fetchUser() {
-      const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         // Use email-based fetching to match the Settings page (more reliable in this DB)
@@ -47,14 +48,40 @@ export function Header() {
   }, [])
 
   const handleSignOut = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.refresh(); // Refresh to clear server state
-    router.push('/login');
+    setSigningOut(true);
+    try {
+      await supabase.auth.signOut();
+      // Keep signingOut true to ensure the loader covers the transition to /login
+      router.push('/login');
+      router.refresh();
+    } catch (error) {
+      setSigningOut(false);
+    }
   };
 
   return (
-    <header className="h-16 border-b border-gray-100 bg-white flex items-center justify-between px-8 shrink-0">
+    <>
+      {signingOut && (
+        <div className="fixed inset-0 bg-[#0e0e11]/80 backdrop-blur-md z-[9999] flex flex-col items-center justify-center animate-in fade-in duration-500">
+          <div className="flex flex-col items-center gap-6 p-10 rounded-3xl bg-[#1e1e24] shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-[#2c2d33] scale-in-center">
+            <div className="relative flex items-center justify-center">
+              <div className="h-20 w-20 border-4 border-[#2c2d33] rounded-full"></div>
+              <div className="h-20 w-20 border-t-4 border-[#5e6ad2] rounded-full animate-spin absolute top-0 left-0"></div>
+              <LogOut size={32} className="text-[#5e6ad2] absolute" />
+            </div>
+            <div className="flex flex-col items-center gap-2">
+              <h2 className="text-xl font-bold text-white tracking-tight">Signing out</h2>
+              <p className="text-sm text-[#8a8f98] font-medium">Please wait while we secure your session...</p>
+            </div>
+            
+            {/* Subtle progress indicator */}
+            <div className="w-48 h-1 bg-[#2c2d33] rounded-full overflow-hidden mt-2">
+              <div className="h-full bg-[#5e6ad2] animate-shimmer w-full"></div>
+            </div>
+          </div>
+        </div>
+      )}
+      <header className="h-16 border-b border-gray-100 bg-white flex items-center justify-between px-8 shrink-0">
       <div className="flex-1 w-full max-w-md">
         <div className="relative flex items-center w-full">
           <Search size={16} className="absolute left-3 text-gray-400" />
@@ -97,5 +124,6 @@ export function Header() {
         </button>
       </div>
     </header>
+    </>
   );
 }
