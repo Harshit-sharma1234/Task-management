@@ -40,6 +40,7 @@ export function NotificationItem({ notification, onMarkRead }: NotificationItemP
     project_update: 'Project Update',
   }[notification.type];
 
+  // Map entity to dashboard link
   const link = notification.entity_type === 'ticket' 
     ? `/dashboard/issues/${notification.entity_id}`
     : `/dashboard/projects/${notification.entity_id}`;
@@ -50,10 +51,12 @@ export function NotificationItem({ notification, onMarkRead }: NotificationItemP
         !notification.is_read ? 'bg-white shadow-[0_0_15px_rgba(79,70,229,0.03)]' : ''
       }`}
     >
+      {/* Unread Indicator */}
       {!notification.is_read && (
         <div className="absolute left-1 top-1/2 -translate-y-1/2 w-1 h-8 bg-indigo-600 rounded-full" />
       )}
 
+      {/* Actor Avatar */}
       <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500 shrink-0 border border-white shadow-sm ring-1 ring-gray-100">
         {notification.actor.name?.charAt(0).toUpperCase() || 'U'}
       </div>
