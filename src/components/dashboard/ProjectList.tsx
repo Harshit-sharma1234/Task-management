@@ -64,6 +64,7 @@ export function ProjectList({ projects, users, userMap }: ProjectListProps) {
                             className="pl-9 pr-4 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 w-64 bg-gray-50/50"
                         />
                     </div>
+                    <CreateProjectButton variant="header" users={users} />
                 </div>
             </header>
 
