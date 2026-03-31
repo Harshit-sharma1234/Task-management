@@ -27,7 +27,7 @@ const statusOptions = [
 
 const priorityOptions = [
   { value: 'no_priority', label: 'No priority', icon: MoreHorizontal, color: 'text-gray-400' },
-  { value: 'low', label: 'Low', icon: SignalLow, color: 'text-blue-500' },
+  { value: 'low', label: 'Low', icon: SignalLow, color: 'text-indigo-500' },
   { value: 'medium', label: 'Medium', icon: SignalMedium, color: 'text-yellow-500' },
   { value: 'high', label: 'High', icon: SignalHigh, color: 'text-red-500' },
   { value: 'urgent', label: 'Urgent', icon: SignalHigh, color: 'text-red-600' },

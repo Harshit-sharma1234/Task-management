@@ -21,6 +21,7 @@ interface User {
     id: string;
     name: string;
     email: string;
+    avatar_url?: string | null;
 }
 
 interface ProjectListProps {
@@ -60,10 +61,9 @@ export function ProjectList({ projects, users, userMap }: ProjectListProps) {
                             placeholder="Search projects..." 
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-9 pr-4 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 w-64 bg-gray-50/50"
+                            className="pl-9 pr-4 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 w-64 bg-gray-50/50"
                         />
                     </div>
-                    <CreateProjectButton variant="header" users={users} />
                 </div>
             </header>
 
@@ -110,7 +110,7 @@ export function ProjectList({ projects, users, userMap }: ProjectListProps) {
                                                 <Folder size={15} className="text-gray-400 group-hover:text-gray-600 shrink-0" />
                                                 <Link 
                                                     href={`/dashboard/projects/${project.id}`}
-                                                    className="font-medium text-gray-900 truncate hover:text-blue-600 transition-colors after:absolute after:inset-0 after:z-0"
+                                                    className="font-medium text-gray-900 truncate hover:text-indigo-600 transition-colors after:absolute after:inset-0 after:z-0"
                                                 >
                                                     {project.project_name}
                                                 </Link>
@@ -135,7 +135,7 @@ export function ProjectList({ projects, users, userMap }: ProjectListProps) {
                                             <div className="flex items-center justify-end pr-5 text-gray-500 gap-2 relative z-10">
                                                 <div className={`w-2 h-2 rounded-full ${
                                                     project.status === 'done' ? 'bg-green-500' :
-                                                    project.status === 'in_progress' ? 'bg-blue-500' :
+                                                    project.status === 'in_progress' ? 'bg-indigo-500' :
                                                     project.status === 'cancelled' ? 'bg-red-500' :
                                                     'bg-orange-500'
                                                 }`}></div>
