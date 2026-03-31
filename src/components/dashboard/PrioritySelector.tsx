@@ -7,6 +7,8 @@ import { AlertCircle, SignalHigh, SignalMedium, SignalLow, Ban } from 'lucide-re
 interface PrioritySelectorProps {
     projectId: string;
     currentPriority: string | null;
+    showLabel?: boolean;
+    align?: 'left' | 'right';
 }
 
 const priorities = [
@@ -17,10 +19,17 @@ const priorities = [
     { value: 'low', label: 'Low', shortcut: '4', icon: <SignalLow size={14} className="text-gray-400" /> },
 ];
 
-export function PrioritySelector({ projectId, currentPriority }: PrioritySelectorProps) {
+export function PrioritySelector({ 
+    projectId, 
+    currentPriority, 
+    showLabel = false,
+    align = 'left'
+}: PrioritySelectorProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
     const dropdownRef = useRef<HTMLDivElement>(null);
+
+    const activePriority = priorities.find(p => p.value === currentPriority) || priorities[0];
 
     // Click outside logic
     useEffect(() => {
@@ -53,7 +62,7 @@ export function PrioritySelector({ projectId, currentPriority }: PrioritySelecto
 
     // Render the trigger icon (signal bars)
     const renderTriggerIcon = () => {
-        if (isPending) return <div className="w-3 h-3 rounded-full border-2 border-gray-300 border-t-blue-500 animate-spin"></div>;
+        if (isPending) return <div className="w-3 h-3 rounded-full border-2 border-gray-300 border-t-indigo-500 animate-spin"></div>;
 
         if (currentPriority === 'urgent') return (
             <div className="flex gap-0.5 items-end h-3" title="Urgent">
@@ -93,14 +102,19 @@ export function PrioritySelector({ projectId, currentPriority }: PrioritySelecto
                     e.stopPropagation();
                     setIsOpen(!isOpen);
                 }}
-                className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-gray-200/50 transition-colors"
+                className={`flex items-center gap-2 py-1 rounded-md hover:bg-gray-100/80 transition-colors text-gray-500 hover:text-gray-900 ${isPending ? 'opacity-50' : ''}`}
             >
                 {renderTriggerIcon()}
+                {showLabel && (
+                    <span className="text-sm font-medium text-gray-700">
+                        {activePriority.label}
+                    </span>
+                )}
             </button>
 
             {isOpen && (
-                <div className="absolute top-10 -left-6 w-60 bg-[#252528] rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.3)] border border-[#3e3e42] py-2 z-50 text-white font-sans overflow-hidden">
-                    <div className="px-3 pb-2 mb-2 border-b border-[#3e3e42]/50 text-xs text-gray-400">
+                <div className={`absolute ${align === 'left' ? 'left-0' : 'right-0'} top-full mt-2 w-60 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 text-gray-900 font-sans overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200`}>
+                    <div className="px-3 pb-2 mb-2 border-b border-gray-50 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
                         Change priority...
                     </div>
                     
@@ -115,21 +129,21 @@ export function PrioritySelector({ projectId, currentPriority }: PrioritySelecto
                                         e.stopPropagation();
                                         handleSelect(p.value);
                                     }}
-                                    className="flex items-center justify-between px-3 py-1.5 hover:bg-[#343438] transition-colors w-full text-left"
+                                    className="flex items-center justify-between px-3 py-1.5 hover:bg-gray-50 transition-colors w-full text-left group"
                                 >
                                     <div className="flex items-center gap-3">
                                         <div className="w-4 flex justify-center">
                                             {p.icon}
                                         </div>
-                                        <span className={`text-sm ${isSelected ? 'text-white' : 'text-gray-300'}`}>
+                                        <span className={`text-sm ${isSelected ? 'text-gray-900 font-medium' : 'text-gray-600 group-hover:text-gray-900'}`}>
                                             {p.label}
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         {isSelected && (
-                                            <span className="text-gray-400 text-xs text-[10px]">✓</span>
+                                            <span className="text-indigo-500 text-[10px]">✓</span>
                                         )}
-                                        <span className="text-gray-500 text-xs font-mono">{p.shortcut}</span>
+                                        <span className="text-gray-300 text-[10px] font-mono group-hover:text-gray-400">{p.shortcut}</span>
                                     </div>
                                 </button>
                             );

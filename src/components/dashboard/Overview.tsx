@@ -12,18 +12,24 @@ import { CreateProjectButton } from '@/components/dashboard/CreateProjectButton'
 
 export default async function DashboardOverview() {
     const supabase = await createClient()
-    const { data, error } = await supabase.auth.getUser()
-
-    const userName = data?.user?.user_metadata?.full_name || 'Khushi Tailor'
-
+    
     // Fetch all required data in parallel
-    const [projectsRes, usersRes] = await Promise.all([
-        supabase.from('projects').select('*').order('created_at', { ascending: false }),
-        supabase.from('users').select('id, name')
+    const [userResponse, projectsResponse, usersResponse] = await Promise.all([
+        supabase.auth.getUser(),
+        supabase
+            .from('projects')
+            .select('id, project_name, description, status, created_at')
+            .order('created_at', { ascending: false }),
+        supabase
+            .from('users')
+            .select('id, name')
     ]);
 
-    const projects = projectsRes.data || []
-    const users = usersRes.data || []
+    const userData = userResponse.data;
+    const projects = projectsResponse.data || []
+    const users = usersResponse.data || []
+
+    const userName = userData?.user?.user_metadata?.full_name || 'Khushi Tailor'
 
     return (
         <div className="p-8 max-w-7xl mx-auto">
@@ -45,7 +51,7 @@ export default async function DashboardOverview() {
                             <p className="text-sm text-gray-500 font-medium">Total Projects</p>
                             <h3 className="text-3xl font-bold text-gray-900 mt-2">{projects.length}</h3>
                         </div>
-                        <div className="bg-blue-50 p-2.5 rounded-lg text-blue-600">
+                        <div className="bg-indigo-50 p-2.5 rounded-lg text-indigo-600">
                             <Folder size={20} />
                         </div>
                     </div>
@@ -57,13 +63,15 @@ export default async function DashboardOverview() {
                     <div className="flex justify-between items-start">
                         <div>
                             <p className="text-sm text-gray-500 font-medium">Completed Projects</p>
-                            <h3 className="text-3xl font-bold text-gray-900 mt-2">0</h3>
+                            <h3 className="text-3xl font-bold text-gray-900 mt-2">
+                                {projects.filter((p: any) => p.status === 'done').length}
+                            </h3>
                         </div>
                         <div className="bg-green-50 p-2.5 rounded-lg text-green-500">
                             <CheckCircle2 size={20} />
                         </div>
                     </div>
-                    <p className="text-xs text-gray-400 mt-3">of 0 total</p>
+                    <p className="text-xs text-gray-400 mt-3">of {projects.length} total</p>
                 </div>
 
                 {/* My Tasks */}
@@ -122,7 +130,7 @@ export default async function DashboardOverview() {
                                     {projects.map((project: any) => (
                                         <div key={project.id} className="p-5 hover:bg-gray-50 transition-colors flex items-center justify-between">
                                             <div className="flex items-center gap-4">
-                                                <div className="bg-blue-50 p-3 rounded-lg text-blue-600">
+                                                <div className="bg-indigo-50 p-3 rounded-lg text-indigo-600">
                                                     <Folder size={20} />
                                                 </div>
                                                 <div>
@@ -130,8 +138,16 @@ export default async function DashboardOverview() {
                                                     <p className="text-xs text-gray-500 mt-1 line-clamp-1">{project.description || 'No description'}</p>
                                                 </div>
                                             </div>
-                                            <div className="text-right flex flex-col items-end">
-                                                <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">Active</span>
+                                            <div className="text-right flex items-center gap-2">
+                                                <div className={`w-2 h-2 rounded-full ${
+                                                    project.status === 'done' ? 'bg-green-500' :
+                                                    project.status === 'in_progress' ? 'bg-indigo-500' :
+                                                    project.status === 'cancelled' ? 'bg-red-500' :
+                                                    'bg-orange-500'
+                                                }`}></div>
+                                                <span className="text-[10px] font-bold uppercase text-gray-400 tracking-tight">
+                                                    {project.status ? project.status.replace('_', ' ') : 'backlog'}
+                                                </span>
                                             </div>
                                         </div>
                                     ))}
@@ -140,20 +156,20 @@ export default async function DashboardOverview() {
                         )}
                     </div>
 
-                    {/* Recent Activity */}
+                    {/* Recent Activity placeholder */}
                     <div>
                         <h2 className="text-base font-semibold text-gray-900 mb-4">Recent Activity</h2>
                         <div className="bg-white border border-gray-100 rounded-xl p-12 shadow-sm flex flex-col items-center justify-center min-h-[200px]">
                             <div className="bg-gray-100 p-3 rounded-full text-gray-400">
                                 <Clock size={24} />
                             </div>
+                            <p className="text-xs text-gray-400 mt-4 italic">Activity tracking coming soon</p>
                         </div>
                     </div>
                 </div>
 
                 {/* Right Column (Task Statuses) */}
                 <div className="flex flex-col gap-4">
-                    {/* My Tasks Small Card */}
                     <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm">
                         <div className="flex justify-between items-center border-b border-gray-50 pb-4 mb-4">
                             <div className="flex items-center gap-2">
@@ -162,12 +178,11 @@ export default async function DashboardOverview() {
                             </div>
                             <span className="bg-green-100 text-green-700 text-xs font-semibold px-2 py-0.5 rounded">0</span>
                         </div>
-                        <div className="text-center py-6 text-sm text-gray-500">
-                            No my tasks
+                        <div className="text-center py-6 text-sm text-gray-500 italic">
+                            No active tasks assigned to you.
                         </div>
                     </div>
 
-                    {/* Overdue Small Card */}
                     <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm">
                         <div className="flex justify-between items-center border-b border-gray-50 pb-4 mb-4">
                             <div className="flex items-center gap-2">
@@ -176,22 +191,21 @@ export default async function DashboardOverview() {
                             </div>
                             <span className="bg-red-100 text-red-700 text-xs font-semibold px-2 py-0.5 rounded">0</span>
                         </div>
-                        <div className="text-center py-6 text-sm text-gray-500">
-                            No overdue
+                        <div className="text-center py-6 text-sm text-gray-500 italic">
+                            Zero overdue items. Nice work!
                         </div>
                     </div>
 
-                    {/* In Progress Small Card */}
                     <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm">
                         <div className="flex justify-between items-center border-b border-gray-50 pb-4 mb-4">
                             <div className="flex items-center gap-2">
                                 <Clock size={16} className="text-gray-400" />
                                 <h3 className="text-sm font-semibold text-gray-900">In Progress</h3>
                             </div>
-                            <span className="bg-blue-100 text-blue-700 text-xs font-semibold px-2 py-0.5 rounded">0</span>
+                            <span className="bg-indigo-100 text-indigo-700 text-xs font-semibold px-2 py-0.5 rounded">0</span>
                         </div>
-                        <div className="text-center py-6 text-sm text-gray-500">
-                            No in progress
+                        <div className="text-center py-6 text-sm text-gray-500 italic">
+                            Nothing currently in progress.
                         </div>
                     </div>
                 </div>
