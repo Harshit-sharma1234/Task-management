@@ -7,6 +7,7 @@ import { Circle, CircleDashed, CircleDot, Clock, Search, CheckCircle2, XCircle }
 interface StatusSelectorProps {
     projectId: string;
     currentStatus: string | null;
+    align?: 'left' | 'right';
 }
 
 const statuses = [
@@ -19,7 +20,11 @@ const statuses = [
     { value: 'cancelled', label: 'Cancelled', shortcut: 'C', color: 'border-red-400', icon: <XCircle size={14} className="text-red-400" /> },
 ];
 
-export function StatusSelector({ projectId, currentStatus }: StatusSelectorProps) {
+export function StatusSelector({ 
+    projectId, 
+    currentStatus,
+    align = 'left'
+}: StatusSelectorProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -73,7 +78,7 @@ export function StatusSelector({ projectId, currentStatus }: StatusSelectorProps
             </button>
 
             {isOpen && (
-                <div className="absolute top-full mt-1 left-0 w-52 bg-white rounded-lg shadow-xl border border-gray-100 py-1.5 z-50 overflow-hidden">
+                <div className={`absolute ${align === 'left' ? 'left-0' : 'right-0'} top-full mt-2 w-52 bg-white rounded-xl shadow-xl border border-gray-100 py-1.5 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200`}>
                     <div className="px-3 py-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider border-b border-gray-50 mb-1">
                         Change Status
                     </div>
