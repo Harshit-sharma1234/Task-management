@@ -24,53 +24,67 @@ export function Sidebar() {
   useEffect(() => {
     let channel: ReturnType<typeof supabase.channel> | null = null;
 
-    async function fetchAndSubscribe() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+    async function loadSidebarData(userOverride?: any) {
+      try {
+        let user = userOverride;
+        if (!user) {
+          const { data: { session } } = await supabase.auth.getSession();
+          user = session?.user;
+        }
+        
+        if (!user) return;
 
-      // 1. Initial Fetch
-      const { count } = await supabase
-        .from('notifications')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .eq('is_read', false);
-      
-      setUnreadCount(count || 0);
+        // 1. Initial Fetch
+        const { count } = await supabase
+          .from('notifications')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('is_read', false);
+        
+        setUnreadCount(count || 0);
 
-      // 2. Clean up old channel before re-subscribing
-      if (channel) {
-        supabase.removeChannel(channel);
+        // 2. Clean up old channel before re-subscribing
+        if (channel) {
+          supabase.removeChannel(channel);
+        }
+
+        // 3. Real-time Subscription
+        channel = supabase
+          .channel('sidebar-notifications')
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'notifications',
+              filter: `user_id=eq.${user.id}`,
+            },
+            async () => {
+              const { count: newCount } = await supabase
+                .from('notifications')
+                .select('*', { count: 'exact', head: true })
+                .eq('user_id', user.id)
+                .eq('is_read', false);
+              setUnreadCount(newCount || 0);
+            }
+          )
+          .subscribe();
+      } catch (err: any) {
+        // Silently handle lock-stealing errors as they are handled by Supabase SDK retries/listening
+        if (err?.message?.includes('Lock broken')) {
+          console.log('Sidebar: Auth lock stolen, skipping this cycle');
+          return;
+        }
+        console.error('Sidebar auth error:', err);
       }
-
-      // 3. Real-time Subscription
-      channel = supabase
-        .channel('sidebar-notifications')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'notifications',
-            filter: `user_id=eq.${user.id}`,
-          },
-          async () => {
-            const { count: newCount } = await supabase
-              .from('notifications')
-              .select('*', { count: 'exact', head: true })
-              .eq('user_id', user.id)
-              .eq('is_read', false);
-            setUnreadCount(newCount || 0);
-          }
-        )
-        .subscribe();
     }
 
-    fetchAndSubscribe();
+    loadSidebarData();
 
     // 4. Re-fetch & re-subscribe when session recovers (e.g. after network change)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        fetchAndSubscribe();
+        loadSidebarData(session?.user);
       }
     });
 

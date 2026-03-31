@@ -43,7 +43,7 @@ export function MemberSelector({
   const getBadgeColor = (name: string) => {
     const colors = [
       'bg-gradient-to-br from-orange-400 to-orange-500', 
-      'bg-gradient-to-br from-blue-400 to-blue-500', 
+      'bg-gradient-to-br from-indigo-400 to-indigo-500', 
       'bg-gradient-to-br from-emerald-400 to-emerald-500', 
       'bg-gradient-to-br from-purple-400 to-purple-500', 
       'bg-gradient-to-br from-pink-400 to-pink-500'
