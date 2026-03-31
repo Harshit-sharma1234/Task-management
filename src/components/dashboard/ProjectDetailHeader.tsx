@@ -13,7 +13,6 @@ export function ProjectDetailHeader({ projectName }: ProjectDetailHeaderProps) {
 
   const tabs = [
     { name: 'Overview', icon: Layout },
-    { name: 'Updates', icon: MessageSquare },
     { name: 'Issues', icon: Info },
   ];
 
