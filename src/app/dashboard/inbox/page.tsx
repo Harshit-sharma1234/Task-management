@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClient } from '../../../lib/supabase/client';
-import { InboxSidebar } from '../../../components/dashboard/inbox/InboxSidebar';
-import { NotificationItem } from '../../../components/dashboard/inbox/NotificationItem';
-import { markAsRead, markAllAsRead } from '../notifications/actions';
+import { createClient } from '@/lib/supabase/client';
+import { InboxSidebar } from '@/components/dashboard/inbox/InboxSidebar';
+import { NotificationItem } from '@/components/dashboard/inbox/NotificationItem';
+import { markAsRead, markAllAsRead } from '@/app/dashboard/notifications/actions';
 import { Loader2, BellOff } from 'lucide-react';
 
 export default function InboxPage() {
@@ -21,6 +21,7 @@ export default function InboxPage() {
       if (user) {
         fetchNotifications(user.id);
         
+        // Real-time subscription
         const channel = supabase
           .channel('schema-db-changes')
           .on(
@@ -72,6 +73,7 @@ export default function InboxPage() {
     }
   };
 
+  // Filtering Logic
   const filteredNotifications = notifications.filter((n) => {
     if (activeTab === 'unread') return !n.is_read;
     if (activeTab === 'mentions') return n.type === 'mention';
