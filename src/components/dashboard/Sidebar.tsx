@@ -10,7 +10,8 @@ import {
   Users, 
   Settings, 
   ChevronRight,
-  CircleDot
+  CircleDot,
+  Bell
 } from 'lucide-react';
 
 export function Sidebar() {
@@ -44,6 +45,24 @@ export function Sidebar() {
             pathname === '/dashboard' || pathname === '/dashboard/pm' || pathname === '/dashboard/dev' || pathname === '/dashboard/admin' ? 'text-gray-700' : 'text-gray-500 group-hover:text-gray-700'
           } />
           <span className="text-sm font-medium">Dashboard</span>
+        </Link>
+        <Link 
+          href="/dashboard/inbox" 
+          className={`flex items-center justify-between px-3 py-2 rounded-md group transition-colors ${
+            pathname === '/dashboard/inbox' 
+              ? 'bg-gray-100 text-indigo-600' 
+              : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <Bell size={18} className={
+              pathname === '/dashboard/inbox' ? 'text-indigo-600' : 'text-gray-500 group-hover:text-gray-700'
+            } />
+            <span className="text-sm font-medium">Inbox</span>
+          </div>
+          <span className="flex items-center justify-center bg-indigo-100 text-indigo-600 text-[10px] h-4 w-4 rounded-full font-bold">
+            0
+          </span>
         </Link>
         <Link 
           href="/dashboard/projects" 

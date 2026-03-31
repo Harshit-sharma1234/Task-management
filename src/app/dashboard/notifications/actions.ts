@@ -1,7 +1,7 @@
 'use server'
 
-import { createClient } from '../../../lib/supabase/server'
-import { createAdminClient } from '../../../lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 
 /**
@@ -79,6 +79,8 @@ export async function markAllAsRead() {
  * Utility to parse mentions (@Name) from a text block.
  */
 export async function parseMentions(text: string): Promise<string[]> {
+    // Matches @FollowedByMultipleWordNames (simple heuristic: up to 3 words or until next special char)
+    // For this implementation, we'll look for @ capitalized words.
     const mentionRegex = /@([A-Z][a-z]+(?:\s[A-Z][a-z]+)*)/g
     const matches = text.matchAll(mentionRegex)
     const names = Array.from(matches, m => m[1])
