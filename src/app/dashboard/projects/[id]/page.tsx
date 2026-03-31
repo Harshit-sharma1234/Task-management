@@ -1,8 +1,12 @@
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { notFound, redirect } from 'next/navigation';
 import { ProjectDetailHeader } from '@/components/dashboard/ProjectDetailHeader';
 import { ProjectOverview } from '@/components/dashboard/ProjectOverview';
 import { ProjectSidebar } from '@/components/dashboard/ProjectSidebar';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -30,15 +34,16 @@ export default async function ProjectDetailPage({ params }: PageProps) {
   // Fetch all users for selectors
   const { data: users } = await supabase
     .from('users')
-    .select('id, name, email');
+    .select('id, name, email, avatar_url');
 
-  // Fetch current project members
-  const { data: members } = await supabase
+  // Fetch current project members - use admin client to bypass RLS visibility limits
+  const adminClient = createAdminClient();
+  const { data: members } = await adminClient
     .from('project_members')
     .select('user_id')
     .eq('project_id', id);
 
-  const currentMemberIds = members?.map(m => m.user_id) || [];
+  const currentMemberIds = (members as { user_id: string }[] | null)?.map(m => m.user_id) || [];
 
   return (
     <div className="flex flex-col h-full bg-white text-gray-900 overflow-hidden">
@@ -49,7 +54,12 @@ export default async function ProjectDetailPage({ params }: PageProps) {
       <div className="flex-1 flex overflow-hidden">
         {/* Scrollable Center Content */}
         <div className="flex-1 overflow-y-auto border-r border-gray-100">
-          <ProjectOverview project={project} users={users || []} />
+          <ProjectOverview 
+            project={project} 
+            users={users || []} 
+            currentMemberIds={currentMemberIds} 
+            currentUser={session?.user}
+          />
         </div>
 
         {/* Fixed Right Sidebar */}

@@ -4,6 +4,7 @@ import { useState, useRef } from 'react'
 import { UserCircle, Shield, Plus, Lock } from 'lucide-react'
 import { updateUserPassword, updateUserAvatar } from '@/app/dashboard/actions'
 import { createClient } from '@/lib/supabase/client'
+import Image from 'next/image'
 
 // A small helper to generate background colors
 function stringToColor(str: string) {
@@ -177,7 +178,7 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
                                         <div className="flex items-center gap-5">
                                             <div className="relative group/avatar">
                                                 {previewUrl ? (
-                                                    <img src={previewUrl} alt="Profile" className="w-16 h-16 rounded-full object-cover shadow-[0_4px_12px_rgba(0,0,0,0.1)] border-2 border-white" />
+                                                    <Image src={previewUrl} alt="Profile" width={64} height={64} className="w-16 h-16 rounded-full object-cover shadow-[0_4px_12px_rgba(0,0,0,0.1)] border-2 border-white" />
                                                 ) : (
                                                     <div 
                                                         className="w-16 h-16 rounded-full flex items-center justify-center text-white text-2xl font-bold border-2 border-white shadow-[0_4px_12px_rgba(0,0,0,0.1)]"
