@@ -21,17 +21,10 @@ interface Notification {
 interface NotificationItemProps {
   notification: Notification;
   onMarkRead: (id: string) => void;
+  showId?: boolean;
 }
 
-export function NotificationItem({ notification, onMarkRead }: NotificationItemProps) {
-  const Icon = {
-    assignment: UserPlus,
-    comment: MessageSquare,
-    mention: AtSign,
-    status_change: Zap,
-    project_update: FileText,
-  }[notification.type] || Bell;
-
+export function NotificationItem({ notification, onMarkRead, showId = true }: NotificationItemProps) {
   const typeLabel = {
     assignment: 'Assignment',
     comment: 'New Comment',
@@ -65,13 +58,20 @@ export function NotificationItem({ notification, onMarkRead }: NotificationItemP
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">
             <span className="text-sm font-bold text-gray-900">{notification.actor.name}</span>
+            {showId && (
+                <span className="text-[10px] font-mono text-gray-400 bg-gray-50 px-1 rounded uppercase">
+                    {notification.entity_type === 'ticket' ? 'KAP-' : 'PRJ-'}{notification.entity_id.slice(0, 4)}
+                </span>
+            )}
             <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
               {typeLabel}
             </span>
           </div>
-          <span className="text-[11px] text-gray-400 font-medium">
-            {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-[11px] text-gray-400 font-medium">
+                {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
+            </span>
+          </div>
         </div>
 
         <Link href={link} className="block group/link">
@@ -87,7 +87,6 @@ export function NotificationItem({ notification, onMarkRead }: NotificationItemP
             href={link}
             className="text-[11px] font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded transition-colors"
           >
-            <Icon size={12} />
             View {notification.entity_type}
           </Link>
           
