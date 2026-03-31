@@ -1,7 +1,9 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 import { 
   Building2, 
   ChevronDown, 
@@ -16,6 +18,67 @@ import {
 
 export function Sidebar() {
   const pathname = usePathname();
+  const [unreadCount, setUnreadCount] = useState(0);
+  const supabase = createClient();
+
+  useEffect(() => {
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    async function fetchAndSubscribe() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // 1. Initial Fetch
+      const { count } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('is_read', false);
+      
+      setUnreadCount(count || 0);
+
+      // 2. Clean up old channel before re-subscribing
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+
+      // 3. Real-time Subscription
+      channel = supabase
+        .channel('sidebar-notifications')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${user.id}`,
+          },
+          async () => {
+            const { count: newCount } = await supabase
+              .from('notifications')
+              .select('*', { count: 'exact', head: true })
+              .eq('user_id', user.id)
+              .eq('is_read', false);
+            setUnreadCount(newCount || 0);
+          }
+        )
+        .subscribe();
+    }
+
+    fetchAndSubscribe();
+
+    // 4. Re-fetch & re-subscribe when session recovers (e.g. after network change)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        fetchAndSubscribe();
+      }
+    });
+
+    return () => {
+      if (channel) supabase.removeChannel(channel);
+      subscription.unsubscribe();
+    };
+  }, []);
 
   return (
     <aside className="w-64 shrink-0 border-r border-gray-200 bg-white flex flex-col h-full">
@@ -60,9 +123,9 @@ export function Sidebar() {
             } />
             <span className="text-sm font-medium">Inbox</span>
           </div>
-          <span className="flex items-center justify-center bg-indigo-100 text-indigo-600 text-[10px] h-4 w-4 rounded-full font-bold">
-            0
-          </span>
+          {unreadCount > 0 && (
+            <span className="w-2 h-2 rounded-full bg-indigo-600" />
+          )}
         </Link>
         <Link 
           href="/dashboard/projects" 
@@ -122,7 +185,6 @@ export function Sidebar() {
           <div className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-gray-50 rounded-md transition-colors">
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold text-gray-600">My Tasks</span>
-              <span className="flex items-center justify-center bg-gray-100 text-gray-600 text-[10px] h-4 w-4 rounded-full font-medium">0</span>
             </div>
             <ChevronRight size={14} className="text-gray-400" />
           </div>
