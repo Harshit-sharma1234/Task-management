@@ -2,7 +2,11 @@
 
 import { useState } from 'react';
 import { Plus } from 'lucide-react';
-import { AddIssueModal } from './AddIssueModal';
+import dynamic from 'next/dynamic';
+
+const AddIssueModal = dynamic(() => import('./AddIssueModal').then(mod => mod.AddIssueModal), {
+  ssr: false,
+});
 
 interface Project {
   id: string;
@@ -45,12 +49,14 @@ export function IssuesHeader({ totalIssues, projects, users }: IssuesHeaderProps
         </div>
       </div>
 
-      <AddIssueModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        projects={projects}
-        users={users}
-      />
+      {isModalOpen && (
+        <AddIssueModal 
+          isOpen={isModalOpen} 
+          onClose={() => setIsModalOpen(false)} 
+          projects={projects}
+          users={users}
+        />
+      )}
     </>
   );
 }

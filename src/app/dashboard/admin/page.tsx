@@ -3,7 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { getUserProfile } from '@/lib/roles'
 import { Shield } from 'lucide-react'
 import DashboardOverview from '@/components/dashboard/Overview'
-
+import { Suspense } from 'react'
+import OverviewSkeleton from '@/components/dashboard/OverviewSkeleton'
 export default async function AdminDashboard() {
     const supabase = await createClient()
     const { data, error } = await supabase.auth.getUser()
@@ -23,7 +24,9 @@ export default async function AdminDashboard() {
                     Admin View
                 </span>
             </div>
-            <DashboardOverview />
+            <Suspense fallback={<OverviewSkeleton />}>
+                <DashboardOverview />
+            </Suspense>
         </div>
     )
 }
