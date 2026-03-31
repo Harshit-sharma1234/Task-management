@@ -4,13 +4,13 @@ import { createClient } from '@/lib/supabase/server'
 import { getUserProfile } from '@/lib/roles'
 import { Shield } from 'lucide-react'
 import DashboardOverview from '@/components/dashboard/Overview'
-import { DashboardSkeleton } from '@/components/dashboard/DashboardSkeleton'
+import OverviewSkeleton from '@/components/dashboard/OverviewSkeleton'
 
 export default async function AdminDashboard() {
     const supabase = await createClient()
-    const { data, error } = await supabase.auth.getUser()
+    const { data: authData, error } = await supabase.auth.getUser()
 
-    if (error || !data?.user) redirect('/login')
+    if (error || !authData?.user) redirect('/login')
 
     return (
         <div className="flex flex-col h-full w-full">
@@ -23,8 +23,8 @@ export default async function AdminDashboard() {
             </div>
             
             {/* Suspended Content (RBAC + Overview) */}
-            <Suspense fallback={<DashboardSkeleton />}>
-                <AdminContent email={data.user.email!} />
+            <Suspense fallback={<OverviewSkeleton />}>
+                <AdminContent email={authData.user.email!} />
             </Suspense>
         </div>
     )

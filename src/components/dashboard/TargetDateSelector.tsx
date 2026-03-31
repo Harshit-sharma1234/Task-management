@@ -2,11 +2,12 @@
 
 import { useState, useRef, useEffect, useTransition } from 'react';
 import { updateProjectTargetDate } from '@/app/dashboard/actions';
-import { Calendar, ChevronLeft, ChevronRight, CornerDownLeft } from 'lucide-react';
+import { CalendarPlus, ChevronLeft, ChevronRight, CornerDownLeft } from 'lucide-react';
 
 interface TargetDateSelectorProps {
     projectId: string;
     currentTargetDate: string | null;
+    align?: 'left' | 'right';
 }
 
 const MONTHS = [
@@ -16,7 +17,11 @@ const MONTHS = [
 
 const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 
-export function TargetDateSelector({ projectId, currentTargetDate }: TargetDateSelectorProps) {
+export function TargetDateSelector({ 
+    projectId, 
+    currentTargetDate,
+    align = 'left'
+}: TargetDateSelectorProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -109,19 +114,19 @@ export function TargetDateSelector({ projectId, currentTargetDate }: TargetDateS
                     e.stopPropagation();
                     setIsOpen(!isOpen);
                 }}
-                className={`flex items-center gap-2 px-2 py-1 -ml-2 rounded-md hover:bg-gray-100/80 transition-colors text-gray-500 hover:text-gray-900 ${isPending ? 'opacity-50' : ''}`}
+                className={`flex items-center gap-2 py-1 rounded-md hover:bg-gray-100/80 transition-colors text-gray-500 hover:text-gray-900 ${isPending ? 'opacity-50' : ''}`}
             >
-                <Calendar size={14} className={currentTargetDate ? "text-gray-900" : "text-gray-400"} />
+                <CalendarPlus size={14} className={currentTargetDate ? "text-gray-900" : "text-gray-400"} />
                 <span className={`text-xs ${currentTargetDate ? "font-medium text-gray-900" : ""}`}>
                     {formatDisplayDate(currentTargetDate)}
                 </span>
             </button>
 
             {isOpen && (
-                <div className="absolute top-8 left-0 w-[280px] bg-[#252528] rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] border border-[#3e3e42] py-3 z-50 text-white font-sans select-none">
+                <div className={`absolute ${align === 'left' ? 'left-0' : 'right-0'} top-full mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 py-3 z-50 text-gray-900 font-sans select-none animate-in fade-in slide-in-from-top-2 duration-200`}>
                     
                     <div className="px-3 mb-4">
-                        <div className="text-xs text-gray-400 mb-2 font-medium">Start date</div>
+                        <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Target date</div>
                         <div className="relative">
                             <input
                                 ref={inputRef}
@@ -129,10 +134,10 @@ export function TargetDateSelector({ projectId, currentTargetDate }: TargetDateS
                                 value={searchValue}
                                 onChange={(e) => setSearchValue(e.target.value)}
                                 placeholder="try: May 2027, Q4, 20/05/2027"
-                                className="w-full bg-[#1c1c1f] border border-[#52525a]/50 text-gray-300 text-[13px] rounded-md py-1.5 px-3 focus:outline-none focus:border-[#7c7c85] transition-colors placeholder:text-[#52525a]"
+                                className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-[13px] rounded-md py-1.5 px-3 focus:outline-none focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500/30 transition-all placeholder:text-gray-400"
                             />
                             {searchValue && (
-                                <button className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 bg-[#343438] rounded-sm p-0.5 border border-[#3e3e42]">
+                                <button className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 bg-white rounded-sm p-0.5 border border-gray-200">
                                     <CornerDownLeft size={10} />
                                 </button>
                             )}
@@ -140,21 +145,21 @@ export function TargetDateSelector({ projectId, currentTargetDate }: TargetDateS
                         
                         <div className="flex items-center gap-1.5 mt-3 overflow-x-auto no-scrollbar scroll-smooth">
                             {['Day', 'Month', 'Quarter', 'Half-year', 'Year'].map((filter) => (
-                                <button key={filter} className={`text-[11px] px-2.5 py-1 rounded-full border border-[#3e3e42] whitespace-nowrap transition-colors ${filter === 'Day' ? 'bg-[#3e3e42] text-white' : 'text-gray-400 hover:bg-[#343438] hover:text-white'}`}>
+                                <button key={filter} className={`text-[11px] px-2.5 py-1 rounded-full border border-gray-200 whitespace-nowrap transition-colors ${filter === 'Day' ? 'bg-gray-900 text-white border-gray-900' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'}`}>
                                     {filter}
                                 </button>
                             ))}
                         </div>
                     </div>
 
-                    <div className="border-t border-[#3e3e42]/50 pt-3 px-3">
+                    <div className="border-t border-gray-100 pt-3 px-3">
                         <div className="flex items-center justify-between mb-3">
-                            <span className="text-sm font-medium text-gray-100">{MONTHS[month]} {year}</span>
+                            <span className="text-sm font-semibold text-gray-900">{MONTHS[month]} {year}</span>
                             <div className="flex items-center gap-1">
-                                <button onClick={() => toggleMonth(-1)} className="p-1 rounded hover:bg-[#343438] text-gray-400 transition-colors">
+                                <button onClick={() => toggleMonth(-1)} className="p-1 rounded hover:bg-gray-50 text-gray-400 hover:text-gray-900 transition-colors">
                                     <ChevronLeft size={16} />
                                 </button>
-                                <button onClick={() => toggleMonth(1)} className="p-1 rounded hover:bg-[#343438] text-gray-400 transition-colors">
+                                <button onClick={() => toggleMonth(1)} className="p-1 rounded hover:bg-gray-50 text-gray-400 hover:text-gray-900 transition-colors">
                                     <ChevronRight size={16} />
                                 </button>
                             </div>
@@ -173,7 +178,7 @@ export function TargetDateSelector({ projectId, currentTargetDate }: TargetDateS
                             {blanksList.map((_, i) => {
                                 const dayNum = prevMonthDays - startingEmptyCells + i + 1;
                                 return (
-                                    <div key={`blank-${i}`} className="w-8 h-8 flex items-center justify-center text-[12px] text-[#3e3e42]">
+                                    <div key={`blank-${i}`} className="w-8 h-8 flex items-center justify-center text-[12px] text-gray-200">
                                         {dayNum}
                                     </div>
                                 );
@@ -185,15 +190,16 @@ export function TargetDateSelector({ projectId, currentTargetDate }: TargetDateS
                                 const isCurrentDate = isToday(day);
                                 const isSelectedDate = isSelected(day);
                                 
-                                let cellStyle = "text-gray-300 hover:bg-[#343438] hover:text-white cursor-pointer";
-                                if (isSelectedDate) cellStyle = "bg-[#ffffff] text-black font-semibold shadow-sm";
-                                else if (isCurrentDate) cellStyle = "text-blue-400 font-semibold hover:bg-[#343438]";
+                                let cellStyle = "text-gray-600 hover:bg-gray-50 hover:text-gray-900 cursor-pointer";
+                                if (isSelectedDate) cellStyle = "bg-gray-900 text-white font-semibold";
+                                else if (isCurrentDate) cellStyle = "text-indigo-600 font-bold border-b border-indigo-600 hover:bg-gray-50";
+                                else if (isToday(day)) cellStyle = "text-indigo-600 font-bold hover:bg-gray-50";
 
                                 return (
                                     <button
                                         key={day}
                                         onClick={() => handleSelect(dateIso)}
-                                        className={`w-8 h-8 rounded-full flex items-center justify-center text-[12px] transition-colors ${cellStyle}`}
+                                        className={`w-8 h-8 rounded-full flex items-center justify-center text-[12px] transition-all ${cellStyle}`}
                                     >
                                         {day}
                                     </button>
@@ -202,22 +208,11 @@ export function TargetDateSelector({ projectId, currentTargetDate }: TargetDateS
                             
                             {/* Next month blanks to fill grid */}
                             {Array.from({ length: 42 - (blanksList.length + daysList.length) }, (_, i) => (
-                                <div key={`next-blank-${i}`} className="w-8 h-8 flex items-center justify-center text-[12px] text-[#3e3e42]">
+                                <div key={`next-blank-${i}`} className="w-8 h-8 flex items-center justify-center text-[12px] text-gray-200">
                                     {i + 1}
                                 </div>
                             ))}
                         </div>
-                    </div>
-                    
-                    <div className="mt-3 px-3 pt-3 border-t border-[#3e3e42]/50">
-                        {currentTargetDate && (
-                            <button 
-                                onClick={() => handleSelect(null)}
-                                className="w-full py-1.5 text-xs text-gray-400 hover:text-white hover:bg-[#343438] rounded-md transition-colors"
-                            >
-                                Clear start date
-                            </button>
-                        )}
                     </div>
                 </div>
             )}
