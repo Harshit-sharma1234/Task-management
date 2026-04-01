@@ -247,7 +247,6 @@ export default async function DashboardOverview() {
 
                 {/* Right Column (Task Statuses) */}
                 <div className="flex flex-col gap-4">
-                    {/* My Tasks Small Card */}
                     <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm">
                         <div className="flex justify-between items-center border-b border-gray-50 pb-4 mb-4">
                             <div className="flex items-center gap-2">
@@ -279,7 +278,6 @@ export default async function DashboardOverview() {
                         )}
                     </div>
 
-                    {/* In Progress Small Card */}
                     <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm">
                         <div className="flex justify-between items-center border-b border-gray-50 pb-4 mb-4">
                             <div className="flex items-center gap-2">
@@ -315,4 +313,3 @@ export default async function DashboardOverview() {
         </div>
     )
 }
-

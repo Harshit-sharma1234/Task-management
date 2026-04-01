@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
@@ -14,6 +15,7 @@ import {
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { IssuesHeader } from '@/components/dashboard/issues/IssuesHeader';
+import { IssueListSkeleton } from '@/components/dashboard/issues/IssueListSkeleton';
 
 // Status Icon Mapping
 const statusIcons: Record<string, any> = {
@@ -43,13 +45,23 @@ export default async function IssuesPage() {
     redirect('/login');
   }
 
-  // Fetch data in parallel
-  const [ticketsResponse, projectsResponse, usersResponse] = await Promise.all([
+  return (
+    <Suspense fallback={<IssueListSkeleton />}>
+      <IssueListContent />
+    </Suspense>
+  );
+}
+
+async function IssueListContent() {
+  const supabase = await createClient();
+
+  // Fetch all required data in parallel
+  const [ticketsRes, projectsRes, usersRes] = await Promise.all([
     supabase
       .from('tickets')
-      .select('id, title, status, priority, created_at, assignee_id, project_id, projects(id, project_name)')
+      .select('*, projects(id, project_name)')
       .order('created_at', { ascending: false })
-      .limit(50),
+      .limit(100),
     supabase
       .from('projects')
       .select('id, project_name')
@@ -60,19 +72,12 @@ export default async function IssuesPage() {
       .order('name')
   ]);
 
-  const { data: tickets, error: ticketsError } = ticketsResponse;
-  const { data: projectsData } = projectsResponse;
-  const { data: usersData } = usersResponse;
-
-  if (ticketsError) {
-    console.error('Error fetching tickets:', ticketsError);
-  }
-
-  const projects = (projectsData || []).map(p => ({ id: p.id, name: p.project_name }));
-  const users = usersData || [];
+  const tickets = ticketsRes.data || [];
+  const projects = (projectsRes.data || []).map(p => ({ id: p.id, name: p.project_name }));
+  const users = usersRes.data || [];
 
   // Group tickets by project
-  const groupedTickets = (tickets || []).reduce((acc: any, ticket: any) => {
+  const groupedTickets = tickets.reduce((acc: any, ticket: any) => {
     const projectName = ticket.projects?.project_name || 'No Project';
     if (!acc[projectName]) {
       acc[projectName] = [];
@@ -84,12 +89,11 @@ export default async function IssuesPage() {
   return (
     <div className="flex flex-col h-full bg-[#fbfbfb]">
       <IssuesHeader 
-        totalIssues={tickets?.length || 0} 
+        totalIssues={tickets.length} 
         projects={projects}
         users={users}
       />
 
-      {/* List Content */}
       <div className="flex-1 overflow-y-auto p-8 max-w-5xl">
         {Object.keys(groupedTickets).length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -102,8 +106,7 @@ export default async function IssuesPage() {
         ) : (
           Object.entries(groupedTickets).map(([projectName, projectTickets]: [string, any]) => (
             <div key={projectName} className="mb-8 last:mb-0">
-              {/* Project Group Header */}
-              <div className="flex items-center gap-3 mb-3 px-2">
+              <div className="flex items-center gap-3 mb-3 px-2 text-gray-900">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-indigo-500" />
                   <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">{projectName}</h2>
@@ -111,7 +114,6 @@ export default async function IssuesPage() {
                 <span className="text-xs text-gray-400 font-medium">{projectTickets.length}</span>
               </div>
 
-              {/* Issues List */}
               <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
                 {projectTickets.map((ticket: any, index: number) => {
                   const statusData = statusIcons[ticket.status] || statusIcons['to_do'];
@@ -131,12 +133,10 @@ export default async function IssuesPage() {
                       )}
                     >
                       <div className="flex items-center gap-4 min-w-0">
-                        {/* Status Icon */}
                         <div className={clsx("shrink-0", statusColor)}>
                           <StatusIcon size={18} strokeWidth={2.5} />
                         </div>
                         
-                        {/* Issue Identifier & Title */}
                         <div className="flex items-center gap-3 min-w-0">
                           <span className="text-xs font-medium text-gray-400 uppercase shrink-0">
                             {projectName.substring(0, 3)}-{ticket.id.substring(0, 4)}
@@ -148,19 +148,16 @@ export default async function IssuesPage() {
                       </div>
 
                       <div className="flex items-center gap-6 shrink-0">
-                        {/* Priority */}
                         <div className={clsx("flex items-center gap-1", priorityColor)} title={`Priority: ${ticket.priority}`}>
                           <PriorityIcon size={16} />
                         </div>
 
-                        {/* Assignee / Info (Simplified) */}
                         <div className="flex items-center -space-x-1">
                           <div className="w-6 h-6 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-[10px] font-bold text-gray-600 uppercase">
                             {ticket.assignee_id ? '?' : 'U'}
                           </div>
                         </div>
 
-                        {/* Date */}
                         <span className="text-xs text-gray-400 font-medium">
                           {new Date(ticket.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                         </span>
