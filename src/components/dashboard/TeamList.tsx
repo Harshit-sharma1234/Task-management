@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Search } from 'lucide-react'
+import Image from 'next/image'
 
 // A small helper to generate consistent background colors based on a string
 function stringToColor(str: string) {
@@ -71,9 +72,20 @@ export function TeamList({ initialUsers }: { initialUsers: any[] }) {
                                         <tr key={user.id} className="hover:bg-gray-50 transition-colors">
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <div className="flex items-center">
-                                                    <div className="flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center text-white text-xs font-semibold shadow-inner" style={{ backgroundColor: bgColor }}>
-                                                        {user.name?.charAt(0) || '?'}
-                                                    </div>
+                                                    {user.avatar_url ? (
+                                                        <div className="flex-shrink-0 h-8 w-8 relative">
+                                                            <Image 
+                                                                src={user.avatar_url} 
+                                                                alt={user.name || 'User'} 
+                                                                fill
+                                                                className="rounded-full object-cover shadow-sm border border-gray-100"
+                                                            />
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center text-white text-xs font-semibold shadow-inner" style={{ backgroundColor: bgColor }}>
+                                                            {user.name?.charAt(0) || '?'}
+                                                        </div>
+                                                    )}
                                                     <div className="ml-4">
                                                         <div className="text-sm font-medium text-gray-900">{user.name}</div>
                                                     </div>
