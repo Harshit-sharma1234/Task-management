@@ -8,23 +8,75 @@ import {
   Milestone, 
   TrendingUp, 
   Clock,
-  Plus
+  Plus,
+  ChevronRight,
+  ChevronDown
 } from 'lucide-react';
 import { PrioritySelector } from './PrioritySelector';
 import { LeadSelector } from './LeadSelector';
 import { TargetDateSelector } from './TargetDateSelector';
 import { MemberSelector } from './MemberSelector';
 import { StatusSelector } from './StatusSelector';
+import { getProjectLogs } from '@/app/dashboard/logging/actions';
+import { useState, useEffect } from 'react';
+import { createClient } from '@/lib/supabase/client';
 
 interface ProjectSidebarProps {
   project: any;
   users: any[];
   currentMemberIds: string[];
+  userRole?: string | null;
 }
 
-export function ProjectSidebar({ project, users, currentMemberIds }: ProjectSidebarProps) {
+export function ProjectSidebar({ project, users, currentMemberIds, userRole }: ProjectSidebarProps) {
+  const [logs, setLogs] = useState<any[]>([]);
+  const [isActivityOpen, setIsActivityOpen] = useState(false);
+
+  useEffect(() => {
+    async function fetchLogs() {
+      const res = await getProjectLogs(project.id);
+      if (!res.error) {
+        setLogs(res.data || []);
+      }
+    }
+    fetchLogs();
+
+    // Set up real-time subscription for live updates
+    const supabase = createClient();
+    const channel = supabase
+      .channel('project_activity')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'project_logs',
+          filter: `project_id=eq.${project.id}`
+        },
+        () => {
+          // Re-fetch when a new log appears
+          fetchLogs();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [project.id]);
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', { 
+      month: 'short', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
   return (
-    <div className="p-6 space-y-8 border-l border-gray-100 h-full bg-[#fbfbfb]">
+    <div className="p-6 space-y-8 border-l border-gray-100 h-full bg-[#fbfbfb] overflow-y-auto custom-scrollbar">
       {/* Properties Panel */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
@@ -122,18 +174,51 @@ export function ProjectSidebar({ project, users, currentMemberIds }: ProjectSide
         </div>
       </div>
 
-      {/* Activity Panel */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">
-            Activity
-          </h3>
-          <span className="text-[10px] font-bold text-indigo-500 hover:text-indigo-600 cursor-pointer uppercase tracking-tight">Full feed</span>
+      {/* Activity Panel - Restricted to Admin */}
+      {(userRole === 'Admin' || userRole?.toLowerCase() === 'admin') && (
+        <div className="space-y-4 pt-2 border-t border-gray-50">
+          <div 
+            className="flex items-center justify-between cursor-pointer group/header"
+            onClick={() => setIsActivityOpen(!isActivityOpen)}
+          >
+            <div className="flex items-center gap-2">
+              {isActivityOpen ? (
+                <ChevronDown size={14} className="text-gray-400 group-hover/header:text-indigo-500 transition-colors" />
+              ) : (
+                <ChevronRight size={14} className="text-gray-400 group-hover/header:text-indigo-500 transition-colors" />
+              )}
+              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest group-hover/header:text-gray-600 transition-colors">
+                Activity
+              </h3>
+            </div>
+            {isActivityOpen && (
+              <span className="text-[10px] font-bold text-indigo-500 hover:text-indigo-600 cursor-pointer uppercase tracking-tight">Full feed</span>
+            )}
+          </div>
+          
+          {isActivityOpen && (
+            <div className="space-y-3 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar animate-in fade-in slide-in-from-top-2 duration-200">
+              {logs.length === 0 ? (
+                <div className="flex items-center gap-3 text-xs text-gray-400 border-l-2 border-gray-100 pl-4 ml-2">
+                  <span className="text-[11px] font-medium">No activity yet</span>
+                </div>
+              ) : (
+                logs.slice(0, 10).map((log) => (
+                  <div key={log.id} className="flex flex-col gap-0.5 border-l-2 border-gray-100 pl-4 ml-2 hover:border-indigo-200 transition-colors group mb-3 last:mb-0">
+                    <p className="text-[11px] text-gray-600 leading-tight">
+                      <span className="font-semibold text-gray-900 mr-1">{log.users?.email || 'Unknown'}</span>
+                      {log.description}
+                    </p>
+                    <span className="text-[9px] text-gray-400 uppercase font-bold tracking-tighter">
+                      {formatDate(log.created_at)}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
         </div>
-        <div className="flex items-center gap-3 text-xs text-gray-500 border-l-2 border-gray-100 pl-4 ml-2">
-          <span className="text-[11px] font-medium text-gray-600">Project created · Just now</span>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
