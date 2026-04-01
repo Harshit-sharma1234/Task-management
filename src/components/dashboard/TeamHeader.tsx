@@ -12,20 +12,19 @@ export function TeamHeader({ isAdmin }: TeamHeaderProps) {
     const [isModalOpen, setIsModalOpen] = useState(false)
 
     return (
-        <div className="flex justify-between items-start">
+        <div className="flex justify-between items-center mb-2">
             <div>
-                <h1 className="text-2xl font-bold text-gray-900">Team</h1>
-                <p className="text-sm text-gray-500 mt-1">Manage team members and their contributions</p>
+                <h1 className="text-xl font-bold text-gray-900 tracking-tight">Team members</h1>
             </div>
             
             {isAdmin && (
                 <>
                     <button 
                         onClick={() => setIsModalOpen(true)}
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-lg shadow-indigo-100 flex items-center gap-2 active:scale-95"
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 active:scale-95 shadow-sm shadow-indigo-200"
                     >
-                        <Plus size={18} />
-                        Add Member
+                        <Plus size={16} />
+                        Add a member
                     </button>
                     <AddEmployeeModal 
                         isOpen={isModalOpen} 
