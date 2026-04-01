@@ -3,7 +3,6 @@ import {
     Folder,
     CheckCircle2,
     Users,
-    AlertTriangle,
     ArrowRight,
     Clock,
     CircleDot,
@@ -18,6 +17,7 @@ import {
 import Link from 'next/link'
 import { CreateProjectButton } from '@/components/dashboard/CreateProjectButton'
 import { clsx } from 'clsx'
+import { getCachedStats, getCachedUsers, getCachedRecentTickets } from '@/lib/cache'
 
 // Status Icon Mapping
 const statusIcons: Record<string, any> = {
@@ -41,37 +41,26 @@ const priorityIcons: Record<string, any> = {
 
 export default async function DashboardOverview() {
     const supabase = await createClient()
-    // Fetch all data in parallel
-    const [userResponse, projectsResponse, usersResponse, ticketsResponse] = await Promise.all([
+    
+    // Fetch user and cached data in parallel
+    const [userResponse, users, stats, tickets] = await Promise.all([
         supabase.auth.getUser(),
-        supabase
-            .from('projects')
-            .select('id, project_name, description, created_at, status')
-            .order('created_at', { ascending: false }),
-        supabase
-            .from('users')
-            .select('id, name'),
-        supabase
-            .from('tickets')
-            .select('id, title, status, priority, created_at, assignee_id, projects(project_name)')
-            .order('created_at', { ascending: false })
-            .limit(10)
+        getCachedUsers(),
+        getCachedStats(),
+        getCachedRecentTickets(10)
     ]);
 
     const { data: userData } = userResponse;
-    const { data: projectsData } = projectsResponse;
-    const { data: usersData } = usersResponse;
-    const { data: ticketsData } = ticketsResponse;
-
     const currentUserId = userData?.user?.id;
     const userName = userData?.user?.user_metadata?.full_name || 'Khushi Tailor'
-    const projects = projectsData || []
-    const users = usersData || []
-    const tickets = ticketsData || []
-
-    const completedProjectsCount = projects.filter(p => p.status === 'done').length
-    const inProgressProjectsCount = projects.filter(p => p.status === 'in_progress').length
-    const myTasksCount = tickets.filter(t => t.assignee_id === currentUserId).length
+    
+    // Use data from cached stats
+    const projects = stats.recentProjects || []
+    
+    const totalProjectsCount = stats.projectsCount
+    const completedProjectsCount = stats.completedProjectsCount
+    const inProgressProjectsCount = stats.inProgressProjectsCount
+    const myTasksCount = tickets.filter((t: any) => t.assignee_id === currentUserId).length
 
     return (
         <div className="p-8 w-full">
@@ -91,7 +80,7 @@ export default async function DashboardOverview() {
                     <div className="flex justify-between items-start">
                         <div>
                             <p className="text-sm text-gray-500 font-medium">Total Projects</p>
-                            <h3 className="text-3xl font-bold text-gray-900 mt-2">{projects.length}</h3>
+                            <h3 className="text-3xl font-bold text-gray-900 mt-2">{totalProjectsCount}</h3>
                         </div>
                         <div className="bg-indigo-50 p-2.5 rounded-lg text-indigo-600">
                             <Folder size={20} />
@@ -258,9 +247,9 @@ export default async function DashboardOverview() {
                         {myTasksCount > 0 ? (
                             <div className="flex flex-col gap-3">
                                 {tickets
-                                    .filter(t => t.assignee_id === currentUserId)
+                                    .filter((t: any) => t.assignee_id === currentUserId)
                                     .slice(0, 3)
-                                    .map(task => (
+                                    .map((task: any) => (
                                         <div key={task.id} className="flex flex-col gap-1">
                                             <div className="flex items-center justify-between">
                                                 <span className="text-xs font-medium text-gray-900 truncate pr-2">{task.title}</span>
@@ -289,9 +278,9 @@ export default async function DashboardOverview() {
                         {inProgressProjectsCount > 0 ? (
                             <div className="flex flex-col gap-3">
                                 {projects
-                                    .filter(p => p.status === 'in_progress')
+                                    .filter((p: any) => p.status === 'in_progress')
                                     .slice(0, 3)
-                                    .map(project => (
+                                    .map((project: any) => (
                                         <div key={project.id} className="flex flex-col gap-1">
                                             <div className="flex items-center justify-between">
                                                 <span className="text-xs font-medium text-gray-900 truncate pr-2">{project.project_name}</span>

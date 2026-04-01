@@ -5,13 +5,17 @@ import { Briefcase } from 'lucide-react'
 import DashboardOverview from '@/components/dashboard/Overview'
 import { Suspense } from 'react'
 import OverviewSkeleton from '@/components/dashboard/OverviewSkeleton'
+import { getCachedUserProfile } from '@/lib/cache'
+
+export const revalidate = 60; // ISR: Revalidate every 60 seconds
+
 export default async function PMDashboard() {
     const supabase = await createClient()
     const { data, error } = await supabase.auth.getUser()
 
     if (error || !data?.user) redirect('/login')
 
-    const profile = await getUserProfile(supabase, data.user.email!)
+    const profile = await getCachedUserProfile(data.user.email!)
     if (!profile || profile.roles?.role_name !== 'Project Manager') {
         redirect('/dashboard')
     }
