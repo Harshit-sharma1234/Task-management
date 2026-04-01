@@ -5,17 +5,7 @@ import { UserCircle, Shield, Plus, Lock } from 'lucide-react'
 import { updateUserPassword, updateUserAvatar } from '@/app/dashboard/actions'
 import { createClient } from '@/lib/supabase/client'
 import Image from 'next/image'
-
-// A small helper to generate background colors
-function stringToColor(str: string) {
-    if (!str) return '#CBD5E1'
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-        hash = str.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    const c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
-    return '#' + '00000'.substring(0, 6 - c.length) + c;
-}
+import { UserAvatar } from '@/components/ui/UserAvatar'
 
 export function SettingsTabs({ user }: { user: { id: string, name: string, email: string, avatar_url: string | null } }) {
     const [activeTab, setActiveTab] = useState<'profile' | 'security'>('profile')
@@ -109,7 +99,7 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
         setIsSavingPassword(false)
     }
 
-    const bgColor = stringToColor(user.name)
+
 
     return (
         <div className="bg-white rounded-[24px] shadow-[0_20px_50px_rgba(0,0,0,0.05)] w-full max-w-5xl flex overflow-hidden min-h-[640px] border border-gray-100/50">
@@ -177,15 +167,15 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
                                     <div className="flex-1 flex items-center justify-between bg-gray-50/30 p-4 rounded-2xl border border-transparent hover:border-gray-100 hover:bg-white hover:shadow-sm transition-all duration-300">
                                         <div className="flex items-center gap-5">
                                             <div className="relative group/avatar">
-                                                {previewUrl ? (
+                                                {selectedFile && previewUrl ? (
                                                     <Image src={previewUrl} alt="Profile" width={64} height={64} className="w-16 h-16 rounded-full object-cover shadow-[0_4px_12px_rgba(0,0,0,0.1)] border-2 border-white" />
                                                 ) : (
-                                                    <div 
-                                                        className="w-16 h-16 rounded-full flex items-center justify-center text-white text-2xl font-bold border-2 border-white shadow-[0_4px_12px_rgba(0,0,0,0.1)]"
-                                                        style={{ backgroundColor: bgColor }}
-                                                    >
-                                                        {user.name.charAt(0).toUpperCase()}
-                                                    </div>
+                                                    <UserAvatar
+                                                        name={user.name}
+                                                        avatarUrl={user.avatar_url}
+                                                        size="xl"
+                                                        className="border-2 border-white shadow-[0_4px_12px_rgba(0,0,0,0.1)]"
+                                                    />
                                                 )}
                                                 <div className="absolute inset-0 rounded-full bg-black/0 group-hover/avatar:bg-black/20 flex items-center justify-center transition-all duration-200">
                                                     <Plus size={20} className="text-white opacity-0 group-hover/avatar:opacity-100" />

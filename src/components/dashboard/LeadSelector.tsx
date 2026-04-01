@@ -3,7 +3,8 @@
 import { useState, useRef, useEffect, useTransition } from 'react';
 import { updateProjectLead } from '@/app/dashboard/actions';
 import { User as UserIcon, Search, Check } from 'lucide-react';
-import Image from 'next/image';
+import { UserAvatar } from '@/components/ui/UserAvatar';
+import { getInitials, getBadgeColor } from '@/lib/avatar';
 
 interface User {
     id: string;
@@ -20,24 +21,8 @@ interface LeadSelectorProps {
     align?: 'left' | 'right';
 }
 
-export const getBadgeColor = (name: string) => {
-    if (name === 'Unassigned' || name === '?') return 'bg-gray-200 text-gray-500'
-    const colors = [
-        'bg-gradient-to-br from-orange-400 to-orange-500', 
-        'bg-gradient-to-br from-indigo-400 to-indigo-500', 
-        'bg-gradient-to-br from-emerald-400 to-emerald-500', 
-        'bg-gradient-to-br from-purple-400 to-purple-500', 
-        'bg-gradient-to-br from-pink-400 to-pink-500'
-    ]
-    let hash = 0
-    for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash)
-    return `${colors[Math.abs(hash) % colors.length]} text-white`
-}
-
-export const getInitials = (name: string) => {
-    if (name === 'Unassigned' || name === '?') return '?'
-    return name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()
-}
+// Re-export for backward compatibility with any external consumers
+export { getBadgeColor, getInitials };
 
 export function LeadSelector({ 
     projectId, 
@@ -60,7 +45,6 @@ export function LeadSelector({
     // Current lead processing
     const currentLead = users.find(u => u.id === currentLeadId);
     const leadLabel = currentLead ? (showEmail ? currentLead.email : currentLead.name) : 'Unassigned';
-    const initials = getInitials(currentLead ? currentLead.name : 'Unassigned');
 
     // Click outside logic
     useEffect(() => {
@@ -100,20 +84,11 @@ export function LeadSelector({
                 }}
                 className={`flex items-center gap-2 py-1 rounded-md hover:bg-gray-100/80 transition-colors text-gray-500 hover:text-gray-900 ${isPending ? 'opacity-50' : ''}`}
             >
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 border border-white shadow-sm ${currentLead?.avatar_url ? 'bg-gray-100 text-transparent' : getBadgeColor(currentLead ? currentLead.name : 'Unassigned')}`}>
-                    {currentLead?.avatar_url ? (
-                        <Image 
-                            src={currentLead.avatar_url} 
-                            alt={currentLead.name || 'Lead avatar'} 
-                            width={24} 
-                            height={24} 
-                            className="rounded-full object-cover w-full h-full"
-                            unoptimized={currentLead.avatar_url.includes('googleusercontent.com') || currentLead.avatar_url.includes('githubusercontent.com')}
-                        />
-                    ) : (
-                        initials
-                    )}
-                </div>
+                <UserAvatar
+                    name={currentLead ? currentLead.name : 'Unassigned'}
+                    avatarUrl={currentLead?.avatar_url}
+                    size="sm"
+                />
                 {showEmail && (
                     <span className="text-[11px] font-medium text-gray-700 truncate max-w-[200px]">
                         {leadLabel}
@@ -160,7 +135,6 @@ export function LeadSelector({
 
                         {filteredUsers.map((u) => {
                             const isSelected = currentLeadId === u.id;
-                            const uInitials = getInitials(u.name);
                             
                             return (
                                 <button
@@ -172,20 +146,11 @@ export function LeadSelector({
                                     className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 transition-colors text-left group"
                                 >
                                     <div className="flex items-center gap-2 overflow-hidden">
-                                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 shadow-sm border border-gray-100 overflow-hidden ${!u.avatar_url ? getBadgeColor(u.name) : 'bg-gray-100 text-transparent'}`}>
-                                            {u.avatar_url ? (
-                                                <Image 
-                                                    src={u.avatar_url} 
-                                                    alt={u.name || 'User avatar'} 
-                                                    width={24} 
-                                                    height={24} 
-                                                    className="w-full h-full object-cover"
-                                                    unoptimized={u.avatar_url.includes('googleusercontent.com') || u.avatar_url.includes('githubusercontent.com')}
-                                                />
-                                            ) : (
-                                                uInitials
-                                            )}
-                                        </div>
+                                        <UserAvatar
+                                            name={u.name}
+                                            avatarUrl={u.avatar_url}
+                                            size="sm"
+                                        />
                                         <div className="flex flex-col overflow-hidden">
                                             <span className="text-xs font-semibold text-gray-900 truncate">
                                                 {u.email}
