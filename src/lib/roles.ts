@@ -29,10 +29,6 @@ export async function getUserProfile(
     
     const userRow = data?.[0] || null
 
-    console.log('[getUserProfile] email:', email)
-    console.log('[getUserProfile] data:', JSON.stringify(data))
-    console.log('[getUserProfile] error:', JSON.stringify(error))
-
     if (error || !userRow) return null
     return userRow as UserProfile
 }
