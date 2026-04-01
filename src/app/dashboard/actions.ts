@@ -4,7 +4,7 @@
 
 import { createClient } from '../../lib/supabase/server'
 import { createAdminClient } from '../../lib/supabase/admin'
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import { getUserProfile } from '../../lib/roles'
 import { createNotification } from './notifications/actions'
 
@@ -433,6 +433,10 @@ export async function updateUserAvatar(userId: string, avatarUrl: string) {
         return { error: error.message }
     }
 
+    // Invalidate profile caches
+    revalidatePath('/dashboard/settings')
+    revalidatePath('/dashboard/team')
+
     console.log('[Avatar Update] Successfully synced user profile and avatar.')
     return { success: true }
 }
@@ -499,6 +503,8 @@ export async function provisionEmployee(formData: FormData) {
         return { error: `Database Error: ${dbError.message}` }
     }
 
+    revalidatePath('/dashboard/admin/team')
+    revalidatePath('/dashboard/team')
     revalidatePath('/dashboard/admin/team')
     revalidatePath('/dashboard/team')
     return { success: true, message: `Account created for ${name}. Temporary password: ${tempPassword}` }

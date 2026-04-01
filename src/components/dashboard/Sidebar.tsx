@@ -1,8 +1,8 @@
-'use client';
+'use client'
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { 
   Building2, 
@@ -18,10 +18,24 @@ import {
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [unreadCount, setUnreadCount] = useState(0);
   const supabase = createClient();
 
+  // Prefetch major routes and handle notification counts
   useEffect(() => {
+    // 1. Prefetching for speed
+    const routes = [
+      '/dashboard',
+      '/dashboard/projects',
+      '/dashboard/issues',
+      '/dashboard/team',
+      '/dashboard/settings',
+      '/dashboard/inbox'
+    ];
+    routes.forEach(route => router.prefetch(route));
+
+    // 2. Notification Badge Logic
     let channel: ReturnType<typeof supabase.channel> | null = null;
 
     async function loadSidebarData(userOverride?: any) {
@@ -34,7 +48,6 @@ export function Sidebar() {
         
         if (!user) return;
 
-        // 1. Initial Fetch
         const { count } = await supabase
           .from('notifications')
           .select('*', { count: 'exact', head: true })
@@ -43,12 +56,8 @@ export function Sidebar() {
         
         setUnreadCount(count || 0);
 
-        // 2. Clean up old channel before re-subscribing
-        if (channel) {
-          supabase.removeChannel(channel);
-        }
+        if (channel) supabase.removeChannel(channel);
 
-        // 3. Real-time Subscription
         channel = supabase
           .channel('sidebar-notifications')
           .on(
@@ -70,18 +79,13 @@ export function Sidebar() {
           )
           .subscribe();
       } catch (err: any) {
-        // Silently handle lock-stealing errors as they are handled by Supabase SDK retries/listening
-        if (err?.message?.includes('Lock broken')) {
-          console.log('Sidebar: Auth lock stolen, skipping this cycle');
-          return;
-        }
+        if (err?.message?.includes('Lock broken')) return;
         console.error('Sidebar auth error:', err);
       }
     }
 
     loadSidebarData();
 
-    // 4. Re-fetch & re-subscribe when session recovers (e.g. after network change)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         loadSidebarData(session?.user);
@@ -92,7 +96,7 @@ export function Sidebar() {
       if (channel) supabase.removeChannel(channel);
       subscription.unsubscribe();
     };
-  }, []);
+  }, [router, supabase]);
 
   return (
     <aside className="w-64 shrink-0 border-r border-gray-200 bg-white flex flex-col h-full">
@@ -138,7 +142,9 @@ export function Sidebar() {
             <span className="text-sm font-medium">Inbox</span>
           </div>
           {unreadCount > 0 && (
-            <span className="w-2 h-2 rounded-full bg-indigo-600" />
+            <span className="bg-indigo-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
           )}
         </Link>
         <Link 
