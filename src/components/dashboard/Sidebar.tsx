@@ -204,13 +204,6 @@ export function Sidebar() {
           </div>
         </div>
 
-        {/* Projects Section */}
-        <div className="mt-4 flex flex-col gap-1">
-          <div className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-gray-50 rounded-md transition-colors">
-            <span className="text-xs font-semibold text-gray-500 tracking-wider">PROJECTS</span>
-            <ChevronRight size={14} className="text-gray-400" />
-          </div>
-        </div>
       </nav>
     </aside>
   );
