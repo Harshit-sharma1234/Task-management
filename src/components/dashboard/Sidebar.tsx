@@ -16,10 +16,10 @@ import {
   Bell
 } from 'lucide-react';
 
-export function Sidebar() {
+export function Sidebar({ initialUnreadCount }: { initialUnreadCount?: number }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadCount, setUnreadCount] = useState(initialUnreadCount || 0);
   const supabase = createClient();
 
   // Prefetch major routes and handle notification counts

@@ -434,6 +434,7 @@ export async function updateUserAvatar(userId: string, avatarUrl: string) {
     }
 
     // Invalidate profile caches
+    revalidatePath('/dashboard', 'layout')
     revalidatePath('/dashboard/settings')
     revalidatePath('/dashboard/team')
 

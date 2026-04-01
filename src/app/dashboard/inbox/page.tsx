@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { UserAvatar } from '@/components/ui/UserAvatar';
+import { getInitials, getBadgeColor } from '@/lib/avatar';
 import { 
     markAsRead, 
     markAllAsRead, 
@@ -36,20 +38,7 @@ import {
 } from 'lucide-react';
 import { PropertyInlineRow } from '@/components/dashboard/issues/PropertyInlineRow';
 
-// Color palette for avatars
-const avatarColors = [
-    'bg-indigo-500', 'bg-emerald-500', 'bg-amber-500', 'bg-rose-500',
-    'bg-violet-500', 'bg-cyan-500', 'bg-pink-500', 'bg-teal-500'
-];
 
-function getAvatarColor(name: string) {
-    if (!name) return avatarColors[0];
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) {
-        hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    return avatarColors[Math.abs(hash) % avatarColors.length];
-}
 
 // Status icons for tickets
 const statusIcons: Record<string, any> = {
@@ -153,7 +142,7 @@ export default function InboxPage() {
             .from('notifications')
             .select(`
                 *,
-                actor:actor_id(id, name, email)
+                actor:actor_id(id, name, email, avatar_url)
             `)
             .eq('user_id', userId)
             .order('created_at', { ascending: false });
@@ -181,14 +170,14 @@ export default function InboxPage() {
                     .select(`
                         *,
                         projects (id, project_name),
-                        created_by_user: users!tickets_created_by_fkey (id, name, email),
-                        assigned_to_user: users!tickets_assignee_id_fkey (id, name, email)
+                        created_by_user: users!tickets_created_by_fkey (id, name, email, avatar_url),
+                        assigned_to_user: users!tickets_assignee_id_fkey (id, name, email, avatar_url)
                     `)
                     .eq('id', notification.entity_id)
                     .single(),
                 supabase
                     .from('comments')
-                    .select('*, users(id, name, email)')
+                    .select('*, users(id, name, email, avatar_url)')
                     .eq('ticket_id', notification.entity_id)
                     .order('created_at', { ascending: true }),
                 supabase
@@ -211,7 +200,7 @@ export default function InboxPage() {
         } else if (notification.entity_type === 'project') {
             const { data } = await supabase
                 .from('projects')
-                .select('*, lead:users!projects_lead_id_fkey(id, name, email)')
+                .select('*, lead:users!projects_lead_id_fkey(id, name, email, avatar_url)')
                 .eq('id', notification.entity_id)
                 .single();
 
@@ -436,54 +425,13 @@ export default function InboxPage() {
                         </div>
                     ) : filteredAndSorted.length > 0 ? (
                         filteredAndSorted.map((notification) => (
-                            <button
-                                key={notification.id}
-                                onClick={() => handleSelect(notification)}
-                                className={`w-full text-left px-4 py-3 border-b border-gray-50 transition-colors flex items-start gap-3 group ${
-                                    selectedId === notification.id
-                                        ? 'bg-indigo-50/60'
-                                        : 'hover:bg-gray-50/50'
-                                }`}
-                            >
-                                {/* Avatar */}
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-[11px] font-bold shrink-0 mt-0.5 ${getAvatarColor(notification.actor?.name)}`}>
-                                    {notification.actor?.name?.charAt(0)?.toUpperCase() || 'U'}
-                                </div>
-
-                                <div className="flex-1 min-w-0">
-                                    {/* Title row */}
-                                    <div className="flex items-start justify-between gap-2 mb-0.5">
-                                        <div className="flex items-center gap-1.5 min-w-0">
-                                            {!notification.is_read && (
-                                                <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 shrink-0" />
-                                            )}
-                                            <span className={`text-[13px] truncate ${!notification.is_read ? 'font-semibold text-gray-900' : 'font-medium text-gray-600'}`}>
-                                                {notification.message.length > 50 
-                                                    ? notification.message.substring(0, 50) + '...' 
-                                                    : notification.message}
-                                            </span>
-                                        </div>
-                                    <div className="flex items-center gap-1 shrink-0">
-                                        {!notification.is_read && (
-                                            <span className="w-2 h-2 rounded-full bg-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                        )}
-                                        <button
-                                            onClick={(e) => handleDeleteNotification(e, notification.id)}
-                                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-all opacity-0 group-hover:opacity-100"
-                                            title="Delete notification"
-                                        >
-                                            <Trash2 size={13} />
-                                        </button>
-                                    </div>
-                                </div>
-                                {/* Subtitle row */}
-                                    <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-                                        <span className="text-gray-500">{notification.actor?.name || notification.actor?.email}</span>
-                                        <span>·</span>
-                                        <span>{formatDistanceToNow(new Date(notification.created_at), { addSuffix: false })}</span>
-                                    </div>
-                                </div>
-                            </button>
+                            <NotificationRow 
+                                key={notification.id} 
+                                notification={notification} 
+                                selected={selectedId === notification.id}
+                                onSelect={() => handleSelect(notification)}
+                                onDelete={(e: React.MouseEvent) => handleDeleteNotification(e, notification.id)}
+                            />
                         ))
                     ) : (
                         <div className="flex flex-col items-center justify-center h-full text-center px-6 py-20">
@@ -586,35 +534,7 @@ export default function InboxPage() {
 
                                         <div className="space-y-5">
                                             {entityActivity.map((item, idx) => (
-                                                <div key={`${item.activityType}-${item.id}`} className="flex gap-3">
-                                                    {/* Avatar */}
-                                                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0 ${getAvatarColor(item.users?.name)}`}>
-                                                        {item.users?.name?.charAt(0)?.toUpperCase() || 'U'}
-                                                    </div>
-
-                                                    <div className="flex-1 min-w-0">
-                                                        {/* Name + time */}
-                                                        <div className="flex items-center gap-2 mb-1">
-                                                            <span className="text-[13px] font-semibold text-gray-900">
-                                                                {item.users?.email || item.users?.name}
-                                                            </span>
-                                                            <span className="text-[11px] text-gray-400">
-                                                                {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
-                                                            </span>
-                                                        </div>
-
-                                                        {/* Content */}
-                                                        {item.activityType === 'comment' ? (
-                                                            <div className="text-[13px] text-gray-700 bg-gray-50 rounded-lg p-3 border border-gray-100 leading-relaxed">
-                                                                {item.comment}
-                                                            </div>
-                                                        ) : (
-                                                            <div className="text-[12px] text-gray-500 italic">
-                                                                {item.message || `${item.users?.name} updated the issue`}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
+                                                <ActivityItem key={`${item.activityType}-${item.id}`} item={item} />
                                             ))}
 
                                             {entityActivity.length === 0 && (
@@ -633,9 +553,11 @@ export default function InboxPage() {
                                     </div>
                                     {entityDetail.data.lead && (
                                         <div className="flex items-center gap-2 text-xs font-medium text-gray-600 bg-gray-50 px-3 py-2 rounded-md w-fit">
-                                            <div className={`w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-bold ${getAvatarColor(entityDetail.data.lead.name)}`}>
-                                                {entityDetail.data.lead.name?.charAt(0)?.toUpperCase()}
-                                            </div>
+                                            <UserAvatar
+                                                name={entityDetail.data.lead.name}
+                                                avatarUrl={entityDetail.data.lead.avatar_url}
+                                                size="sm"
+                                            />
                                             <span>Lead: {entityDetail.data.lead.name}</span>
                                         </div>
                                     )}
@@ -651,4 +573,98 @@ export default function InboxPage() {
             </div>
         </div>
     );
+}
+
+function NotificationRow({ notification, selected, onSelect, onDelete }: any) {
+    const actor = notification.actor
+    
+    return (
+        <button
+            onClick={onSelect}
+            className={`w-full text-left px-4 py-3 border-b border-gray-50 transition-colors flex items-start gap-3 group ${
+                selected ? 'bg-indigo-50/60' : 'hover:bg-gray-50/50'
+            }`}
+        >
+            {/* Avatar */}
+            <div className="mt-0.5">
+                <UserAvatar
+                    name={actor?.name || 'User'}
+                    avatarUrl={actor?.avatar_url}
+                    size="md"
+                />
+            </div>
+
+            <div className="flex-1 min-w-0">
+                {/* Title row */}
+                <div className="flex items-start justify-between gap-2 mb-0.5">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                        {!notification.is_read && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 shrink-0" />
+                        )}
+                        <span className={`text-[13px] truncate ${!notification.is_read ? 'font-semibold text-gray-900' : 'font-medium text-gray-600'}`}>
+                            {notification.message.length > 50 
+                                ? notification.message.substring(0, 50) + '...' 
+                                : notification.message}
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                        {!notification.is_read && (
+                            <span className="w-2 h-2 rounded-full bg-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        )}
+                        <button
+                            onClick={onDelete}
+                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-all opacity-0 group-hover:opacity-100"
+                            title="Delete notification"
+                        >
+                            <Trash2 size={13} />
+                        </button>
+                    </div>
+                </div>
+                {/* Subtitle row */}
+                <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                    <span className="text-gray-500">{actor?.name || actor?.email}</span>
+                    <span>·</span>
+                    <span>{formatDistanceToNow(new Date(notification.created_at), { addSuffix: false })}</span>
+                </div>
+            </div>
+        </button>
+    )
+}
+
+function ActivityItem({ item }: any) {
+    const user = item.users
+
+    return (
+        <div className="flex gap-3">
+            {/* Avatar */}
+            <UserAvatar
+                name={user?.name || 'User'}
+                avatarUrl={user?.avatar_url}
+                size="sm"
+            />
+
+            <div className="flex-1 min-w-0">
+                {/* Name + time */}
+                <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[13px] font-semibold text-gray-900">
+                        {user?.email || user?.name}
+                    </span>
+                    <span className="text-[11px] text-gray-400">
+                        {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
+                    </span>
+                </div>
+
+                {/* Content */}
+                {item.activityType === 'comment' ? (
+                    <div className="text-[13px] text-gray-700 bg-gray-50 rounded-lg p-3 border border-gray-100 leading-relaxed">
+                        {item.comment}
+                    </div>
+                ) : (
+                    <div className="text-[12px] text-gray-500 italic">
+                        {item.message || `${user?.name} updated the issue`}
+                    </div>
+                )}
+            </div>
+        </div>
+    )
 }
