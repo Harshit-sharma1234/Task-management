@@ -1,24 +1,14 @@
 'use client';
 
-import { Search, Moon, LogOut } from 'lucide-react';
+import { Search, LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import { useEffect, useState } from 'react';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 
-function stringToColor(str: string) {
-    if (!str) return '#CBD5E1'
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-        hash = str.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    const c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
-    return '#' + '00000'.substring(0, 6 - c.length) + c;
-}
-
-export function Header() {
+export function Header({ initialProfile }: { initialProfile?: any }) {
   const router = useRouter();
-  const [userProfile, setUserProfile] = useState<{ name: string, avatar_url: string | null } | null>(null)
+  const [userProfile, setUserProfile] = useState<{ name: string, avatar_url: string | null } | null>(initialProfile || null)
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
   const supabase = createClient()
@@ -32,7 +22,7 @@ export function Header() {
           user = session?.user;
         }
         
-        if (user) {
+        if (user && !initialProfile) {
           const { data } = await supabase
               .from('users')
               .select('name, avatar_url')
@@ -116,22 +106,12 @@ export function Header() {
         </div>
         
         <div className="flex items-center gap-4">
-          {userProfile?.avatar_url ? (
-              <Image 
-                src={userProfile.avatar_url} 
-                alt="Profile" 
-                width={32}
-                height={32}
-                className="w-8 h-8 rounded-full object-cover shadow-sm border border-gray-100 cursor-pointer" 
-              />
-          ) : (
-              <div 
-                className="flex items-center justify-center w-8 h-8 rounded-full text-white text-sm font-semibold cursor-pointer shadow-sm"
-                style={{ backgroundColor: userProfile ? stringToColor(userProfile.name) : '#4f46e5' }}
-              >
-                {userProfile?.name ? userProfile.name.charAt(0).toUpperCase() : ''}
-              </div>
-          )}
+          <UserAvatar
+            name={userProfile?.name || ''}
+            avatarUrl={userProfile?.avatar_url}
+            size="md"
+            className="cursor-pointer"
+          />
 
           <div className="w-px h-6 bg-gray-200 mx-1"></div>
 

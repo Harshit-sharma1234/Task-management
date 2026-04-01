@@ -3,6 +3,7 @@
 import { formatDistanceToNow } from 'date-fns';
 import { MessageSquare, UserPlus, Zap, FileText, Check, Bell, AtSign } from 'lucide-react';
 import Link from 'next/link';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 
 interface Notification {
   id: string;
@@ -15,6 +16,7 @@ interface Notification {
   actor: {
     name: string;
     email: string;
+    avatar_url?: string | null;
   };
 }
 
@@ -50,9 +52,11 @@ export function NotificationItem({ notification, onMarkRead, showId = true }: No
       )}
 
       {/* Actor Avatar */}
-      <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500 shrink-0 border border-white shadow-sm ring-1 ring-gray-100">
-        {notification.actor.name?.charAt(0).toUpperCase() || 'U'}
-      </div>
+      <UserAvatar
+        name={notification.actor.name || 'User'}
+        avatarUrl={notification.actor.avatar_url}
+        size="lg"
+      />
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between mb-1">

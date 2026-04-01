@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { User, Send, Loader2 } from 'lucide-react';
+import { Send, Loader2 } from 'lucide-react';
 import { addComment } from '@/app/dashboard/issues/actions';
 import { useRouter } from 'next/navigation';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 
 interface Comment {
   id: string;
@@ -12,6 +13,7 @@ interface Comment {
   users: {
     name: string;
     email: string;
+    avatar_url?: string | null;
   };
 }
 
@@ -21,6 +23,7 @@ interface CommentSectionProps {
   currentUser: {
     name: string;
     email: string;
+    avatar_url?: string | null;
   };
   hideList?: boolean;
 }
@@ -54,9 +57,11 @@ export function CommentSection({ ticketId, comments, currentUser, hideList = fal
           {comments.map((c) => (
             <div key={c.id} className="group">
               <div className="flex gap-4">
-                <div className="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-[10px] font-bold text-indigo-600 shrink-0 uppercase">
-                  {c.users?.name?.substring(0, 1) || 'U'}
-                </div>
+                <UserAvatar
+                  name={c.users?.name || 'User'}
+                  avatarUrl={c.users?.avatar_url}
+                  size="md"
+                />
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1.5">
                     <span className="text-sm font-semibold text-gray-900 leading-none">{c.users?.name}</span>
@@ -76,9 +81,11 @@ export function CommentSection({ ticketId, comments, currentUser, hideList = fal
 
       {/* New Comment Input */}
       <div className="flex gap-4 pt-10 border-t border-gray-100">
-        <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white shrink-0">
-          <User size={14} />
-        </div>
+        <UserAvatar
+          name={currentUser.name}
+          avatarUrl={currentUser.avatar_url}
+          size="md"
+        />
         <form onSubmit={handleSubmit} className="flex-1">
           <div className="border border-gray-200 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all bg-white shadow-sm">
             <textarea
