@@ -1,9 +1,8 @@
-import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
+import { createClient } from '@/lib/supabase/server';
 import { ProjectList } from '@/components/dashboard/ProjectList';
-
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+import { getCachedProjects, getCachedUsers } from '@/lib/cache';
+import { Suspense } from 'react';
 
 export default async function ProjectsPage() {
     const supabase = await createClient();
@@ -13,33 +12,53 @@ export default async function ProjectsPage() {
         redirect('/login');
     }
 
-    // Fetch all projects and users in parallel for the ProjectList component
-    const [projectsResponse, usersResponse] = await Promise.all([
-        supabase
-            .from('projects')
-            .select('*')
-            .order('created_at', { ascending: false }),
-        supabase
-            .from('users')
-            .select('id, name, email, avatar_url')
+    return (
+        <Suspense fallback={<ProjectsLoadingSkeleton />}>
+            <ProjectsContent />
+        </Suspense>
+    );
+}
+
+async function ProjectsContent() {
+    // Fetch cached projects and users in parallel
+    const [projects, users] = await Promise.all([
+        getCachedProjects(),
+        getCachedUsers()
     ]);
 
-    const projects = projectsResponse.data || [];
-    const users = (usersResponse.data || []) as { id: string, name: string, email: string, avatar_url?: string | null }[];
-    
+    const typedUsers = (users || []).map((u: any) => ({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        avatar_url: u.avatar_url || null
+    }));
+
     // Create an efficient dictionary to map lead_id to actual user names
-    const userMap = users.reduce((acc, u) => {
+    const userMap = typedUsers.reduce((acc: Record<string, string>, u: any) => {
         acc[u.id] = u.name;
         return acc;
-    }, {} as Record<string, string>);
+    }, {});
 
     return (
         <div className="flex flex-col h-full w-full bg-[#fbfbfb]">
             <ProjectList 
                 projects={projects} 
-                users={users} 
+                users={typedUsers} 
                 userMap={userMap} 
             />
+        </div>
+    );
+}
+
+function ProjectsLoadingSkeleton() {
+    return (
+        <div className="flex flex-col h-full w-full bg-[#fbfbfb] p-8 animate-pulse">
+            <div className="h-8 w-48 bg-gray-200 rounded mb-6" />
+            <div className="space-y-3">
+                {[...Array(5)].map((_, i) => (
+                    <div key={i} className="h-16 bg-gray-100 rounded-lg" />
+                ))}
+            </div>
         </div>
     );
 }
