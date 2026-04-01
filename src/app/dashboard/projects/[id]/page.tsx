@@ -4,6 +4,7 @@ import { notFound, redirect } from 'next/navigation';
 import { ProjectDetailHeader } from '@/components/dashboard/ProjectDetailHeader';
 import { ProjectOverview } from '@/components/dashboard/ProjectOverview';
 import { ProjectSidebar } from '@/components/dashboard/ProjectSidebar';
+import { getUserProfile } from '@/lib/roles';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -45,6 +46,10 @@ export default async function ProjectDetailPage({ params }: PageProps) {
 
   const currentMemberIds = (members as { user_id: string }[] | null)?.map(m => m.user_id) || [];
 
+  // Fetch user role for visibility control
+  const profile = await getUserProfile(supabase, session.user.email!, session.user.id);
+  const userRole = profile?.roles?.role_name || null;
+
   return (
     <div className="flex flex-col h-full bg-white text-gray-900 overflow-hidden">
       {/* Project Header (Breadcrumbs & Tabs) */}
@@ -68,6 +73,7 @@ export default async function ProjectDetailPage({ params }: PageProps) {
             project={project} 
             users={users || []} 
             currentMemberIds={currentMemberIds} 
+            userRole={userRole}
           />
         </div>
       </div>
