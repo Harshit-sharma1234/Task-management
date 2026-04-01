@@ -1,4 +1,3 @@
-import { createClient } from '@/lib/supabase/server'
 import {
     Folder,
     CheckCircle2,
@@ -39,20 +38,20 @@ const priorityIcons: Record<string, any> = {
     'no_priority': { label: 'No priority', icon: MoreHorizontal, color: 'text-gray-400' },
 };
 
-export default async function DashboardOverview() {
-    const supabase = await createClient()
-    
-    // Fetch user and cached data in parallel
-    const [userResponse, users, stats, tickets] = await Promise.all([
-        supabase.auth.getUser(),
+interface DashboardOverviewProps {
+    userId: string;
+    userName: string;
+}
+
+export default async function DashboardOverview({ userId, userName }: DashboardOverviewProps) {
+    // Fetch all cached data in parallel — no auth call needed (passed as props)
+    const [users, stats, tickets] = await Promise.all([
         getCachedUsers(),
         getCachedStats(),
         getCachedRecentTickets(10)
     ]);
 
-    const { data: userData } = userResponse;
-    const currentUserId = userData?.user?.id;
-    const userName = userData?.user?.user_metadata?.full_name || 'Khushi Tailor'
+    const currentUserId = userId;
     
     // Use data from cached stats
     const projects = stats.recentProjects || []

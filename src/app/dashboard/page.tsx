@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { getUserProfile, getDashboardPath } from '@/lib/roles'
+import { getCachedUserProfile } from '@/lib/cache'
+import { getDashboardPath } from '@/lib/roles'
 
 export default async function Dashboard() {
   const supabase = await createClient()
@@ -10,12 +11,11 @@ export default async function Dashboard() {
     redirect('/login')
   }
 
-  const profile = await getUserProfile(supabase, user.email!)
+  const profile = await getCachedUserProfile(user.email!)
   
   if (!profile || !profile.roles?.role_name) {
     redirect('/login?message=No authorized profile found. Contact your admin.')
   }
 
-  // Redirect to role-specific dashboard
   redirect(getDashboardPath(profile.roles.role_name))
 }

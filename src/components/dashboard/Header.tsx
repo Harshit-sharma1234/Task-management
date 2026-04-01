@@ -3,7 +3,7 @@
 import { Search, LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 
 export function Header({ initialProfile }: { initialProfile?: any }) {
@@ -11,7 +11,7 @@ export function Header({ initialProfile }: { initialProfile?: any }) {
   const [userProfile, setUserProfile] = useState<{ name: string, avatar_url: string | null } | null>(initialProfile || null)
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
 
   useEffect(() => {
     async function syncHeaderProfile(userOverride?: any) {
