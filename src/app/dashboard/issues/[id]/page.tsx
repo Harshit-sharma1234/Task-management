@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import Link from 'next/link';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 import { CommentSection } from '@/components/dashboard/issues/CommentSection';
 import { IssuePropertyControls } from '@/components/dashboard/issues/IssuePropertyControls';
 import { PropertyInlineRow } from '@/components/dashboard/issues/PropertyInlineRow';
@@ -170,12 +171,10 @@ export default async function IssueDetailsPage({ params }: { params: { id: strin
               <div className="space-y-6 mb-10">
                 {activity.map((item: any) => (
                   <div key={`${item.type}-${item.id}`} className="flex gap-4">
-                    <div className={clsx(
-                      "w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 uppercase border",
-                      item.type === 'comment' ? "bg-indigo-50 border-indigo-100 text-indigo-600" : "bg-gray-50 border-gray-100 text-gray-400"
-                    )}>
-                      {item.users?.name?.substring(0, 1) || 'U'}
-                    </div>
+                    <UserAvatar
+                      name={item.users?.name || 'User'}
+                      size="md"
+                    />
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-sm font-semibold text-gray-900">{item.users?.name}</span>

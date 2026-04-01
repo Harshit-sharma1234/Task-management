@@ -111,3 +111,30 @@ export const getCachedRecentTickets = (limit: number = 10) =>
       tags: ['tickets']
     }
   )();
+
+/**
+ * Cached fetch for a specific user's unread notification count.
+ */
+export const getCachedUnreadCount = (userId: string) =>
+  unstable_cache(
+    async () => {
+      console.log(`[Cache] Fetching fresh unread count for: ${userId}`);
+      const supabase = createAdminClient();
+      const { count, error } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('is_read', false); // Note: check column name, usually is_read or read
+      
+      if (error) {
+        console.error(`[Cache] Error fetching unread count for ${userId}:`, error);
+        return 0;
+      }
+      return count || 0;
+    },
+    [`unread-notifications-${userId}`],
+    { 
+      revalidate: 60, 
+      tags: [`notifications-${userId}`] 
+    }
+  )();
