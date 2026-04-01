@@ -4,8 +4,8 @@ import { createClient } from '@/lib/supabase/server'
 import { TeamList } from '@/components/dashboard/TeamList'
 import { TeamHeader } from '@/components/dashboard/TeamHeader'
 import { TeamSkeleton } from '@/components/dashboard/TeamSkeleton'
-import { getUserProfile } from '@/lib/roles'
 import { Users, FolderKanban, Shield } from 'lucide-react'
+import { getCachedUsers, getCachedStats, getCachedUserProfile } from '@/lib/cache'
 
 export default async function TeamPage() {
     const supabase = await createClient()
@@ -21,27 +21,17 @@ export default async function TeamPage() {
 }
 
 async function TeamContent({ email }: { email: string }) {
-    const supabase = await createClient()
-
-    // Fetch all needed data in parallel to avoid waterfalls
-    const [currentUserProfile, usersResponse, projectsResponse, tasksResponse] = await Promise.all([
-        getUserProfile(supabase, email),
-        supabase
-            .from('users')
-            .select('*, roles (role_name)')
-            .order('name'),
-        supabase
-            .from('projects')
-            .select('*', { count: 'exact', head: true }),
-        supabase
-            .from('tasks')
-            .select('*', { count: 'exact', head: true })
+    // Use cached data fetching instead of direct Supabase calls
+    // Note: getCachedUserProfile returns a result, while getCachedUsers/getCachedStats are already the cached functions
+    const [currentUserProfile, users, stats] = await Promise.all([
+        getCachedUserProfile(email),
+        getCachedUsers(),
+        getCachedStats()
     ]);
 
     const isAdmin = currentUserProfile?.roles?.role_name === 'Admin'
-    const users = usersResponse.data || []
-    const projectsCount = projectsResponse.count || 0
-    const tasksCount = tasksResponse.count || 0
+    const projectsCount = stats.projectsCount
+    const tasksCount = stats.tasksCount
 
     return (
         <div className="p-8 max-w-7xl mx-auto flex flex-col gap-8 w-full h-full">
