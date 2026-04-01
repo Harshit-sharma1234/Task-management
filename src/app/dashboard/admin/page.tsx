@@ -6,6 +6,10 @@ import { Shield } from 'lucide-react'
 import DashboardOverview from '@/components/dashboard/Overview'
 import OverviewSkeleton from '@/components/dashboard/OverviewSkeleton'
 
+import { getCachedUserProfile } from '@/lib/cache'
+
+export const revalidate = 60; // ISR: Revalidate every 60 seconds
+
 export default async function AdminDashboard() {
     const supabase = await createClient()
     const { data: authData, error } = await supabase.auth.getUser()
@@ -31,8 +35,7 @@ export default async function AdminDashboard() {
 }
 
 async function AdminContent({ email }: { email: string }) {
-    const supabase = await createClient()
-    const profile = await getUserProfile(supabase, email)
+    const profile = await getCachedUserProfile(email)
     
     if (!profile || profile.roles?.role_name !== 'Admin') {
         redirect('/dashboard')
