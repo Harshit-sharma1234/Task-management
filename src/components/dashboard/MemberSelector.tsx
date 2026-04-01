@@ -3,11 +3,13 @@
 import { useState, useRef, useEffect, useTransition } from 'react';
 import { Users, Check, Search, Plus, X } from 'lucide-react';
 import { toggleProjectMember } from '@/app/dashboard/actions';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 
 interface User {
   id: string;
   name: string;
   email: string;
+  avatar_url?: string | null;
 }
 
 interface MemberSelectorProps {
@@ -36,23 +38,6 @@ export function MemberSelector({
     user.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const getInitials = (name: string) => {
-    return name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()
-  }
-
-  const getBadgeColor = (name: string) => {
-    const colors = [
-      'bg-gradient-to-br from-orange-400 to-orange-500', 
-      'bg-gradient-to-br from-indigo-400 to-indigo-500', 
-      'bg-gradient-to-br from-emerald-400 to-emerald-500', 
-      'bg-gradient-to-br from-purple-400 to-purple-500', 
-      'bg-gradient-to-br from-pink-400 to-pink-500'
-    ]
-    let hash = 0
-    for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash)
-    return `${colors[Math.abs(hash) % colors.length]} text-white`
-  }
-
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -73,40 +58,35 @@ export function MemberSelector({
   };
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className={`relative ${align === 'right' ? 'w-full flex justify-end' : ''}`} ref={dropdownRef}>
       <button 
         onClick={(e) => {
           e.stopPropagation();
           setIsOpen(!isOpen);
         }}
-        className="flex items-center gap-2 py-1 group"
+        className={`flex items-center gap-2.5 py-1 outline-none group focus:ring-2 focus:ring-indigo-500/20 rounded-md transition-all max-w-full ${align === 'right' ? 'justify-end' : 'justify-start'}`}
       >
-        <div className="flex -space-x-2 mr-1">
-          {currentMembers.slice(0, 3).map(m => (
-            <div 
-              key={m.id} 
-              className={`w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-[8px] font-bold ${getBadgeColor(m.name)}`}
-              title={m.email}
-            >
-              {getInitials(m.name)}
-            </div>
+        <div className="flex flex-wrap gap-1">
+          {currentMembers.map(m => (
+            <UserAvatar 
+              key={m.id}
+              name={m.name}
+              avatarUrl={m.avatar_url}
+              size="sm"
+              className="shadow-sm border border-gray-100 group-hover:border-gray-200 transition-colors"
+            />
           ))}
-          {currentMembers.length > 3 && (
-            <div className="w-6 h-6 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-[8px] font-bold text-gray-500">
-              +{currentMembers.length - 3}
-            </div>
-          )}
           {currentMembers.length === 0 && (
-            <div className="w-6 h-6 rounded-full border-2 border-white bg-gray-50 flex items-center justify-center text-gray-400">
+            <div className="w-6 h-6 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 shadow-sm border border-gray-100 group-hover:border-gray-200 transition-colors">
               <Plus size={10} />
             </div>
           )}
         </div>
-        <span className="text-[13px] font-medium text-gray-600 group-hover:text-gray-900 transition-colors">
-          {currentMembers.length > 0 
-            ? (showEmails ? `${currentMembers.length} members` : `${currentMembers.length} members`) 
-            : 'Add members'}
-        </span>
+        <div className="flex items-center shrink-0">
+          <span className="text-[11px] font-bold text-gray-700 group-hover:text-indigo-600 transition-colors bg-gray-50 px-2 py-0.5 rounded border border-gray-100/80 group-hover:bg-gray-100/50">
+            {currentMembers.length} {currentMembers.length === 1 ? 'member' : 'members'}
+          </span>
+        </div>
       </button>
 
       {isOpen && (
@@ -139,18 +119,18 @@ export function MemberSelector({
                     className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 transition-colors text-left group"
                   >
                     <div className="flex items-center gap-2">
-                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white ${
-                        isMember ? 'bg-indigo-600' : 'bg-gray-300'
-                      }`}>
-                        {user.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-xs font-semibold text-gray-900">{user.name}</span>
-                        <span className="text-[10px] text-gray-500">{user.email}</span>
+                      <UserAvatar 
+                        name={user.name}
+                        avatarUrl={user.avatar_url}
+                        size="sm"
+                      />
+                      <div className="flex flex-col overflow-hidden">
+                        <span className="text-xs font-semibold text-gray-900 truncate">{user.name}</span>
+                        <span className="text-[10px] text-gray-500 truncate">{user.email}</span>
                       </div>
                     </div>
-                    {isMember && <Check size={14} className="text-indigo-600" />}
-                    {!isMember && <Plus size={14} className="text-gray-300 group-hover:text-gray-400" />}
+                    {isMember && <Check size={14} className="text-indigo-600 shrink-0" />}
+                    {!isMember && <Plus size={14} className="text-gray-300 group-hover:text-gray-400 shrink-0" />}
                   </button>
                 );
               })
