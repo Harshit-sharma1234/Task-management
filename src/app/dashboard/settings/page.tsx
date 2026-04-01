@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { SettingsTabs } from '@/app/dashboard/settings/SettingsTabs'
 import { SettingsSkeleton } from '@/components/dashboard/SettingsSkeleton'
+import { getCachedUserProfile } from '@/lib/cache'
 
 export default async function SettingsPage() {
     const supabase = await createClient()
@@ -20,15 +21,8 @@ export default async function SettingsPage() {
 }
 
 async function SettingsContent({ authUser }: { authUser: any }) {
-    const supabase = await createClient()
-
-    // Fetch user profile from public.users table (regular select to avoid 406)
-    const { data: profiles } = await supabase
-        .from('users')
-        .select('id, name, avatar_url')
-        .eq('email', authUser.email)
-    
-    const profile = profiles?.[0]
+    // Use the cached version of the user profile
+    const profile = await getCachedUserProfile(authUser.email!)
 
     const user = {
         id: profile?.id || authUser.id,
