@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
+import { clsx } from 'clsx';
 
 const AddIssueModal = dynamic(() => import('./AddIssueModal').then(mod => mod.AddIssueModal), {
   ssr: false,
