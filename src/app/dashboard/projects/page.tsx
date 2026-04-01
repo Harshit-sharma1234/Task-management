@@ -6,33 +6,32 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export default async function ProjectsPage() {
-    const supabase = await createClient()
-    const { data: { user }, error } = await supabase.auth.getUser()
+    const supabase = await createClient();
+    const { data: { user }, error } = await supabase.auth.getUser();
 
     if (error || !user) {
-        redirect('/login')
+        redirect('/login');
     }
 
-    // Fetch all projects
-    const { data: projectsData } = await supabase
-        .from('projects')
-        .select('*')
-        .order('created_at', { ascending: false })
+    // Fetch all projects and users in parallel for the ProjectList component
+    const [projectsResponse, usersResponse] = await Promise.all([
+        supabase
+            .from('projects')
+            .select('*')
+            .order('created_at', { ascending: false }),
+        supabase
+            .from('users')
+            .select('id, name, email, avatar_url')
+    ]);
 
-    const projects = projectsData || []
-
-    // Fetch users for mapping
-    const { data: usersData } = await supabase
-        .from('users')
-        .select('id, name, email, avatar_url')
-        
-    const users = (usersData || []) as { id: string, name: string, email: string, avatar_url?: string | null }[]
+    const projects = projectsResponse.data || [];
+    const users = (usersResponse.data || []) as { id: string, name: string, email: string, avatar_url?: string | null }[];
     
     // Create an efficient dictionary to map lead_id to actual user names
     const userMap = users.reduce((acc, u) => {
-        acc[u.id] = u.name
-        return acc
-    }, {} as Record<string, string>)
+        acc[u.id] = u.name;
+        return acc;
+    }, {} as Record<string, string>);
 
     return (
         <div className="flex flex-col h-full w-full bg-[#fbfbfb]">
@@ -42,5 +41,5 @@ export default async function ProjectsPage() {
                 userMap={userMap} 
             />
         </div>
-    )
+    );
 }
