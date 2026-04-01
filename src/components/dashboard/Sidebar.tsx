@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -20,7 +20,7 @@ export function Sidebar({ initialUnreadCount }: { initialUnreadCount?: number })
   const pathname = usePathname();
   const router = useRouter();
   const [unreadCount, setUnreadCount] = useState(initialUnreadCount || 0);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   // Prefetch major routes and handle notification counts
   useEffect(() => {
@@ -96,7 +96,7 @@ export function Sidebar({ initialUnreadCount }: { initialUnreadCount?: number })
       if (channel) supabase.removeChannel(channel);
       subscription.unsubscribe();
     };
-  }, [router, supabase]);
+  }, [router, supabase, initialUnreadCount]);
 
   return (
     <aside className="w-64 shrink-0 border-r border-gray-200 bg-white flex flex-col h-full">

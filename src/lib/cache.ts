@@ -138,3 +138,28 @@ export const getCachedUnreadCount = (userId: string) =>
       tags: [`notifications-${userId}`] 
     }
   )();
+
+/**
+ * Cached fetch for all projects with specific columns.
+ */
+export const getCachedProjects = unstable_cache(
+  async () => {
+    console.log('[Cache] Fetching fresh projects list...');
+    const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from('projects')
+      .select('id, project_name, description, status, priority, lead_id, start_date, created_at')
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('[Cache] Error fetching projects:', error);
+      return [];
+    }
+    return data || [];
+  },
+  ['projects-list'],
+  { 
+    revalidate: 60,
+    tags: ['projects'] 
+  }
+);

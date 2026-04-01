@@ -59,7 +59,7 @@ async function IssueListContent() {
   const [ticketsRes, projectsRes, usersRes] = await Promise.all([
     supabase
       .from('tickets')
-      .select('*, projects(id, project_name)')
+      .select('id, title, status, priority, assignee_id, created_at, projects(id, project_name)')
       .order('created_at', { ascending: false })
       .limit(100),
     supabase
