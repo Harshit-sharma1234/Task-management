@@ -202,12 +202,22 @@ export function Sidebar({ initialUnreadCount }: { initialUnreadCount?: number })
 
         {/* My Tasks Section */}
         <div className="mt-6 flex flex-col gap-1">
-          <div className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-gray-50 rounded-md transition-colors">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-gray-600">My Tasks</span>
+          <Link 
+            href="/dashboard/my-tasks"
+            className={`flex items-center justify-between px-3 py-2 rounded-md group transition-colors ${
+              pathname === '/dashboard/my-tasks'
+                ? 'bg-gray-100 text-indigo-600' 
+                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <CircleDot size={18} className={
+                pathname === '/dashboard/my-tasks' ? 'text-indigo-600' : 'text-gray-500 group-hover:text-gray-700'
+              } />
+              <span className="text-sm font-medium">My Tasks</span>
             </div>
-            <ChevronRight size={14} className="text-gray-400" />
-          </div>
+            <ChevronRight size={14} className="text-gray-400 group-hover:text-gray-600" />
+          </Link>
         </div>
 
       </nav>
