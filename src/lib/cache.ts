@@ -34,14 +34,20 @@ export const getCachedStats = unstable_cache(
   async () => {
     console.log('[Cache] Fetching fresh dashboard stats...');
     const supabase = createAdminClient();
-    const [projectsRes, tasksRes] = await Promise.all([
+    const [projectsRes, ticketsRes, recentProjectsRes, doneProjectsRes, inProgressProjectsRes] = await Promise.all([
       supabase.from('projects').select('*', { count: 'exact', head: true }),
-      supabase.from('tasks').select('*', { count: 'exact', head: true })
+      supabase.from('tickets').select('*', { count: 'exact', head: true }),
+      supabase.from('projects').select('id, project_name, description, created_at, status').order('created_at', { ascending: false }).limit(3),
+      supabase.from('projects').select('*', { count: 'exact', head: true }).eq('status', 'done'),
+      supabase.from('projects').select('*', { count: 'exact', head: true }).eq('status', 'in_progress')
     ]);
     
     return {
       projectsCount: projectsRes.count || 0,
-      tasksCount: tasksRes.count || 0
+      tasksCount: ticketsRes.count || 0,
+      recentProjects: recentProjectsRes.data || [],
+      completedProjectsCount: doneProjectsRes.count || 0,
+      inProgressProjectsCount: inProgressProjectsRes.count || 0
     };
   },
   ['dashboard-stats-counts'],
@@ -76,5 +82,32 @@ export const getCachedUserProfile = (email: string) =>
     { 
       revalidate: 3600, 
       tags: [`user-profile-${email}`] 
+    }
+  )();
+
+/**
+ * Cached fetch for recent tickets.
+ */
+export const getCachedRecentTickets = (limit: number = 10) =>
+  unstable_cache(
+    async () => {
+      console.log(`[Cache] Fetching fresh recent tickets (limit: ${limit})...`);
+      const supabase = createAdminClient();
+      const { data, error } = await supabase
+        .from('tickets')
+        .select('id, title, status, priority, created_at, assignee_id, projects(project_name)')
+        .order('created_at', { ascending: false })
+        .limit(limit);
+      
+      if (error) {
+        console.error('[Cache] Error fetching recent tickets:', error);
+        return [];
+      }
+      return data || [];
+    },
+    [`recent-tickets-${limit}`],
+    {
+      revalidate: 3600,
+      tags: ['tickets']
     }
   )();
