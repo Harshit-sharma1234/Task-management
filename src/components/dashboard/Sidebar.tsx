@@ -16,10 +16,10 @@ import {
   Bell
 } from 'lucide-react';
 
-export function Sidebar() {
+export function Sidebar({ initialUnreadCount = 0 }: { initialUnreadCount?: number }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadCount, setUnreadCount] = useState(initialUnreadCount);
   const supabase = createClient();
 
   // Prefetch major routes and handle notification counts
@@ -48,13 +48,18 @@ export function Sidebar() {
         
         if (!user) return;
 
-        const { count } = await supabase
-          .from('notifications')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id)
-          .eq('is_read', false);
-        
-        setUnreadCount(count || 0);
+        // Skip the manual first fetch if we already have server-injected data
+        if (!userOverride && initialUnreadCount !== undefined) {
+           // We already have the count from the server!
+        } else {
+          const { count } = await supabase
+            .from('notifications')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', user.id)
+            .eq('is_read', false);
+          
+          setUnreadCount(count || 0);
+        }
 
         if (channel) supabase.removeChannel(channel);
 

@@ -16,15 +16,17 @@ function stringToColor(str: string) {
     return '#' + '00000'.substring(0, 6 - c.length) + c;
 }
 
-export function Header() {
+export function Header({ initialProfile }: { initialProfile?: { name: string, avatar_url: string | null } }) {
   const router = useRouter();
-  const [userProfile, setUserProfile] = useState<{ name: string, avatar_url: string | null } | null>(null)
+  const [userProfile, setUserProfile] = useState<{ name: string, avatar_url: string | null } | null>(initialProfile || null)
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
+    // If we have initialProfile, only sync if auth changes
     async function syncHeaderProfile(userOverride?: any) {
+      if (initialProfile && !userOverride) return;
       try {
         let user = userOverride;
         if (!user) {

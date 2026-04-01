@@ -33,9 +33,13 @@ export async function updateSession(request: NextRequest) {
     // supabase.auth.getUser(). A simple mistake could make it very hard to debug
     // issues with users being randomly logged out.
 
+    // IMPORTANT: we use getSession() for fast routing checks in middleware.
+    // The actual security check (getUser) happens in the Server Components (Layout/Page).
     const {
-        data: { user },
-    } = await supabase.auth.getUser()
+        data: { session },
+    } = await supabase.auth.getSession()
+
+    const user = session?.user
 
     const pathname = request.nextUrl.pathname
 
