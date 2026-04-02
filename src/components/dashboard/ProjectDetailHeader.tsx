@@ -1,15 +1,18 @@
 'use client';
 
+import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { ChevronRight, Layout, Info, Link as LinkIcon, Check } from 'lucide-react';
 import Link from 'next/link';
-import { useState } from 'react';
 
 interface ProjectDetailHeaderProps {
   projectName: string;
+  projectId: string;
 }
 
-export function ProjectDetailHeader({ projectName }: ProjectDetailHeaderProps) {
-  const [activeTab, setActiveTab ] = useState('Overview');
+export function ProjectDetailHeader({ projectName, projectId }: ProjectDetailHeaderProps) {
+  const searchParams = useSearchParams();
+  const activeTab = (searchParams.get('tab') || 'overview').toLowerCase();
 
   const [copied, setCopied] = useState(false);
 
@@ -20,8 +23,8 @@ export function ProjectDetailHeader({ projectName }: ProjectDetailHeaderProps) {
   };
 
   const tabs = [
-    { name: 'Overview', icon: Layout },
-    { name: 'Issues', icon: Info },
+    { name: 'Overview', icon: Layout, id: 'overview' },
+    { name: 'Issues', icon: Info, id: 'issues' },
   ];
 
   return (
@@ -54,20 +57,20 @@ export function ProjectDetailHeader({ projectName }: ProjectDetailHeaderProps) {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-6 text-[#1A1F2C]">
         {tabs.map((tab) => (
-          <button
-            key={tab.name}
-            onClick={() => setActiveTab(tab.name)}
+          <Link
+            key={tab.id}
+            href={`/dashboard/projects/${projectId}?tab=${tab.id}`}
             className={`flex items-center gap-2 pb-3 text-sm font-medium border-b-2 transition-all ${
-              activeTab === tab.name
+              activeTab === tab.id
                 ? 'border-indigo-600 text-indigo-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
           >
             <tab.icon size={16} />
             {tab.name}
-          </button>
+          </Link>
         ))}
       </div>
     </div>

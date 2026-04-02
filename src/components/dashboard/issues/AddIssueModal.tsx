@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { 
-  X, 
-  Maximize2, 
-  CircleDot, 
-  Circle, 
-  CircleEllipsis, 
+import {
+  X,
+  Maximize2,
+  CircleDot,
+  Circle,
+  CircleEllipsis,
   CheckCircle2,
   SignalHigh,
   SignalMedium,
@@ -42,8 +42,8 @@ const statusOptions = [
   { value: 'backlog', label: 'Backlog', icon: CircleDot, color: 'text-gray-400' },
   { value: 'to_do', label: 'Todo', icon: Circle, color: 'text-gray-400' },
   { value: 'in_progress', label: 'In Progress', icon: CircleEllipsis, color: 'text-yellow-500' },
-  { value: 'review', label: 'Review', icon: CircleEllipsis, color: 'text-orange-500' },
-  { value: 'in_review', label: 'In Review', icon: CircleEllipsis, color: 'text-orange-600' },
+  { value: 'review', label: 'Review', icon: CircleDot, color: 'text-fuchsia-400' },
+  { value: 'in_review', label: 'In Review', icon: CircleDot, color: 'text-purple-500' },
   { value: 'done', label: 'Done', icon: CheckCircle2, color: 'text-indigo-500' },
   { value: 'cancelled', label: 'Cancelled', icon: X, color: 'text-red-400' },
 ];
@@ -112,7 +112,7 @@ export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModa
             <button className="p-1 text-gray-400 hover:text-gray-600 transition-colors">
               <Maximize2 size={16} />
             </button>
-            <button 
+            <button
               onClick={onClose}
               className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
             >
@@ -231,7 +231,7 @@ export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModa
                 <Paperclip size={18} />
               </button>
             </div>
-            
+
             <div className="flex items-center gap-4">
               {error && <span className="text-xs text-red-500 font-bold">{error}</span>}
               <button

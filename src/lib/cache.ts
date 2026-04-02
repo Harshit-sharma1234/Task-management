@@ -52,7 +52,7 @@ export const getCachedStats = unstable_cache(
   },
   ['dashboard-stats-counts'],
   { 
-    revalidate: 3600, 
+    revalidate: 60,  // Changed from 3600 to 60 to prevent stale overview data
     tags: ['dashboard-stats'] 
   }
 );
@@ -107,7 +107,7 @@ export const getCachedRecentTickets = (limit: number = 10) =>
     },
     [`recent-tickets-${limit}`],
     {
-      revalidate: 3600,
+      revalidate: 60, // Changed from 3600 to keep UI fresh
       tags: ['tickets']
     }
   )();
