@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Image from 'next/image'
 import { getInitials, getBadgeColor } from '@/lib/avatar'
 
-export type AvatarSize = 'sm' | 'md' | 'lg' | 'xl'
+export type AvatarSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl'
 
 interface UserAvatarProps {
     name: string
@@ -14,6 +14,7 @@ interface UserAvatarProps {
 }
 
 const sizeMap: Record<AvatarSize, { px: number; text: string }> = {
+    xs: { px: 20, text: 'text-[8px]' },
     sm: { px: 24, text: 'text-[9px]' },
     md: { px: 32, text: 'text-[11px]' },
     lg: { px: 40, text: 'text-[13px]' },
