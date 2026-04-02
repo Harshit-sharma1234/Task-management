@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import {
   CircleDot,
@@ -50,15 +50,15 @@ export function IssuesList({ tickets, users = [], emptyMessage = "No issues foun
   const [hideDone, setHideDone] = useState(false);
   const [hideCancelled, setHideCancelled] = useState(false);
 
-  // Group tickets by status
-  const groupedTickets = tickets.reduce((acc: any, ticket: any) => {
+  // Group tickets by status (memoized)
+  const groupedTickets = useMemo(() => tickets.reduce((acc: any, ticket: any) => {
     const status = ticket.status || 'to_do';
     if (!acc[status]) {
       acc[status] = [];
     }
     acc[status].push(ticket);
     return acc;
-  }, {});
+  }, {}), [tickets]);
 
   const toggleSection = (status: string) => {
     setCollapsedSections(prev => ({
@@ -86,7 +86,7 @@ export function IssuesList({ tickets, users = [], emptyMessage = "No issues foun
 
   // Define status order
   const statusOrder = ['in_progress', 'review', 'in_review', 'to_do', 'backlog', 'done', 'cancelled'];
-  const orderedStatuses = statusOrder.filter(status => groupedTickets[status]);
+  const orderedStatuses = useMemo(() => statusOrder.filter(status => groupedTickets[status]), [groupedTickets]);
 
   if (tickets.length === 0) {
     return (
