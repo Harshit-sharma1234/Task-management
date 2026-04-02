@@ -159,57 +159,89 @@ export default function InboxPage() {
     }
 
     async function fetchEntityDetail(notification: any) {
+        if (!notification?.entity_id) return;
+        
         setDetailLoading(true);
         setEntityDetail(null);
         setEntityActivity([]);
 
-        if (notification.entity_type === 'ticket') {
-            const [ticketRes, commentsRes, logsRes] = await Promise.all([
-                supabase
-                    .from('tickets')
-                    .select(`
-                        *,
-                        projects (id, project_name),
-                        created_by_user: users!tickets_created_by_fkey (id, name, email, avatar_url),
-                        assigned_to_user: users!tickets_assignee_id_fkey (id, name, email, avatar_url)
-                    `)
+        try {
+            if (notification.entity_type === 'ticket') {
+                const [ticketRes, commentsRes, logsRes] = await Promise.all([
+                    supabase
+                        .from('tickets')
+                        .select(`
+                            *,
+                            projects (id, project_name),
+                            created_by_user: users!created_by(id, name, email, avatar_url),
+                            assigned_to_user: users!assignee_id(id, name, email, avatar_url)
+                        `)
+                        .eq('id', notification.entity_id)
+                        .maybeSingle(),
+                    supabase
+                        .from('comments')
+                        .select('*, users(id, name, email, avatar_url)')
+                        .eq('ticket_id', notification.entity_id)
+                        .order('created_at', { ascending: true }),
+                    supabase
+                        .from('logs')
+                        .select('*, users(id, name)')
+                        .eq('ticket_id', notification.entity_id)
+                        .order('created_at', { ascending: true })
+                ]);
+
+                if (ticketRes.error) {
+                    console.error('[Inbox] Ticket fetch error:', ticketRes.error);
+                    // Fallback to simpler fetch if join failed
+                    const fallback = await supabase
+                        .from('tickets')
+                        .select('*, projects(id, project_name)')
+                        .eq('id', notification.entity_id)
+                        .maybeSingle();
+                    
+                    if (fallback.data) {
+                        setEntityDetail({ type: 'ticket', data: fallback.data });
+                    }
+                } else if (ticketRes.data) {
+                    setEntityDetail({ type: 'ticket', data: ticketRes.data });
+                }
+
+                const activity = [
+                    ...(commentsRes.data || []).map(c => ({ ...c, activityType: 'comment' })),
+                    ...(logsRes.data || []).map(l => ({ ...l, activityType: 'log' })),
+                ].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+                setEntityActivity(activity);
+
+            } else if (notification.entity_type === 'project') {
+                const { data, error } = await supabase
+                    .from('projects')
+                    .select('*, lead:users!lead_id(id, name, email, avatar_url)')
                     .eq('id', notification.entity_id)
-                    .single(),
-                supabase
-                    .from('comments')
-                    .select('*, users(id, name, email, avatar_url)')
-                    .eq('ticket_id', notification.entity_id)
-                    .order('created_at', { ascending: true }),
-                supabase
-                    .from('logs')
-                    .select('*, users(id, name)')
-                    .eq('ticket_id', notification.entity_id)
-                    .order('created_at', { ascending: true })
-            ]);
+                    .maybeSingle();
 
-            if (ticketRes.data) {
-                setEntityDetail({ type: 'ticket', data: ticketRes.data });
+                if (error) {
+                    console.error('[Inbox] Project fetch error:', error);
+                    // Fallback to simple fetch
+                    const fallback = await supabase
+                        .from('projects')
+                        .select('*')
+                        .eq('id', notification.entity_id)
+                        .maybeSingle();
+                    
+                    if (fallback.data) {
+                        setEntityDetail({ type: 'project', data: fallback.data });
+                    }
+                } else if (data) {
+                    setEntityDetail({ type: 'project', data });
+                }
+            } else {
+                console.warn('[Inbox] Unhandled entity type:', notification.entity_type);
             }
-
-            const activity = [
-                ...(commentsRes.data || []).map(c => ({ ...c, activityType: 'comment' })),
-                ...(logsRes.data || []).map(l => ({ ...l, activityType: 'log' })),
-            ].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-            setEntityActivity(activity);
-
-        } else if (notification.entity_type === 'project') {
-            const { data } = await supabase
-                .from('projects')
-                .select('*, lead:users!projects_lead_id_fkey(id, name, email, avatar_url)')
-                .eq('id', notification.entity_id)
-                .single();
-
-            if (data) {
-                setEntityDetail({ type: 'project', data });
-            }
+        } catch (err) {
+            console.error('[Inbox] Unexpected error in fetchEntityDetail:', err);
+        } finally {
+            setDetailLoading(false);
         }
-
-        setDetailLoading(false);
     }
 
     const filteredAndSorted = useMemo(() => {

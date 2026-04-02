@@ -9,28 +9,38 @@ import {
   CircleEllipsis,
   X,
   ChevronDown,
-  LayoutGrid
+  LayoutGrid,
+  Check
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { UserAvatar } from '@/components/ui/UserAvatar';
+import { BulkActionToolbar } from './BulkActionToolbar';
+
+import { IssueStatusSelector } from './IssueStatusSelector';
+import { IssueAssigneeSelector } from './IssueAssigneeSelector';
 
 // Status Icon Mapping (matching Projects)
 const statusIcons: Record<string, any> = {
   'to_do': { label: 'Todo', color: 'bg-orange-400' },
   'in_progress': { label: 'In Progress', color: 'bg-indigo-500' },
+  'review': { label: 'Review', color: 'bg-fuchsia-400' },
+  'in_review': { label: 'In Review', color: 'bg-purple-500' },
   'done': { label: 'Done', color: 'bg-green-500' },
-  'review': { label: 'Review', color: 'bg-orange-500' },
   'backlog': { label: 'Backlog', color: 'bg-gray-400' },
   'cancelled': { label: 'Cancelled', color: 'bg-red-500' },
 };
 
+import { IssuePrioritySelector } from './IssuePrioritySelector';
+
 interface IssuesListProps {
   tickets: any[];
+  users?: any[];
   emptyMessage?: string;
 }
 
-export function IssuesList({ tickets, emptyMessage = "No issues found" }: IssuesListProps) {
+export function IssuesList({ tickets, users = [], emptyMessage = "No issues found" }: IssuesListProps) {
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Group tickets by status
   const groupedTickets = tickets.reduce((acc: any, ticket: any) => {
@@ -49,6 +59,23 @@ export function IssuesList({ tickets, emptyMessage = "No issues found" }: Issues
     }));
   };
 
+  const toggleSelection = (e: React.MouseEvent, id: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
   // Define status order
   const statusOrder = ['in_progress', 'review', 'in_review', 'to_do', 'backlog', 'done', 'cancelled'];
   const orderedStatuses = statusOrder.filter(status => groupedTickets[status]);
@@ -66,7 +93,7 @@ export function IssuesList({ tickets, emptyMessage = "No issues found" }: Issues
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 relative pb-20">
       {orderedStatuses.map((status) => {
         const statusData = statusIcons[status] || statusIcons['to_do'];
         const statusColor = statusData.color;
@@ -97,85 +124,90 @@ export function IssuesList({ tickets, emptyMessage = "No issues found" }: Issues
             </div>
 
             {!isCollapsed && (
-              <div className="bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm">
+              <div className={clsx(
+                "bg-white border rounded-xl shadow-sm transition-all duration-200",
+                selectedIds.size > 0 ? "border-indigo-100" : "border-gray-100"
+              )}>
                 <div className="divide-y divide-gray-50">
                   {sectionTickets.map((ticket: any) => {
+                    const isSelected = selectedIds.has(ticket.id);
                     return (
-                      <Link
+                      <div
                         key={ticket.id}
-                        href={`/dashboard/issues/${ticket.id}`}
-                        className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-50/50 transition-all group border-b border-gray-50 last:border-0"
+                        className={clsx(
+                          "flex items-center justify-between px-4 py-2.5 transition-all group border-b border-gray-50 last:border-0",
+                          isSelected ? "bg-indigo-50/40 hover:bg-indigo-50/60" : "hover:bg-gray-50/50"
+                        )}
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-4 h-4 rounded border border-gray-200 group-hover:border-gray-300 transition-colors shrink-0" />
-
-                          {/* Priority (Signal Bars) */}
-                          <div className="hidden md:flex items-center w-8 shrink-0">
-                            {ticket.priority === 'urgent' && (
-                              <div className="flex gap-0.5 items-end h-3">
-                                <div className="w-1 h-3 bg-red-500 rounded-sm"></div>
-                                <div className="w-1 h-3 bg-red-500 rounded-sm"></div>
-                                <div className="w-1 h-3 bg-red-500 rounded-sm"></div>
-                              </div>
+                          {/* Selection Checkbox */}
+                          <div 
+                            onClick={(e) => toggleSelection(e, ticket.id)}
+                            className={clsx(
+                              "w-4 h-4 rounded border transition-all flex items-center justify-center shrink-0 cursor-default",
+                              isSelected 
+                                ? "bg-indigo-600 border-indigo-600 shadow-sm opacity-100" 
+                                : "border-gray-200 bg-white opacity-0 group-hover:opacity-100 group-hover:border-indigo-400"
                             )}
-                            {ticket.priority === 'high' && (
-                              <div className="flex gap-0.5 items-end h-3">
-                                <div className="w-1 h-2 bg-red-400 rounded-sm"></div>
-                                <div className="w-1 h-2.5 bg-red-400 rounded-sm"></div>
-                                <div className="w-1 h-3 bg-red-400 rounded-sm"></div>
-                              </div>
-                            )}
-                            {ticket.priority === 'medium' && (
-                              <div className="flex gap-0.5 items-end h-3">
-                                <div className="w-1 h-1.5 bg-yellow-400 rounded-sm"></div>
-                                <div className="w-1 h-2.5 bg-yellow-400 rounded-sm"></div>
-                                <div className="w-1 h-3 bg-yellow-100 rounded-sm"></div>
-                              </div>
-                            )}
-                            {ticket.priority === 'low' && (
-                              <div className="flex gap-0.5 items-end h-3">
-                                <div className="w-1 h-1.5 bg-indigo-400 rounded-sm"></div>
-                                <div className="w-1 h-3 bg-indigo-100 rounded-sm"></div>
-                                <div className="w-1 h-3 bg-indigo-100 rounded-sm"></div>
-                              </div>
-                            )}
-                            {(ticket.priority === 'no_priority' || !ticket.priority) && (
-                              <div className="w-4 h-0.5 bg-gray-200 rounded-full"></div>
-                            )}
+                          >
+                            {isSelected && <Check size={10} className="text-white stroke-[4px]" />}
                           </div>
 
-                          <span className="text-[11px] font-bold text-gray-400 uppercase tracking-tighter shrink-0 w-14">
+                          {/* Priority Selector */}
+                          <div className="hidden md:flex items-center shrink-0">
+                            <IssuePrioritySelector 
+                              issueId={ticket.id} 
+                              currentPriority={ticket.priority || 'no_priority'} 
+                            />
+                          </div>
+
+                          <Link 
+                            href={`/dashboard/issues/${ticket.id}`}
+                            className="text-[11px] font-bold text-gray-400 uppercase tracking-tighter shrink-0 w-14 hover:text-indigo-600 transition-colors"
+                          >
                             {ticket.projects?.project_name?.substring(0, 3).toUpperCase() || 'KAP'}-{ticket.id.substring(0, 2).toUpperCase()}
-                          </span>
+                          </Link>
 
-                          {/* Status (Colored Dot + Label) */}
-                          <div className="flex items-center gap-1.5 w-24 shrink-0">
-                            <div className={clsx("w-2 h-2 rounded-full", statusColor)}></div>
-                            <span className="text-[10px] font-bold uppercase text-gray-400 tracking-tight truncate">
-                              {statusLabel}
-                            </span>
+                          {/* Status Selector */}
+                          <div className="w-24 shrink-0">
+                            <IssueStatusSelector 
+                              issueId={ticket.id} 
+                              currentStatus={ticket.status || 'to_do'} 
+                            />
                           </div>
 
-                          <span className="text-sm font-semibold text-gray-700 truncate group-hover:text-indigo-600 transition-colors">
-                            {ticket.title}
-                          </span>
+                          <Link 
+                            href={`/dashboard/issues/${ticket.id}`}
+                            className={clsx(
+                              "text-sm font-semibold truncate transition-colors",
+                              isSelected ? "text-indigo-900" : "text-gray-700 group-hover:text-indigo-600"
+                            )}>
+                              {ticket.title}
+                          </Link>
                         </div>
 
                         <div className="flex items-center gap-6 shrink-0">
-                          <div className="flex items-center gap-2 px-2 py-1 bg-gray-50 rounded-md border border-gray-100">
-                            <div className="w-3.5 h-3.5 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
-                              <LayoutGrid size={10} className="text-gray-500" />
+                          {/* Project Link */}
+                          <Link 
+                            href={ticket.projects?.id ? `/dashboard/projects/${ticket.projects.id}` : '#'}
+                            onClick={(e) => !ticket.projects?.id && e.preventDefault()}
+                            className="flex items-center gap-2 px-2 py-1 bg-gray-50 rounded-md border border-gray-100 hover:bg-gray-100 hover:border-gray-200 transition-all cursor-pointer group/project"
+                          >
+                            <div className="w-3.5 h-3.5 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden group-hover/project:bg-indigo-100 transition-colors">
+                              <LayoutGrid size={10} className="text-gray-500 group-hover/project:text-indigo-600" />
                             </div>
-                            <span className="text-[10px] font-bold text-gray-500 truncate max-w-[120px]">
+                            <span className="text-[10px] font-bold text-gray-500 truncate max-w-[120px] group-hover/project:text-indigo-600">
                               {ticket.projects?.project_name || 'Individual Task'}
                             </span>
-                          </div>
+                          </Link>
 
+                          {/* Assignee Selector */}
                           <div className="flex items-center">
-                            <UserAvatar
-                              name={ticket.assignees?.name || 'Unassigned'}
-                              avatarUrl={ticket.assignees?.avatar_url}
-                              size="sm"
+                            <IssueAssigneeSelector 
+                              issueId={ticket.id}
+                              currentAssigneeId={ticket.assignee_id}
+                              currentAssignee={ticket.assignees}
+                              users={users}
                             />
                           </div>
 
@@ -183,7 +215,7 @@ export function IssuesList({ tickets, emptyMessage = "No issues found" }: Issues
                             {new Date(ticket.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                           </span>
                         </div>
-                      </Link>
+                      </div>
                     );
                   })}
                 </div>
@@ -192,6 +224,12 @@ export function IssuesList({ tickets, emptyMessage = "No issues found" }: Issues
           </div>
         );
       })}
+
+      <BulkActionToolbar 
+        selectedIds={Array.from(selectedIds)} 
+        onClear={clearSelection} 
+        totalTickets={tickets.length}
+      />
     </div>
   );
 }
