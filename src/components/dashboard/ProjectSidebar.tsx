@@ -18,7 +18,7 @@ import { TargetDateSelector } from './TargetDateSelector';
 import { MemberSelector } from './MemberSelector';
 import { StatusSelector } from './StatusSelector';
 import { getProjectLogs } from '@/app/dashboard/logging/actions';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { clsx } from 'clsx';
 import { UserAvatar } from '@/components/ui/UserAvatar';
@@ -37,8 +37,9 @@ export function ProjectSidebar({ project, users, currentMemberIds, userRole }: P
   const [isActivityOpen, setIsActivityOpen] = useState(false);
   const [activeProgressTab, setActiveProgressTab] = useState<'Assignees' | 'Labels'>('Assignees');
 
+  const supabase = useMemo(() => createClient(), []);
+
   useEffect(() => {
-    const supabase = createClient();
 
     // Fetch Logs
     async function fetchLogs() {
@@ -92,27 +93,30 @@ export function ProjectSidebar({ project, users, currentMemberIds, userRole }: P
     });
   };
 
-  // Progress Calculations
-  const scopeCount = tickets.length;
-  const doneCount = tickets.filter(t => t.status === 'done').length;
+  // Progress Calculations (memoized)
+  const { scopeCount, doneCount, assigneeStats, sortedAssignees } = useMemo(() => {
+    const scope = tickets.length;
+    const done = tickets.filter(t => t.status === 'done').length;
 
-  // Group tickets by assignee
-  const assigneeStats = tickets.reduce((acc: any, ticket: any) => {
-    const assigneeId = ticket.assignee_id || 'unassigned';
-    if (!acc[assigneeId]) {
-      acc[assigneeId] = {
-        id: assigneeId,
-        name: ticket.assignees?.name || 'Unassigned',
-        email: ticket.assignees?.email || 'unassigned@team.com',
-        avatar_url: ticket.assignees?.avatar_url,
-        count: 0
-      };
-    }
-    acc[assigneeId].count += 1;
-    return acc;
-  }, {});
+    const stats = tickets.reduce((acc: any, ticket: any) => {
+      const assigneeId = ticket.assignee_id || 'unassigned';
+      if (!acc[assigneeId]) {
+        acc[assigneeId] = {
+          id: assigneeId,
+          name: ticket.assignees?.name || 'Unassigned',
+          email: ticket.assignees?.email || 'unassigned@team.com',
+          avatar_url: ticket.assignees?.avatar_url,
+          count: 0
+        };
+      }
+      acc[assigneeId].count += 1;
+      return acc;
+    }, {});
 
-  const sortedAssignees = Object.values(assigneeStats).sort((a: any, b: any) => b.count - a.count);
+    const sorted = Object.values(stats).sort((a: any, b: any) => b.count - a.count);
+
+    return { scopeCount: scope, doneCount: done, assigneeStats: stats, sortedAssignees: sorted };
+  }, [tickets]);
 
   return (
     <div className="p-6 space-y-8 border-l border-gray-100 h-full bg-[#fbfbfb] overflow-y-auto custom-scrollbar">

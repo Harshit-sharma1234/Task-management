@@ -4,7 +4,7 @@
 
 import { createClient } from '../../lib/supabase/server'
 import { createAdminClient } from '../../lib/supabase/admin'
-import { revalidatePath, revalidateTag } from 'next/cache'
+import { revalidatePath } from 'next/cache'
 import { getUserProfile } from '../../lib/roles'
 import { createNotification } from './notifications/actions'
 import { insertProjectLog } from './logging/actions'
@@ -119,9 +119,7 @@ export async function createProject(formData: FormData) {
         }
     }
 
-    revalidatePath('/dashboard')
-    revalidatePath('/dashboard/projects')
-    revalidatePath(`/dashboard/projects/${newProject.id}`)
+    revalidatePath('/dashboard', 'layout')
 
     return { success: true }
 }
@@ -134,16 +132,13 @@ export async function updateProjectPriority(projectId: string, priority: string 
         return { error: 'You must be logged in to update a project' }
     }
 
-    const profile = await getUserProfile(supabase, user.email!, user.id);
-    if (!profile) return { error: 'User profile not found' };
-
     const adminClient = createAdminClient()
-    // Fetch current priority for logging
-    const { data: oldProject } = await adminClient
-        .from('projects')
-        .select('priority')
-        .eq('id', projectId)
-        .single()
+    // Fetch profile and old value in parallel
+    const [profile, { data: oldProject }] = await Promise.all([
+        getUserProfile(supabase, user.email!, user.id),
+        adminClient.from('projects').select('priority').eq('id', projectId).single()
+    ])
+    if (!profile) return { error: 'User profile not found' };
 
     const { data, error } = await adminClient
         .from('projects')
@@ -152,7 +147,6 @@ export async function updateProjectPriority(projectId: string, priority: string 
         .select()
 
     if (error) {
-        console.error('SUPABASE ERROR UPDATING PRIORITY:', error)
         return { error: `Failed to update priority: ${error.message}` }
     }
 
@@ -160,23 +154,17 @@ export async function updateProjectPriority(projectId: string, priority: string 
         return { error: 'Project not found' }
     }
 
-    // Insert Log
-    try {
-        await insertProjectLog({
-            projectId,
-            userId: profile.id, // Use Public User ID
-            actionType: 'priority_change',
-            description: `changed priority from ${oldProject?.priority || 'No priority'} to ${priority || 'No priority'}`,
-            oldValue: { priority: oldProject?.priority },
-            newValue: { priority }
-        })
-    } catch (logError) {
-        console.error('FAILED TO INSERT LOG:', logError)
-    }
+    // Insert Log (non-blocking)
+    insertProjectLog({
+        projectId,
+        userId: profile.id,
+        actionType: 'priority_change',
+        description: `changed priority from ${oldProject?.priority || 'No priority'} to ${priority || 'No priority'}`,
+        oldValue: { priority: oldProject?.priority },
+        newValue: { priority }
+    }).catch(() => {})
 
-    revalidatePath('/dashboard/projects')
-    revalidatePath('/dashboard')
-    revalidatePath(`/dashboard/projects/${projectId}`)
+    revalidatePath('/dashboard', 'layout')
     return { success: true }
 }
 
@@ -188,16 +176,13 @@ export async function updateProjectLead(projectId: string, leadId: string | null
         return { error: 'You must be logged in to update a project' }
     }
 
-    const profile = await getUserProfile(supabase, user.email!, user.id);
-    if (!profile) return { error: 'User profile not found' };
-
     const adminClient = createAdminClient()
-    // Fetch current lead for logging
-    const { data: oldProject } = await adminClient
-        .from('projects')
-        .select('lead_id')
-        .eq('id', projectId)
-        .single()
+    // Fetch profile and old value in parallel
+    const [profile, { data: oldProject }] = await Promise.all([
+        getUserProfile(supabase, user.email!, user.id),
+        adminClient.from('projects').select('lead_id').eq('id', projectId).single()
+    ])
+    if (!profile) return { error: 'User profile not found' };
 
     const { data, error } = await adminClient
         .from('projects')
@@ -206,7 +191,6 @@ export async function updateProjectLead(projectId: string, leadId: string | null
         .select()
 
     if (error) {
-        console.error('SUPABASE ERROR UPDATING LEAD:', error)
         return { error: `Failed to update lead: ${error.message}` }
     }
 
@@ -223,23 +207,17 @@ export async function updateProjectLead(projectId: string, leadId: string | null
     const oldName = oldProject?.lead_id ? userMap[oldProject.lead_id] || 'Unknown' : 'No lead'
     const newName = leadId ? userMap[leadId] || 'Unknown' : 'No lead'
 
-    try {
-        console.log('--- CALLING insertProjectLog for lead_change ---')
-        await insertProjectLog({
-            projectId,
-            userId: profile.id, // Use Public User ID
-            actionType: 'lead_change',
-            description: `changed lead from ${oldName} to ${newName}`,
-            oldValue: { lead_id: oldProject?.lead_id },
-            newValue: { lead_id: leadId }
-        })
-    } catch (logError) {
-        console.error('FAILED TO INSERT LOG:', logError)
-    }
+    // Non-blocking log
+    insertProjectLog({
+        projectId,
+        userId: profile.id,
+        actionType: 'lead_change',
+        description: `changed lead from ${oldName} to ${newName}`,
+        oldValue: { lead_id: oldProject?.lead_id },
+        newValue: { lead_id: leadId }
+    }).catch(() => {})
 
-    revalidatePath('/dashboard/projects')
-    revalidatePath('/dashboard')
-    revalidatePath(`/dashboard/projects/${projectId}`)
+    revalidatePath('/dashboard', 'layout')
     return { success: true }
 }
 
@@ -251,15 +229,12 @@ export async function updateProjectTargetDate(projectId: string, startDate: stri
         return { error: 'You must be logged in to update a project' }
     }
 
-    const profile = await getUserProfile(supabase, user.email!, user.id);
-    if (!profile) return { error: 'User profile not found' };
-
     const adminClient = createAdminClient()
-    const { data: oldProject } = await adminClient
-        .from('projects')
-        .select('start_date')
-        .eq('id', projectId)
-        .single()
+    const [profile, { data: oldProject }] = await Promise.all([
+        getUserProfile(supabase, user.email!, user.id),
+        adminClient.from('projects').select('start_date').eq('id', projectId).single()
+    ])
+    if (!profile) return { error: 'User profile not found' };
 
     const { data, error } = await adminClient
         .from('projects')
@@ -268,7 +243,6 @@ export async function updateProjectTargetDate(projectId: string, startDate: stri
         .select()
 
     if (error) {
-        console.error('SUPABASE ERROR UPDATING START DATE:', error)
         return { error: `Failed to update date: ${error.message}` }
     }
 
@@ -276,26 +250,19 @@ export async function updateProjectTargetDate(projectId: string, startDate: stri
         return { error: 'Project not found' }
     }
 
-    // Insert Log
-    try {
-        const oldDateStr = oldProject?.start_date ? new Date(oldProject.start_date).toLocaleDateString() : 'No date'
-        const newDateStr = startDate ? new Date(startDate).toLocaleDateString() : 'No date'
+    // Non-blocking log
+    const oldDateStr = oldProject?.start_date ? new Date(oldProject.start_date).toLocaleDateString() : 'No date'
+    const newDateStr = startDate ? new Date(startDate).toLocaleDateString() : 'No date'
+    insertProjectLog({
+        projectId,
+        userId: profile.id,
+        actionType: 'target_date_change',
+        description: `changed target date from ${oldDateStr} to ${newDateStr}`,
+        oldValue: { start_date: oldProject?.start_date },
+        newValue: { start_date: startDate }
+    }).catch(() => {})
 
-        await insertProjectLog({
-            projectId,
-            userId: profile.id, // Use Public User ID
-            actionType: 'target_date_change',
-            description: `changed target date from ${oldDateStr} to ${newDateStr}`,
-            oldValue: { start_date: oldProject?.start_date },
-            newValue: { start_date: startDate }
-        })
-    } catch (logError) {
-        console.error('FAILED TO INSERT LOG:', logError)
-    }
-
-    revalidatePath('/dashboard/projects')
-    revalidatePath('/dashboard')
-    revalidatePath(`/dashboard/projects/${projectId}`)
+    revalidatePath('/dashboard', 'layout')
     return { success: true }
 }
 
@@ -307,15 +274,12 @@ export async function updateProjectStatus(projectId: string, status: string | nu
         return { error: 'You must be logged in to update a project' }
     }
 
-    const profile = await getUserProfile(supabase, user.email!, user.id);
-    if (!profile) return { error: 'User profile not found' };
-
     const adminClient = createAdminClient()
-    const { data: oldProject } = await adminClient
-        .from('projects')
-        .select('status')
-        .eq('id', projectId)
-        .single()
+    const [profile, { data: oldProject }] = await Promise.all([
+        getUserProfile(supabase, user.email!, user.id),
+        adminClient.from('projects').select('status').eq('id', projectId).single()
+    ])
+    if (!profile) return { error: 'User profile not found' };
 
     const { data, error } = await adminClient
         .from('projects')
@@ -324,7 +288,6 @@ export async function updateProjectStatus(projectId: string, status: string | nu
         .select()
 
     if (error) {
-        console.error('SUPABASE ERROR UPDATING STATUS:', error)
         return { error: `Failed to update status: ${error.message}` }
     }
 
@@ -332,23 +295,17 @@ export async function updateProjectStatus(projectId: string, status: string | nu
         return { error: 'Project not found' }
     }
 
-    // Insert Log
-    try {
-        await insertProjectLog({
-            projectId,
-            userId: profile.id, // Use Public User ID
-            actionType: 'status_change',
-            description: `changed status from ${oldProject?.status || 'No status'} to ${status || 'No status'}`,
-            oldValue: { status: oldProject?.status },
-            newValue: { status }
-        })
-    } catch (logError) {
-        console.error('FAILED TO INSERT LOG:', logError)
-    }
+    // Non-blocking log
+    insertProjectLog({
+        projectId,
+        userId: profile.id,
+        actionType: 'status_change',
+        description: `changed status from ${oldProject?.status || 'No status'} to ${status || 'No status'}`,
+        oldValue: { status: oldProject?.status },
+        newValue: { status }
+    }).catch(() => {})
 
-    revalidatePath('/dashboard/projects')
-    revalidatePath('/dashboard')
-    revalidatePath(`/dashboard/projects/${projectId}`)
+    revalidatePath('/dashboard', 'layout')
     return { success: true }
 }
 
@@ -360,10 +317,12 @@ export async function updateProjectDescription(projectId: string, description: s
         return { error: 'You must be logged in to update a project' }
     }
 
-    const profile = await getUserProfile(supabase, user.email!, user.id);
+    const [profile, adminClient] = await Promise.all([
+        getUserProfile(supabase, user.email!, user.id),
+        Promise.resolve(createAdminClient())
+    ])
     if (!profile) return { error: 'User profile not found' };
 
-    const adminClient = createAdminClient()
     const { data, error } = await adminClient
         .from('projects')
         .update({ description })
@@ -371,7 +330,6 @@ export async function updateProjectDescription(projectId: string, description: s
         .select()
 
     if (error) {
-        console.error('SUPABASE ERROR UPDATING DESCRIPTION:', error)
         return { error: `Failed to update description: ${error.message}` }
     }
 
@@ -379,23 +337,17 @@ export async function updateProjectDescription(projectId: string, description: s
         return { error: 'Project not found' }
     }
 
-    // Insert Log
-    try {
-        await insertProjectLog({
-            projectId,
-            userId: profile.id, // Use Public User ID
-            actionType: 'description_change',
-            description: `updated project description`,
-            oldValue: null, 
-            newValue: null
-        })
-    } catch (logError) {
-        console.error('FAILED TO INSERT LOG:', logError)
-    }
+    // Non-blocking log
+    insertProjectLog({
+        projectId,
+        userId: profile.id,
+        actionType: 'description_change',
+        description: `updated project description`,
+        oldValue: null, 
+        newValue: null
+    }).catch(() => {})
 
-    revalidatePath('/dashboard/projects')
-    revalidatePath('/dashboard')
-    revalidatePath(`/dashboard/projects/${projectId}`)
+    revalidatePath('/dashboard', 'layout')
     return { success: true }
 }
 
@@ -491,9 +443,7 @@ export async function toggleProjectMember(projectId: string, userId: string) {
         }
     }
 
-    revalidatePath(`/dashboard/projects/${projectId}`)
-    revalidatePath('/dashboard/projects')
-    revalidatePath('/dashboard')
+    revalidatePath('/dashboard', 'layout')
     return { success: true }
 }
 
@@ -523,8 +473,6 @@ export async function updateUserAvatar(userId: string, avatarUrl: string) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: 'Not authenticated' }
 
-    console.log(`[Avatar Update] Auth UID: ${user.id}, Target User ID: ${userId}, Email: ${user.email}`)
-
     // 1. Try to find the existing row by ID OR Email
     const { data: existingRows } = await supabase
         .from('users')
@@ -535,7 +483,6 @@ export async function updateUserAvatar(userId: string, avatarUrl: string) {
 
     let error;
     if (targetRow) {
-        console.log(`[Avatar Update] Found existing row by ${targetRow.id === userId ? 'ID' : 'Email'}. Updating...`)
         // 2. Perform an UPDATE on the existing row (using its actual ID)
         const { error: updateError } = await supabase
             .from('users')
@@ -547,7 +494,6 @@ export async function updateUserAvatar(userId: string, avatarUrl: string) {
             .eq('email', user.email)
         error = updateError
     } else {
-        console.log('[Avatar Update] No existing row found. Attempting INSERT (this may fail if columns occupy not-null constraints)')
         // 3. Perform an INSERT if absolutely new
         // Note: This needs a default for employee_id if it's required
         const { error: insertError } = await supabase
@@ -570,10 +516,6 @@ export async function updateUserAvatar(userId: string, avatarUrl: string) {
 
     // Invalidate profile caches
     revalidatePath('/dashboard', 'layout')
-    revalidatePath('/dashboard/settings')
-    revalidatePath('/dashboard/team')
-
-    console.log('[Avatar Update] Successfully synced user profile and avatar.')
     return { success: true }
 }
 
@@ -603,8 +545,6 @@ export async function provisionEmployee(formData: FormData) {
 
     const adminClient = createAdminClient()
 
-    console.log(`[Provision] Starting provisioning for ${email}...`)
-
     // 2. Create Auth User (Silently)
     const { data: authData, error: createAuthError } = await adminClient.auth.admin.createUser({
         email,
@@ -619,7 +559,6 @@ export async function provisionEmployee(formData: FormData) {
     }
 
     const newUserId = authData.user.id
-    console.log(`[Provision] Successfully created Auth User with ID: ${newUserId}`)
 
     // 3. Insert into public.users
     const { error: dbError } = await adminClient
@@ -639,10 +578,7 @@ export async function provisionEmployee(formData: FormData) {
         return { error: `Database Error: ${dbError.message}` }
     }
 
-    revalidatePath('/dashboard/admin/team')
-    revalidatePath('/dashboard/team')
-    revalidatePath('/dashboard/admin/team')
-    revalidatePath('/dashboard/team')
+    revalidatePath('/dashboard', 'layout')
     return { success: true, message: `Account created for ${name}. Temporary password: ${tempPassword}` }
 }
 
@@ -670,7 +606,7 @@ export async function addProjectResource(projectId: string, title: string, url: 
         return { error: `Failed to add resource: ${error.message}` }
     }
 
-    revalidatePath(`/dashboard/projects/${projectId}`)
+    revalidatePath('/dashboard', 'layout')
     return { success: true, data }
 }
 
