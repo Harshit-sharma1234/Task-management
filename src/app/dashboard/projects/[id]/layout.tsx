@@ -1,23 +1,20 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { notFound, redirect } from 'next/navigation';
-import { ProjectOverview } from '@/components/dashboard/ProjectOverview';
-import { IssuesList } from '@/components/dashboard/issues/IssuesList';
+import { ProjectDetailHeader } from '@/components/dashboard/ProjectDetailHeader';
+import { ProjectSidebar } from '@/components/dashboard/ProjectSidebar';
 import { getUserProfile } from '@/lib/roles';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-interface PageProps {
+interface LayoutProps {
+  children: React.ReactNode;
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tab?: string }>;
 }
 
-export default async function ProjectDetailPage({ params, searchParams }: PageProps) {
+export default async function ProjectDetailLayout({ children, params }: LayoutProps) {
   const { id } = await params;
-  const { tab } = await searchParams;
-  const activeTab = tab || 'overview';
-  
   const supabase = await createClient();
 
   const { data: { session } } = await supabase.auth.getSession();
@@ -53,36 +50,28 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
   const profile = await getUserProfile(supabase, session.user.email!, session.user.id);
   const userRole = profile?.roles?.role_name || null;
 
-  // Conditional Data Fetching: Tickets for this project
-  let projectTickets: any[] = [];
-  if (activeTab === 'issues') {
-    const { data: tickets } = await adminClient
-      .from('tickets')
-      .select('id, title, status, priority, assignee_id, created_at, projects(id, project_name, status), assignees:users!assignee_id(id, name, avatar_url)')
-      .eq('project_id', id)
-      .order('created_at', { ascending: false });
-    
-    projectTickets = tickets || [];
-  }
-
   return (
-    <>
-      {activeTab === 'issues' ? (
-        <div className="p-8 bg-[#fbfbfb] min-h-full">
-          <IssuesList 
-            tickets={projectTickets} 
-            users={users || []}
-            emptyMessage={`No issues found for ${project.project_name}`} 
+    <div className="flex flex-col h-full bg-white text-gray-900 overflow-hidden">
+      {/* Project Header (Breadcrumbs & Tabs) - Stable in Layout */}
+      <ProjectDetailHeader projectName={project.project_name} projectId={id} />
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Scrollable Center Content (Where page.tsx will be) */}
+        <div className="flex-1 overflow-y-auto border-r border-gray-100">
+          {children}
+        </div>
+
+        {/* Fixed Right Sidebar - Stable in Layout */}
+        <div className="w-80 hidden xl:block overflow-y-auto bg-[#fbfbfb]">
+          <ProjectSidebar 
+            project={project} 
+            users={users || []} 
+            currentMemberIds={currentMemberIds} 
+            userRole={userRole}
           />
         </div>
-      ) : (
-        <ProjectOverview 
-          project={project} 
-          users={users || []} 
-          currentMemberIds={currentMemberIds} 
-          currentUser={session?.user}
-        />
-      )}
-    </>
+      </div>
+    </div>
   );
 }

@@ -11,7 +11,8 @@ import {
     SignalHigh,
     SignalMedium,
     SignalLow,
-    MoreHorizontal
+    MoreHorizontal,
+    Search
 } from 'lucide-react'
 import Link from 'next/link'
 import { CreateProjectButton } from '@/components/dashboard/CreateProjectButton'
@@ -21,11 +22,11 @@ import { getCachedStats, getCachedUsers, getCachedRecentTickets } from '@/lib/ca
 // Status Icon Mapping
 const statusIcons: Record<string, any> = {
     'to_do': { label: 'Todo', icon: Circle, color: 'text-gray-400' },
+    'to do': { label: 'Todo', icon: Circle, color: 'text-gray-400' },
     'in_progress': { label: 'In Progress', icon: CircleEllipsis, color: 'text-yellow-500' },
+    'in progress': { label: 'In Progress', icon: CircleEllipsis, color: 'text-yellow-500' },
     'done': { label: 'Done', icon: CheckCircle2, color: 'text-indigo-500' },
     'backlog': { label: 'Backlog', icon: CircleDot, color: 'text-gray-400' },
-    'review': { label: 'Review', icon: CircleEllipsis, color: 'text-orange-500' },
-    'in_review': { label: 'In Review', icon: CircleEllipsis, color: 'text-orange-600' },
     'cancelled': { label: 'Cancelled', icon: X, color: 'text-red-400' },
 };
 
@@ -52,10 +53,10 @@ export default async function DashboardOverview({ userId, userName }: DashboardO
     ]);
 
     const currentUserId = userId;
-    
+
     // Use data from cached stats
     const projects = stats.recentProjects || []
-    
+
     const totalProjectsCount = stats.projectsCount
     const completedProjectsCount = stats.completedProjectsCount
     const inProgressProjectsCount = stats.inProgressProjectsCount
@@ -164,12 +165,11 @@ export default async function DashboardOverview({ userId, userName }: DashboardO
                                                 </div>
                                             </div>
                                             <div className="text-right flex items-center gap-2">
-                                                <div className={`w-2 h-2 rounded-full ${
-                                                    project.status === 'done' ? 'bg-green-500' :
-                                                    project.status === 'in_progress' ? 'bg-indigo-500' :
-                                                    project.status === 'cancelled' ? 'bg-red-500' :
-                                                    'bg-orange-500'
-                                                }`}></div>
+                                                <div className={`w-2 h-2 rounded-full ${project.status === 'done' ? 'bg-green-500' :
+                                                        project.status === 'in_progress' ? 'bg-indigo-500' :
+                                                            project.status === 'cancelled' ? 'bg-red-500' :
+                                                                'bg-orange-500'
+                                                    }`}></div>
                                                 <span className="text-[10px] font-bold uppercase text-gray-400 tracking-tight">
                                                     {project.status ? project.status.replace('_', ' ') : 'backlog'}
                                                 </span>
