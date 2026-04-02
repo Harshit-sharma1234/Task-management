@@ -20,7 +20,7 @@ export interface UserProfile {
  * Returns null if the email is not found in the users table.
  */
 export async function getUserProfile(
-    supabase: SupabaseClient, 
+    supabase: SupabaseClient,
     email: string,
     id?: string
 ): Promise<UserProfile | null> {
@@ -28,7 +28,7 @@ export async function getUserProfile(
         .from('users')
         .select('*, roles(role_name)')
         .eq('email', email)
-    
+
     const userRow = data?.[0] || null
 
     console.log('[getUserProfile] email:', email)
@@ -42,7 +42,7 @@ export async function getUserProfile(
         // Proactive sync for missing users
         const adminClient = createAdminClient()
         let authUser = null;
-        
+
         if (id) {
             const { data: { user }, error: getError } = await adminClient.auth.admin.getUserById(id)
             if (user) authUser = user
@@ -50,7 +50,7 @@ export async function getUserProfile(
             const { data: { users: authUsers } } = await adminClient.auth.admin.listUsers()
             authUser = authUsers?.find(u => u.email === email)
         }
-        
+
         if (authUser) {
             const developerRoleId = 'ebd19f94-ad1e-4949-a2c4-36127425a718'
             const { data: newNode, error: syncError } = await adminClient.from('users').upsert({
@@ -62,7 +62,7 @@ export async function getUserProfile(
                 role_id: authUser.user_metadata?.role_id || developerRoleId,
                 employee_id: authUser.user_metadata?.employee_id || `EMP-${authUser.id.substring(0, 8).toUpperCase()}`
             }, { onConflict: 'id' }).select('*, roles(role_name)').single()
-            
+
             if (!syncError && newNode) return newNode as UserProfile
         }
         return null

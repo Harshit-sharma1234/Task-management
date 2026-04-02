@@ -20,8 +20,8 @@ const statuses = [
     { value: 'cancelled', label: 'Cancelled', shortcut: 'C', color: 'border-red-400', icon: <XCircle size={14} className="text-red-400" /> },
 ];
 
-export function StatusSelector({ 
-    projectId, 
+export function StatusSelector({
+    projectId,
     currentStatus,
     align = 'left'
 }: StatusSelectorProps) {
@@ -61,7 +61,7 @@ export function StatusSelector({
 
     return (
         <div className="relative" ref={dropdownRef}>
-            <button 
+            <button
                 onClick={(e) => {
                     e.stopPropagation();
                     setIsOpen(!isOpen);
@@ -82,11 +82,11 @@ export function StatusSelector({
                     <div className="px-3 py-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider border-b border-gray-50 mb-1">
                         Change Status
                     </div>
-                    
+
                     <div className="flex flex-col">
                         {statuses.map((s) => {
                             const isSelected = currentStatus === s.value || (!currentStatus && s.value === 'backlog');
-                            
+
                             return (
                                 <button
                                     key={s.value}

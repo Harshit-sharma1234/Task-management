@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { 
-  X, 
-  Maximize2, 
-  CircleDot, 
-  Circle, 
-  CircleEllipsis, 
+import {
+  X,
+  Maximize2,
+  CircleDot,
+  Circle,
+  CircleEllipsis,
   CheckCircle2,
   SignalHigh,
   SignalMedium,
@@ -112,7 +112,7 @@ export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModa
             <button className="p-1 text-gray-400 hover:text-gray-600 transition-colors">
               <Maximize2 size={16} />
             </button>
-            <button 
+            <button
               onClick={onClose}
               className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
             >
@@ -231,7 +231,7 @@ export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModa
                 <Paperclip size={18} />
               </button>
             </div>
-            
+
             <div className="flex items-center gap-4">
               {error && <span className="text-xs text-red-500 font-bold">{error}</span>}
               <button
