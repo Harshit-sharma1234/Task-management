@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 import { updateIssue } from '@/app/dashboard/issues/actions';
-import { 
-  CircleDot, 
-  Circle, 
-  CheckCircle2, 
+import {
+  CircleDot,
+  Circle,
+  CheckCircle2,
   CircleEllipsis,
   SignalHigh,
   SignalMedium,
@@ -15,6 +15,9 @@ import {
   FolderKanban
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { IssueStatusSelector } from './IssueStatusSelector';
+import { IssuePrioritySelector } from './IssuePrioritySelector';
+import { IssueAssigneeSelector } from './IssueAssigneeSelector';
 
 const statusOptions = [
   { value: 'backlog', label: 'Backlog', icon: CircleDot, color: 'text-gray-400' },
@@ -40,15 +43,15 @@ interface PropertyInlineRowProps {
   initialPriority: string;
   initialAssigneeId: string | null;
   projectName: string;
-  users: { id: string, name: string }[];
+  users: { id: string, name: string, avatar_url?: string | null }[];
   currentUserId: string;
   reviewerId: string | null;
 }
 
-export function PropertyInlineRow({ 
-  ticketId, 
-  initialStatus, 
-  initialPriority, 
+export function PropertyInlineRow({
+  ticketId,
+  initialStatus,
+  initialPriority,
   initialAssigneeId,
   projectName,
   users,
@@ -85,88 +88,24 @@ export function PropertyInlineRow({
   return (
     <div className="flex flex-wrap items-center gap-2">
       {/* Status Selector */}
-      <div className="relative group">
-        <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
-          <StatusIcon size={14} className={currentStatusOpt.color} />
-        </div>
-        <select
-          className="appearance-none bg-white border border-gray-200 rounded-md pl-8 pr-3 py-1.5 text-[11px] font-bold text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition-all focus:outline-none cursor-pointer shadow-sm disabled:opacity-50"
-          value={status}
-          onChange={(e) => {
-            const val = e.target.value;
-            setStatus(val);
-            handleUpdate({ status: val });
-          }}
-          disabled={isUpdating}
-        >
-          {statusOptions.map((opt) => (
-            <option 
-                key={opt.value} 
-                value={opt.value}
-                disabled={opt.value === 'done' && currentUserId !== reviewerId}
-            >
-              {opt.label}
-            </option>
-          ))}
-        </select>
-      </div>
+      <IssueStatusSelector 
+        issueId={ticketId}
+        currentStatus={status}
+      />
 
       {/* Priority Selector */}
-      <div className="relative group">
-        <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
-          <PriorityIcon size={14} className={currentPriorityOpt.color} />
-        </div>
-        <select
-          className="appearance-none bg-white border border-gray-200 rounded-md pl-8 pr-3 py-1.5 text-[11px] font-bold text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition-all focus:outline-none cursor-pointer shadow-sm disabled:opacity-50"
-          value={priority}
-          onChange={(e) => {
-            const val = e.target.value;
-            setPriority(val);
-            handleUpdate({ priority: val });
-          }}
-          disabled={isUpdating}
-        >
-          {priorityOptions.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
-      </div>
+      <IssuePrioritySelector 
+        issueId={ticketId}
+        currentPriority={priority}
+      />
 
       {/* Assignee Selector */}
-      <div className="relative group">
-        <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-           {assigneeId ? (
-               <div className="w-4 h-4 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-[8px] font-bold text-indigo-600">
-                   {users.find(u => u.id === assigneeId)?.name.substring(0, 1) || 'U'}
-               </div>
-           ) : (
-               <User size={14} className="text-gray-400" />
-           )}
-        </div>
-        <select
-          className="appearance-none bg-white border border-gray-200 rounded-md pl-8 pr-3 py-1.5 text-[11px] font-bold text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition-all focus:outline-none cursor-pointer shadow-sm disabled:opacity-50 min-w-[110px]"
-          value={assigneeId}
-          onChange={(e) => {
-            const val = e.target.value || null;
-            if (val && val === reviewerId) {
-                alert("Assignee cannot be the same as the reviewer");
-                return;
-            }
-            setAssigneeId(val || '');
-            handleUpdate({ assignee_id: val });
-          }}
-          disabled={isUpdating}
-        >
-          <option value="">Unassigned</option>
-          {users.map((u) => (
-            <option key={u.id} value={u.id}>
-              {u.name}
-            </option>
-          ))}
-        </select>
-      </div>
+      <IssueAssigneeSelector 
+        issueId={ticketId}
+        currentAssigneeId={assigneeId}
+        currentAssignee={users.find(u => u.id === assigneeId) || null}
+        users={users as any}
+      />
 
       {/* Project (Read Only link) */}
       <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50/50 border border-gray-100 rounded-md text-[11px] font-bold text-gray-500 shadow-sm border-dashed">

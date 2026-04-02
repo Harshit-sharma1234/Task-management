@@ -80,37 +80,35 @@ export function CommentSection({ ticketId, comments, currentUser, hideList = fal
       )}
 
       {/* New Comment Input */}
-      <div className="flex gap-4 pt-10 border-t border-gray-100">
-        <UserAvatar
-          name={currentUser.name}
-          avatarUrl={currentUser.avatar_url}
-          size="md"
-        />
-        <form onSubmit={handleSubmit} className="flex-1">
-          <div className="border border-gray-200 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all bg-white shadow-sm">
-            <textarea
-              placeholder="Leave a reply..."
-              className="w-full p-4 text-sm text-gray-900 placeholder-gray-400 focus:outline-none bg-transparent resize-none min-h-[120px]"
+      <div className="flex gap-3">
+        <div className="mt-0.5">
+          <UserAvatar
+            name={currentUser.name}
+            avatarUrl={currentUser.avatar_url}
+            size="sm"
+          />
+        </div>
+        <form onSubmit={handleSubmit} className="flex-1 max-w-3xl">
+          <div className="flex items-center gap-2 border border-gray-200/60 rounded-xl pl-3 pr-1.5 py-1 focus-within:border-gray-400 focus-within:ring-1 focus-within:ring-gray-400 transition-all bg-white shadow-sm">
+            <input
+              type="text"
+              placeholder="Leave a comment..."
+              className="w-full bg-transparent text-[13px] text-gray-900 placeholder-gray-400 focus:outline-none py-1"
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
               disabled={isSubmitting}
             />
-            <div className="px-4 py-2 bg-gray-50/50 border-t border-gray-100 flex justify-end">
-              <button
-                type="submit"
-                disabled={!newComment.trim() || isSubmitting}
-                className="inline-flex items-center gap-2 px-4 py-1.5 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-xs font-semibold"
-              >
-                {isSubmitting ? (
-                  <Loader2 size={14} className="animate-spin" />
-                ) : (
-                  <>
-                    <Send size={14} />
-                    <span>Comment</span>
-                  </>
-                )}
-              </button>
-            </div>
+            <button
+              type="submit"
+              disabled={!newComment.trim() || isSubmitting}
+              className="p-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? (
+                <Loader2 size={13} className="animate-spin" />
+              ) : (
+                <Send size={13} />
+              )}
+            </button>
           </div>
         </form>
       </div>

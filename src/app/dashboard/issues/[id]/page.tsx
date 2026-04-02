@@ -1,9 +1,9 @@
 import { createClient } from '@/lib/supabase/server';
 import { notFound, redirect } from 'next/navigation';
-import { 
-  CircleDot, 
-  Circle, 
-  CheckCircle2, 
+import {
+  CircleDot,
+  Circle,
+  CheckCircle2,
   CircleEllipsis,
   SignalHigh,
   SignalMedium,
@@ -25,7 +25,7 @@ import { UserAvatar } from '@/components/ui/UserAvatar';
 import { CommentSection } from '@/components/dashboard/issues/CommentSection';
 import { IssuePropertyControls } from '@/components/dashboard/issues/IssuePropertyControls';
 import { PropertyInlineRow } from '@/components/dashboard/issues/PropertyInlineRow';
-import { DeleteIssueButton } from '@/components/dashboard/issues/DeleteIssueButton';
+import { IssueHeaderActions } from '@/components/dashboard/issues/IssueHeaderActions';
 import { getUserProfile } from '@/lib/roles';
 
 // Status Icon Mapping
@@ -51,7 +51,7 @@ const priorityIcons: Record<string, any> = {
 export default async function IssueDetailsPage({ params }: { params: { id: string } }) {
   const { id } = await params;
   const supabase = await createClient();
-  
+
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
@@ -83,7 +83,7 @@ export default async function IssueDetailsPage({ params }: { params: { id: strin
     getUserProfile(supabase, user.email!),
     supabase
       .from('users')
-      .select('id, name')
+      .select('id, name, avatar_url')
       .order('name')
   ]);
 
@@ -122,126 +122,81 @@ export default async function IssueDetailsPage({ params }: { params: { id: strin
           <ChevronRight size={14} className="text-gray-300" />
           <span className="text-gray-400 uppercase">{ticket.projects?.project_name.substring(0, 3)}-{ticket.id.substring(0, 4)}</span>
         </div>
-        <div className="flex items-center gap-2">
-          {canDelete && <DeleteIssueButton id={id} />}
-          <button className="p-2 text-gray-400 hover:bg-gray-50 rounded-md transition-colors" title="Copy Link">
-            <LinkIcon size={16} />
-          </button>
-          <button className="p-2 text-gray-400 hover:bg-gray-50 rounded-md transition-colors" title="Share">
-            <Share2 size={16} />
-          </button>
-          <button className="p-2 text-gray-400 hover:bg-gray-50 rounded-md transition-colors">
-            <MoreHorizontal size={16} />
-          </button>
-        </div>
+        <IssueHeaderActions ticketId={id} canDelete={canDelete} />
       </div>
 
       <div className="flex-1 flex overflow-hidden">
         {/* Main Content Area */}
         <div className="flex-1 overflow-y-auto p-10 max-w-4xl border-r border-gray-100">
-          <div className="mb-8">
+          <div className="mb-12">
             <h1 className="text-3xl font-bold text-gray-900 mb-6">{ticket.title}</h1>
-            
-            <div className="prose prose-sm max-w-none text-gray-700 leading-relaxed">
+
+            <div className="prose prose-sm max-w-none text-gray-700 leading-relaxed mb-10">
               <p className="whitespace-pre-wrap">
                 {ticket.description || "No description provided."}
               </p>
             </div>
-
-            <PropertyInlineRow 
-              ticketId={id}
-              initialStatus={ticket.status}
-              initialPriority={ticket.priority}
-              initialAssigneeId={ticket.assignee_id}
-              projectName={ticket.projects?.project_name || 'N/A'}
-              users={allUsers || []}
-              currentUserId={profile?.id || ''}
-              reviewerId={ticket.reviewer_id}
-            />
           </div>
 
           {/* Activity Section */}
           <div className="mt-16 pt-8 border-t border-gray-100">
-            <div className="flex items-center gap-2 mb-8 font-semibold text-gray-500">
-              <MessageSquare size={16} />
-              <span>Activity</span>
+            <div className="flex justify-between items-center mb-8 border-b border-gray-100/60 pb-3">
+              <h3 className="text-sm font-bold text-gray-900">Activity</h3>
             </div>
 
-              {/* Unified Activity Feed */}
-              <div className="space-y-6 mb-10">
-                {activity.map((item: any) => (
-                  <div key={`${item.type}-${item.id}`} className="flex gap-4">
+            {/* Unified Activity Feed */}
+            <div className="space-y-6 mb-10 pl-1">
+              {activity.map((item: any) => (
+                <div key={`${item.type}-${item.id}`} className="flex gap-3">
+                  <div className="mt-0.5">
                     <UserAvatar
                       name={item.users?.name || 'User'}
-                      size="md"
+                      size="sm"
                     />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm font-semibold text-gray-900">{item.users?.name}</span>
-                        <span className="text-xs text-gray-400">
-                          {item.type === 'comment' ? 'commented' : item.message} • {new Date(item.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </div>
-                      {item.type === 'comment' && (
-                        <div className="text-sm text-gray-700 bg-gray-50/50 rounded-lg p-3 border border-gray-100/50">
-                          {item.comment}
-                        </div>
-                      )}
-                    </div>
                   </div>
-                ))}
-              </div>
-
-              {/* Reply Section */}
-              <CommentSection 
-                ticketId={id} 
-                comments={[]} 
-                currentUser={{
-                  name: profile?.name || 'Anonymous',
-                  email: user.email || ''
-                }}
-                hideList={true}
-              />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="text-[12px] font-bold text-gray-900">{item.users?.name}</span>
+                      <span className="text-[11px] font-medium text-gray-400">
+                        {item.type === 'comment' ? '' : `${item.message} · `}{new Date(item.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                    {item.type === 'comment' && (
+                      <div className="text-[13px] text-gray-700 leading-snug">
+                        {item.comment}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
 
-        <div className="w-72 bg-white flex flex-col p-6 overflow-y-auto border-l border-gray-100">
-          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-6">Properties</h3>
-          
-          <IssuePropertyControls 
+            {/* Reply Section */}
+            <CommentSection
+              ticketId={id}
+              comments={[]}
+              currentUser={{
+                name: profile?.name || 'Anonymous',
+                email: user.email || '',
+                avatar_url: profile?.avatar_url || null
+              }}
+              hideList={true}
+            />
+          </div>
+        </div>
+
+        <div className="w-72 bg-white flex flex-col p-6 overflow-visible border-l border-gray-100">
+          <IssuePropertyControls
             ticketId={id}
             initialStatus={ticket.status}
             initialPriority={ticket.priority}
             initialAssigneeId={ticket.assignee_id}
             initialReviewerId={ticket.reviewer_id}
             currentUserId={profile?.id || ''}
+            projectName={ticket.projects?.project_name || 'N/A'}
+            dueDate={ticket.due_date || null}
             users={allUsers || []}
           />
-
-          <div className="mt-8 space-y-6">
-            {/* Project */}
-            <div className="flex flex-col gap-2 pt-6 border-t border-gray-50">
-              <span className="text-[10px] font-bold text-gray-400 uppercase flex items-center gap-2">
-                <FolderKanban size={12} />
-                Project
-              </span>
-              <div className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-gray-50 transition-colors cursor-pointer text-gray-700">
-                <div className="w-2 h-2 rounded-full bg-indigo-500" />
-                <span className="text-sm font-medium truncate">{ticket.projects?.project_name}</span>
-              </div>
-            </div>
-
-            {/* Due Date */}
-            <div className="flex flex-col gap-2">
-              <span className="text-[10px] font-bold text-gray-400 uppercase flex items-center gap-2">
-                <Clock size={12} />
-                Due Date
-              </span>
-              <div className="text-sm font-medium text-gray-600 px-3">
-                {ticket.due_date ? new Date(ticket.due_date).toLocaleDateString(undefined, { dateStyle: 'long' }) : 'No due date'}
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>
