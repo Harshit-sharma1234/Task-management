@@ -72,12 +72,12 @@ export default async function IssueDetailsPage({ params }: { params: { id: strin
       .single(),
     supabase
       .from('comments')
-      .select('*, users(id, name, email)')
+      .select('*, users(id, name, email, avatar_url)')
       .eq('ticket_id', id)
       .order('created_at', { ascending: true }),
     supabase
       .from('logs')
-      .select('*, users(id, name)')
+      .select('*, users(id, name, avatar_url)')
       .eq('ticket_id', id)
       .order('created_at', { ascending: true }),
     getUserProfile(supabase, user.email!),
@@ -151,6 +151,7 @@ export default async function IssueDetailsPage({ params }: { params: { id: strin
                   <div className="mt-0.5">
                     <UserAvatar
                       name={item.users?.name || 'User'}
+                      avatarUrl={item.users?.avatar_url}
                       size="sm"
                     />
                   </div>

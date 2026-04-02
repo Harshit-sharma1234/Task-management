@@ -33,6 +33,7 @@ interface ProjectSidebarProps {
 export function ProjectSidebar({ project, users, currentMemberIds, userRole }: ProjectSidebarProps) {
   const [logs, setLogs] = useState<any[]>([]);
   const [tickets, setTickets] = useState<any[]>([]);
+  const [isPropertiesOpen, setIsPropertiesOpen] = useState(true);
   const [isActivityOpen, setIsActivityOpen] = useState(false);
   const [activeProgressTab, setActiveProgressTab] = useState<'Assignees' | 'Labels'>('Assignees');
 
@@ -116,68 +117,90 @@ export function ProjectSidebar({ project, users, currentMemberIds, userRole }: P
   return (
     <div className="p-6 space-y-8 border-l border-gray-100 h-full bg-[#fbfbfb] overflow-y-auto custom-scrollbar">
       {/* Properties Panel */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-            Properties
-          </h3>
-          <Plus size={14} className="text-gray-400 cursor-pointer hover:text-gray-600" />
+      <div className="border border-gray-100 rounded-xl bg-white shadow-sm pb-1">
+        <div 
+          className="px-3 py-2.5 flex items-center justify-between text-[11px] font-bold text-gray-400 uppercase tracking-widest bg-gray-50/50 hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-100 rounded-t-xl"
+          onClick={() => setIsPropertiesOpen(!isPropertiesOpen)}
+        >
+          <span>Properties</span>
+          <div className="flex items-center gap-2">
+            <ChevronDown 
+              size={12} 
+              className={`text-gray-400 transition-transform ${isPropertiesOpen ? '' : '-rotate-90'}`} 
+            />
+          </div>
         </div>
         
-        <div className="grid grid-cols-[100px_1fr] gap-y-4 items-center text-sm">
-          <span className="text-gray-400 font-medium">Status</span>
-          <div className="w-full">
-            <StatusSelector projectId={project.id} currentStatus={project.status} align="right" />
-          </div>
-
-          <span className="text-gray-400 font-medium">Priority</span>
-          <div className="w-full">
-            <PrioritySelector projectId={project.id} currentPriority={project.priority} showLabel={true} align="right" />
-          </div>
-
-          <span className="text-gray-400 font-medium">Lead</span>
-          <div className="w-full">
-            <LeadSelector projectId={project.id} currentLeadId={project.lead_id} users={users} showEmail={true} align="right" />
-          </div>
-
-          <span className="text-gray-400 font-medium">Members</span>
-          <MemberSelector 
-            projectId={project.id} 
-            users={users} 
-            currentMemberIds={currentMemberIds} 
-            showEmails={true}
-            align="right"
-          />
-
-          <span className="text-gray-400 font-medium">Dates</span>
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between w-full">
-               <span className="text-[11px] text-gray-400 uppercase">Start</span>
-               <TargetDateSelector projectId={project.id} currentTargetDate={project.start_date || null} align="right" />
+        {isPropertiesOpen && (
+          <div className="flex flex-col py-1">
+            <div className="px-1 py-0.5 group">
+              <div className="flex items-center gap-3 px-2 py-1.5 rounded-md hover:bg-gray-50 transition-colors">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest min-w-[80px] shrink-0">Status</span>
+                <div className="flex-1 flex justify-end overflow-hidden">
+                  <StatusSelector projectId={project.id} currentStatus={project.status} align="right" />
+                </div>
+              </div>
             </div>
-            <div className="flex items-center justify-between w-full">
-               <span className="text-[11px] text-gray-400 uppercase">Target</span>
-               <div className="flex items-center gap-1.5 text-gray-400 cursor-pointer hover:text-gray-600 px-2 py-1 rounded bg-white border border-gray-100/50">
-                  <Calendar size={12} />
-                  <span className="text-xs text-right">Add target...</span>
-               </div>
+
+            <div className="px-1 py-0.5 group">
+              <div className="flex items-center gap-3 px-2 py-1.5 rounded-md hover:bg-gray-50 transition-colors">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest min-w-[80px] shrink-0">Priority</span>
+                <div className="flex-1 flex justify-end overflow-hidden">
+                  <PrioritySelector projectId={project.id} currentPriority={project.priority} showLabel={true} align="right" />
+                </div>
+              </div>
             </div>
+
+            <div className="px-1 py-0.5 group">
+              <div className="flex items-center gap-3 px-2 py-1.5 rounded-md hover:bg-gray-50 transition-colors">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest min-w-[80px] shrink-0">Lead</span>
+                <div className="flex-1 flex justify-end overflow-hidden">
+                  <LeadSelector projectId={project.id} currentLeadId={project.lead_id} users={users} showEmail={true} align="right" />
+                </div>
+              </div>
+            </div>
+
+            <div className="px-1 py-0.5 group">
+              <div className="flex items-center gap-3 px-2 py-1.5 rounded-md hover:bg-gray-50 transition-colors">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest min-w-[80px] shrink-0">Members</span>
+                <div className="flex-1 flex justify-end overflow-hidden">
+                  <MemberSelector 
+                    projectId={project.id} 
+                    users={users} 
+                    currentMemberIds={currentMemberIds} 
+                    showEmails={true}
+                    align="right"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="px-1 py-0.5 group">
+              <div className="flex items-center gap-3 px-2 py-1.5 rounded-md hover:bg-gray-50 transition-colors">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest min-w-[80px] shrink-0">Start Date</span>
+                <div className="flex-1 flex justify-end overflow-hidden">
+                  <TargetDateSelector projectId={project.id} currentTargetDate={project.start_date || null} align="right" />
+                </div>
+              </div>
+            </div>
+
+            <div className="px-1 py-0.5 group">
+              <div className="flex items-center gap-3 px-2 py-1.5 rounded-md hover:bg-gray-50 transition-colors">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest min-w-[80px] shrink-0">Due Date</span>
+                <div className="flex-1 flex justify-end overflow-hidden">
+                  <div className="flex items-center gap-1.5 text-gray-400 cursor-pointer hover:text-gray-600 px-2 py-1 rounded bg-white border border-gray-100/50 w-fit">
+                    <Calendar size={12} />
+                    <span className="text-[11px] font-semibold">Add target...</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
-        </div>
+        )}
       </div>
 
-      {/* Milestones Panel */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-            Milestones
-          </h3>
-          <Plus size={14} className="text-gray-400 cursor-pointer hover:text-gray-600" />
-        </div>
-        <p className="text-[11px] text-gray-400 leading-relaxed font-medium">
-          Add milestones to organize work within your project. <span className="text-indigo-500 cursor-pointer hover:underline">Learn more</span>
-        </p>
-      </div>
+
 
       {/* Progress Panel */}
       <div className="space-y-4 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">

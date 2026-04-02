@@ -94,16 +94,7 @@ export function Header({ initialProfile }: { initialProfile?: any }) {
       )}
 
       <header className="h-16 border-b border-gray-100 bg-white flex items-center justify-between px-8 shrink-0">
-        <div className="flex-1 w-full max-w-md">
-          <div className="relative flex items-center w-full">
-            <Search size={16} className="absolute left-3 text-gray-400" />
-            <input 
-              type="text" 
-              placeholder="Search projects, tasks..." 
-              className="w-full bg-white border border-gray-200 rounded-md py-1.5 pl-9 pr-4 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-shadow"
-            />
-          </div>
-        </div>
+        <div className="flex-1 overflow-hidden" />
         
         <div className="flex items-center gap-4">
           <UserAvatar
