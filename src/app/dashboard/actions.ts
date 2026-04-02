@@ -646,4 +646,52 @@ export async function provisionEmployee(formData: FormData) {
     return { success: true, message: `Account created for ${name}. Temporary password: ${tempPassword}` }
 }
 
+export async function addProjectResource(projectId: string, title: string, url: string) {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
 
+    if (authError || !user) {
+        return { error: 'You must be logged in' }
+    }
+
+    const { data, error } = await supabase
+        .from('project_resources')
+        .insert({
+            project_id: projectId,
+            title,
+            url,
+            created_by: user.id
+        })
+        .select()
+        .single()
+
+    if (error) {
+        console.error('SUPABASE ERROR ADDING RESOURCE:', error)
+        return { error: `Failed to add resource: ${error.message}` }
+    }
+
+    revalidatePath(`/dashboard/projects/${projectId}`)
+    return { success: true, data }
+}
+
+export async function deleteProjectResource(resourceId: string, projectId: string) {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+        return { error: 'You must be logged in' }
+    }
+
+    const { error } = await supabase
+        .from('project_resources')
+        .delete()
+        .eq('id', resourceId)
+
+    if (error) {
+        console.error('SUPABASE ERROR DELETING RESOURCE:', error)
+        return { error: `Failed to delete resource: ${error.message}` }
+    }
+
+    revalidatePath(`/dashboard/projects/${projectId}`)
+    return { success: true }
+}

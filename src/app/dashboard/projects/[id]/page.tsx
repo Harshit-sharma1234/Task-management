@@ -65,6 +65,13 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
     projectTickets = tickets || [];
   }
 
+  // Fetch project resources
+  const { data: resources } = await adminClient
+    .from('project_resources')
+    .select('*')
+    .eq('project_id', id)
+    .order('created_at', { ascending: false });
+
   return (
     <>
       {activeTab === 'issues' ? (
@@ -81,6 +88,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
           users={users || []} 
           currentMemberIds={currentMemberIds} 
           currentUser={session?.user}
+          resources={resources || []}
         />
       )}
     </>
