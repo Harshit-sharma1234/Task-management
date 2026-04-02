@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 import { updateIssue } from '@/app/dashboard/issues/actions';
-import { 
-  CircleDot, 
-  Circle, 
-  CheckCircle2, 
+import {
+  CircleDot,
+  Circle,
+  CheckCircle2,
   CircleEllipsis,
   SignalHigh,
   SignalMedium,
@@ -43,14 +43,14 @@ interface IssuePropertyControlsProps {
   users: { id: string, name: string }[];
 }
 
-export function IssuePropertyControls({ 
-  ticketId, 
-  initialStatus, 
-  initialPriority, 
+export function IssuePropertyControls({
+  ticketId,
+  initialStatus,
+  initialPriority,
   initialAssigneeId,
   initialReviewerId,
   currentUserId,
-  users 
+  users
 }: IssuePropertyControlsProps) {
   const [status, setStatus] = useState(initialStatus);
   const [priority, setPriority] = useState(initialPriority);
@@ -90,8 +90,8 @@ export function IssuePropertyControls({
             disabled={isUpdating}
           >
             {statusOptions.map((opt) => (
-              <option 
-                key={opt.value} 
+              <option
+                key={opt.value}
                 value={opt.value}
                 disabled={opt.value === 'done' && currentUserId !== initialReviewerId}
               >
@@ -100,11 +100,11 @@ export function IssuePropertyControls({
             ))}
           </select>
           <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-             {(() => {
-                const opt = statusOptions.find(o => o.value === status) || statusOptions[1];
-                const Icon = opt.icon;
-                return <Icon size={14} className={opt.color} />;
-             })()}
+            {(() => {
+              const opt = statusOptions.find(o => o.value === status) || statusOptions[1];
+              const Icon = opt.icon;
+              return <Icon size={14} className={opt.color} />;
+            })()}
           </div>
         </div>
         {status === 'done' && currentUserId !== initialReviewerId && (
@@ -136,11 +136,11 @@ export function IssuePropertyControls({
             ))}
           </select>
           <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-             {(() => {
-                const opt = priorityOptions.find(o => o.value === priority) || priorityOptions[0];
-                const Icon = opt.icon;
-                return <Icon size={14} className={opt.color} />;
-             })()}
+            {(() => {
+              const opt = priorityOptions.find(o => o.value === priority) || priorityOptions[0];
+              const Icon = opt.icon;
+              return <Icon size={14} className={opt.color} />;
+            })()}
           </div>
         </div>
       </div>
@@ -174,7 +174,7 @@ export function IssuePropertyControls({
             ))}
           </select>
           <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 font-bold">
-             <User size={14} />
+            <User size={14} />
           </div>
         </div>
       </div>
@@ -208,7 +208,7 @@ export function IssuePropertyControls({
             ))}
           </select>
           <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 font-bold">
-             <CheckCircle2 size={14} />
+            <CheckCircle2 size={14} />
           </div>
         </div>
       </div>

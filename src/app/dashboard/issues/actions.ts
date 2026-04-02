@@ -116,7 +116,7 @@ export async function addComment(ticketId: string, comment: string) {
   // --- Notification Triggers ---
   // 1. Fetch ticket to get creator and assignee
   const { data: ticket } = await supabase.from('tickets').select('title, created_by, assignee_id').eq('id', ticketId).single()
-  
+
   if (ticket) {
     // 2. Notify Mentions
     const mentionedNames = await parseMentions(comment)
@@ -142,7 +142,7 @@ export async function addComment(ticketId: string, comment: string) {
     const notifyIds = new Set<string>()
     if (ticket.created_by && ticket.created_by !== profile.id) notifyIds.add(ticket.created_by)
     if (ticket.assignee_id && ticket.assignee_id !== profile.id) notifyIds.add(ticket.assignee_id)
-    
+
     for (const rid of Array.from(notifyIds)) {
       await createNotification({
         userId: rid,
@@ -159,8 +159,8 @@ export async function addComment(ticketId: string, comment: string) {
   return { success: true, data }
 }
 
-export async function updateIssue(ticketId: string, updates: { 
-  status?: string, 
+export async function updateIssue(ticketId: string, updates: {
+  status?: string,
   assignee_id?: string | null,
   priority?: string,
   reviewer_id?: string | null
@@ -216,7 +216,7 @@ export async function updateIssue(ticketId: string, updates: {
   // Logging & Notifications
   if (updates.status && updates.status !== ticket.status) {
     await logActivity(supabase, profile.id, ticketId, 'status_change', `Changed status from ${ticket.status} to ${updates.status}`)
-    
+
     if (ticket.assignee_id && ticket.assignee_id !== profile.id) {
       await createNotification({
         userId: ticket.assignee_id,
@@ -231,7 +231,7 @@ export async function updateIssue(ticketId: string, updates: {
 
   if (updates.assignee_id !== undefined && updates.assignee_id !== ticket.assignee_id) {
     await logActivity(supabase, profile.id, ticketId, 'assignee_change', 'Updated assignee')
-    
+
     if (updates.assignee_id) {
       await createNotification({
         userId: updates.assignee_id,

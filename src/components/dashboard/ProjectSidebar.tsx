@@ -20,6 +20,8 @@ import { StatusSelector } from './StatusSelector';
 import { getProjectLogs } from '@/app/dashboard/logging/actions';
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { clsx } from 'clsx';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 
 interface ProjectSidebarProps {
   project: any;
@@ -30,33 +32,46 @@ interface ProjectSidebarProps {
 
 export function ProjectSidebar({ project, users, currentMemberIds, userRole }: ProjectSidebarProps) {
   const [logs, setLogs] = useState<any[]>([]);
+  const [tickets, setTickets] = useState<any[]>([]);
   const [isActivityOpen, setIsActivityOpen] = useState(false);
+  const [activeProgressTab, setActiveProgressTab] = useState<'Assignees' | 'Labels'>('Assignees');
 
   useEffect(() => {
+    const supabase = createClient();
+
+    // Fetch Logs
     async function fetchLogs() {
       const res = await getProjectLogs(project.id);
       if (!res.error) {
         setLogs(res.data || []);
       }
     }
+
+    // Fetch Tickets for Progress
+    async function fetchTickets() {
+      const { data } = await supabase
+        .from('tickets')
+        .select('*, assignees:users!assignee_id(*)')
+        .eq('project_id', project.id);
+      
+      setTickets(data || []);
+    }
+
     fetchLogs();
+    fetchTickets();
 
     // Set up real-time subscription for live updates
-    const supabase = createClient();
     const channel = supabase
-      .channel('project_activity')
+      .channel(`project_sidebar_${project.id}`)
       .on(
         'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'project_logs',
-          filter: `project_id=eq.${project.id}`
-        },
-        () => {
-          // Re-fetch when a new log appears
-          fetchLogs();
-        }
+        { event: '*', schema: 'public', table: 'project_logs', filter: `project_id=eq.${project.id}` },
+        () => fetchLogs()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'tickets', filter: `project_id=eq.${project.id}` },
+        () => fetchTickets()
       )
       .subscribe();
 
@@ -75,6 +90,29 @@ export function ProjectSidebar({ project, users, currentMemberIds, userRole }: P
       hour12: true
     });
   };
+
+  // Progress Calculations
+  const scopeCount = tickets.length;
+  const doneCount = tickets.filter(t => t.status === 'done').length;
+
+  // Group tickets by assignee
+  const assigneeStats = tickets.reduce((acc: any, ticket: any) => {
+    const assigneeId = ticket.assignee_id || 'unassigned';
+    if (!acc[assigneeId]) {
+      acc[assigneeId] = {
+        id: assigneeId,
+        name: ticket.assignees?.name || 'Unassigned',
+        email: ticket.assignees?.email || 'unassigned@team.com',
+        avatar_url: ticket.assignees?.avatar_url,
+        count: 0
+      };
+    }
+    acc[assigneeId].count += 1;
+    return acc;
+  }, {});
+
+  const sortedAssignees = Object.values(assigneeStats).sort((a: any, b: any) => b.count - a.count);
+
   return (
     <div className="p-6 space-y-8 border-l border-gray-100 h-full bg-[#fbfbfb] overflow-y-auto custom-scrollbar">
       {/* Properties Panel */}
@@ -147,30 +185,81 @@ export function ProjectSidebar({ project, users, currentMemberIds, userRole }: P
           <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">
             Progress
           </h3>
+          <ChevronDown size={14} className="text-gray-400" />
         </div>
         
-        <div className="space-y-4">
+        <div className="space-y-5">
+          {/* Scope and Done counts */}
           <div className="grid grid-cols-2 gap-4">
              <div className="space-y-0.5">
                <div className="flex items-center gap-2 text-[10px] text-gray-400 font-bold uppercase tracking-wider">
                  <div className="w-1.5 h-1.5 bg-gray-300 rounded-sm"></div>
                  <span>Scope</span>
                </div>
-               <span className="text-xl font-bold text-gray-900 tracking-tight">0</span>
+               <span className="text-xl font-bold text-gray-900 tracking-tight">{scopeCount}</span>
              </div>
              <div className="space-y-0.5">
                <div className="flex items-center gap-2 text-[10px] text-indigo-400 font-bold uppercase tracking-wider">
                  <div className="w-1.5 h-1.5 bg-indigo-500 rounded-sm"></div>
-                 <span>Done</span>
+                 <span>Completed</span>
                </div>
-               <span className="text-xl font-bold text-gray-900 tracking-tight">0</span>
+               <span className="text-xl font-bold text-gray-900 tracking-tight">{doneCount}</span>
              </div>
           </div>
 
-          <div className="flex gap-2">
-            <button className="flex-1 py-1 text-[11px] font-bold bg-indigo-50 text-indigo-600 rounded border border-indigo-100 hover:bg-indigo-100/50 transition-colors">Assignees</button>
-            <button className="flex-1 py-1 text-[11px] font-bold text-gray-400 rounded border border-transparent hover:bg-gray-50 transition-colors">Labels</button>
+          {/* Progress Tabs */}
+          <div className="flex p-0.5 bg-gray-50 rounded-lg border border-gray-100">
+            <button 
+              onClick={() => setActiveProgressTab('Assignees')}
+              className={clsx(
+                "flex-1 py-1.5 text-[11px] font-bold rounded transition-all",
+                activeProgressTab === 'Assignees' ? "bg-white text-gray-900 shadow-sm" : "text-gray-400 hover:text-gray-600"
+              )}
+            >
+              Assignees
+            </button>
+            <button 
+              onClick={() => setActiveProgressTab('Labels')}
+              className={clsx(
+                "flex-1 py-1.5 text-[11px] font-bold rounded transition-all",
+                activeProgressTab === 'Labels' ? "bg-white text-gray-900 shadow-sm" : "text-gray-400 hover:text-gray-600"
+              )}
+            >
+              Labels
+            </button>
           </div>
+
+          {/* Assignees Content */}
+          {activeProgressTab === 'Assignees' && (
+            <div className="space-y-4 pt-1">
+              {sortedAssignees.length === 0 ? (
+                <p className="text-[11px] text-gray-400 text-center py-2">No assignees yet</p>
+              ) : (
+                <div className="space-y-3">
+                  {sortedAssignees.map((stat: any) => (
+                    <div key={stat.id} className="flex items-center justify-between group cursor-pointer">
+                      <div className="flex items-center gap-2.5">
+                        <UserAvatar name={stat.name} avatarUrl={stat.avatar_url} size="sm" />
+                        <span className="text-[11px] font-semibold text-gray-600 group-hover:text-gray-900 transition-colors truncate max-w-[160px]">
+                          {stat.email}
+                        </span>
+                      </div>
+                      <span className="text-[11px] font-bold text-gray-400 group-hover:text-indigo-600 transition-all">
+                        {stat.count}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Labels Placeholder */}
+          {activeProgressTab === 'Labels' && (
+            <div className="py-4 text-center">
+              <p className="text-[11px] text-gray-400">No labels defined for this project.</p>
+            </div>
+          )}
         </div>
       </div>
 

@@ -12,16 +12,40 @@ interface PrioritySelectorProps {
 }
 
 const priorities = [
+    { value: 'urgent', label: 'Urgent', shortcut: '1', icon: (
+        <div className="flex gap-0.5 items-end h-3">
+            <div className="w-1 h-3 bg-red-500 rounded-sm"></div>
+            <div className="w-1 h-3 bg-red-500 rounded-sm"></div>
+            <div className="w-1 h-3 bg-red-500 rounded-sm"></div>
+        </div>
+    ) },
+    { value: 'high', label: 'High', shortcut: '2', icon: (
+        <div className="flex gap-0.5 items-end h-3">
+            <div className="w-1 h-2 bg-red-400 rounded-sm"></div>
+            <div className="w-1 h-2.5 bg-red-400 rounded-sm"></div>
+            <div className="w-1 h-3 bg-red-400 rounded-sm"></div>
+        </div>
+    ) },
+    { value: 'medium', label: 'Medium', shortcut: '3', icon: (
+        <div className="flex gap-0.5 items-end h-3">
+            <div className="w-1 h-1.5 bg-yellow-400 rounded-sm"></div>
+            <div className="w-1 h-2.5 bg-yellow-400 rounded-sm"></div>
+            <div className="w-1 h-3 bg-yellow-100 rounded-sm"></div>
+        </div>
+    ) },
+    { value: 'low', label: 'Low', shortcut: '4', icon: (
+        <div className="flex gap-0.5 items-end h-3">
+            <div className="w-1 h-1.5 bg-indigo-400 rounded-sm"></div>
+            <div className="w-1 h-3 bg-indigo-100 rounded-sm"></div>
+            <div className="w-1 h-3 bg-indigo-100 rounded-sm"></div>
+        </div>
+    ) },
     { value: null, label: 'No priority', shortcut: '0', icon: <Ban size={14} className="text-gray-400" /> },
-    { value: 'urgent', label: 'Urgent', shortcut: '1', icon: <AlertCircle size={14} className="text-red-500 fill-red-500" /> },
-    { value: 'high', label: 'High', shortcut: '2', icon: <SignalHigh size={14} className="text-orange-500" /> },
-    { value: 'medium', label: 'Medium', shortcut: '3', icon: <SignalMedium size={14} className="text-gray-400" /> },
-    { value: 'low', label: 'Low', shortcut: '4', icon: <SignalLow size={14} className="text-gray-400" /> },
 ];
 
-export function PrioritySelector({ 
-    projectId, 
-    currentPriority, 
+export function PrioritySelector({
+    projectId,
+    currentPriority,
     showLabel = false,
     align = 'left'
 }: PrioritySelectorProps) {
@@ -97,7 +121,7 @@ export function PrioritySelector({
 
     return (
         <div className="relative" ref={dropdownRef}>
-            <button 
+            <button
                 onClick={(e) => {
                     e.stopPropagation();
                     setIsOpen(!isOpen);
@@ -117,11 +141,11 @@ export function PrioritySelector({
                     <div className="px-3 pb-2 mb-2 border-b border-gray-50 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
                         Change priority...
                     </div>
-                    
+
                     <div className="flex flex-col">
                         {priorities.map((p) => {
                             const isSelected = currentPriority === p.value || (!currentPriority && p.value === null);
-                            
+
                             return (
                                 <button
                                     key={p.label}

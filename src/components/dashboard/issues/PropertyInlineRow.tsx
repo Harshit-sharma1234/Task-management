@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 import { updateIssue } from '@/app/dashboard/issues/actions';
-import { 
-  CircleDot, 
-  Circle, 
-  CheckCircle2, 
+import {
+  CircleDot,
+  Circle,
+  CheckCircle2,
   CircleEllipsis,
   SignalHigh,
   SignalMedium,
@@ -45,10 +45,10 @@ interface PropertyInlineRowProps {
   reviewerId: string | null;
 }
 
-export function PropertyInlineRow({ 
-  ticketId, 
-  initialStatus, 
-  initialPriority, 
+export function PropertyInlineRow({
+  ticketId,
+  initialStatus,
+  initialPriority,
   initialAssigneeId,
   projectName,
   users,
@@ -100,10 +100,10 @@ export function PropertyInlineRow({
           disabled={isUpdating}
         >
           {statusOptions.map((opt) => (
-            <option 
-                key={opt.value} 
-                value={opt.value}
-                disabled={opt.value === 'done' && currentUserId !== reviewerId}
+            <option
+              key={opt.value}
+              value={opt.value}
+              disabled={opt.value === 'done' && currentUserId !== reviewerId}
             >
               {opt.label}
             </option>
@@ -137,13 +137,13 @@ export function PropertyInlineRow({
       {/* Assignee Selector */}
       <div className="relative group">
         <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-           {assigneeId ? (
-               <div className="w-4 h-4 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-[8px] font-bold text-indigo-600">
-                   {users.find(u => u.id === assigneeId)?.name.substring(0, 1) || 'U'}
-               </div>
-           ) : (
-               <User size={14} className="text-gray-400" />
-           )}
+          {assigneeId ? (
+            <div className="w-4 h-4 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-[8px] font-bold text-indigo-600">
+              {users.find(u => u.id === assigneeId)?.name.substring(0, 1) || 'U'}
+            </div>
+          ) : (
+            <User size={14} className="text-gray-400" />
+          )}
         </div>
         <select
           className="appearance-none bg-white border border-gray-200 rounded-md pl-8 pr-3 py-1.5 text-[11px] font-bold text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition-all focus:outline-none cursor-pointer shadow-sm disabled:opacity-50 min-w-[110px]"
@@ -151,8 +151,8 @@ export function PropertyInlineRow({
           onChange={(e) => {
             const val = e.target.value || null;
             if (val && val === reviewerId) {
-                alert("Assignee cannot be the same as the reviewer");
-                return;
+              alert("Assignee cannot be the same as the reviewer");
+              return;
             }
             setAssigneeId(val || '');
             handleUpdate({ assignee_id: val });
