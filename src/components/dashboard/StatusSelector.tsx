@@ -14,8 +14,6 @@ const statuses = [
     { value: 'backlog', label: 'Backlog', shortcut: 'B', color: 'border-gray-400', icon: <Circle size={14} className="text-gray-400" /> },
     { value: 'to_do', label: 'To Do', shortcut: 'T', color: 'border-indigo-400', icon: <CircleDashed size={14} className="text-indigo-400" /> },
     { value: 'in_progress', label: 'In Progress', shortcut: 'P', color: 'border-yellow-400', icon: <CircleDot size={14} className="text-yellow-400" /> },
-    { value: 'review', label: 'Review', shortcut: 'R', color: 'border-orange-400', icon: <Clock size={14} className="text-orange-400" /> },
-    { value: 'in_review', label: 'In Review', shortcut: 'I', color: 'border-purple-400', icon: <Search size={14} className="text-purple-400" /> },
     { value: 'done', label: 'Done', shortcut: 'D', color: 'border-green-400', icon: <CheckCircle2 size={14} className="text-green-400" /> },
     { value: 'cancelled', label: 'Cancelled', shortcut: 'C', color: 'border-red-400', icon: <XCircle size={14} className="text-red-400" /> },
 ];

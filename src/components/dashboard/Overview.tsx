@@ -27,9 +27,6 @@ const statusIcons: Record<string, any> = {
     'in progress': { label: 'In Progress', icon: CircleEllipsis, color: 'text-yellow-500' },
     'done': { label: 'Done', icon: CheckCircle2, color: 'text-indigo-500' },
     'backlog': { label: 'Backlog', icon: CircleDot, color: 'text-gray-400' },
-    'review': { label: 'Review', icon: CircleEllipsis, color: 'text-orange-500' },
-    'in_review': { label: 'In Review', icon: Search, color: 'text-purple-500' },
-    'in review': { label: 'In Review', icon: Search, color: 'text-purple-500' },
     'cancelled': { label: 'Cancelled', icon: X, color: 'text-red-400' },
 };
 

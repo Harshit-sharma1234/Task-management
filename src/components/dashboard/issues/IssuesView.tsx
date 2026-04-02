@@ -21,7 +21,7 @@ export function IssuesView({ tickets, projects, users, activeFilter }: IssuesVie
       />
 
       <div className="flex-1 overflow-y-auto pt-6 px-8 w-full">
-        <IssuesList tickets={tickets} />
+        <IssuesList tickets={tickets} users={users} />
       </div>
     </div>
   );

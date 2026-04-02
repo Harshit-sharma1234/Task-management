@@ -42,8 +42,8 @@ const statusOptions = [
   { value: 'backlog', label: 'Backlog', icon: CircleDot, color: 'text-gray-400' },
   { value: 'to_do', label: 'Todo', icon: Circle, color: 'text-gray-400' },
   { value: 'in_progress', label: 'In Progress', icon: CircleEllipsis, color: 'text-yellow-500' },
-  { value: 'review', label: 'Review', icon: CircleEllipsis, color: 'text-orange-500' },
-  { value: 'in_review', label: 'In Review', icon: CircleEllipsis, color: 'text-orange-600' },
+  { value: 'review', label: 'Review', icon: CircleDot, color: 'text-fuchsia-400' },
+  { value: 'in_review', label: 'In Review', icon: CircleDot, color: 'text-purple-500' },
   { value: 'done', label: 'Done', icon: CheckCircle2, color: 'text-indigo-500' },
   { value: 'cancelled', label: 'Cancelled', icon: X, color: 'text-red-400' },
 ];
