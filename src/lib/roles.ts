@@ -1,7 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js'
 import { createAdminClient } from './supabase/admin'
 
-export type AppRole = 'Admin' | 'Project Manager' | 'Developer'
+export type AppRole = 'Admin' | 'Project Manager' | 'Senior Developer' | 'Junior Developer'
 
 export interface UserProfile {
     id: string
@@ -9,6 +9,7 @@ export interface UserProfile {
     name: string
     email: string
     role_id: string
+    avatar_url?: string | null
     roles: {
         role_name: AppRole
     }
@@ -80,7 +81,9 @@ export function getDashboardPath(role: AppRole): string {
             return '/dashboard/admin'
         case 'Project Manager':
             return '/dashboard/pm'
-        case 'Developer':
+        case 'Senior Developer':
+            return '/dashboard/dev'
+        case 'Junior Developer':
             return '/dashboard/dev'
         default:
             return '/dashboard'

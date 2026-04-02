@@ -52,13 +52,16 @@ async function IssueListContent({ filter }: { filter: string }) {
       .order('project_name'),
     adminClient
       .from('users')
-      .select('id, name')
+      .select('id, name, avatar_url')
       .order('name')
   ]);
 
   const tickets = ticketsRes.data || [];
   const projects = (projectsRes.data || []).map(p => ({ id: p.id, name: p.project_name }));
   const users = usersRes.data || [];
+
+  if (usersRes.error) console.error('Error fetching users:', usersRes.error);
+  if (ticketsRes.error) console.error('Error fetching tickets:', ticketsRes.error);
 
   return (
     <IssuesView 

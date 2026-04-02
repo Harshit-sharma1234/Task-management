@@ -69,7 +69,11 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
     <>
       {activeTab === 'issues' ? (
         <div className="p-8 bg-[#fbfbfb] min-h-full">
-          <IssuesList tickets={projectTickets} emptyMessage={`No issues found for ${project.project_name}`} />
+          <IssuesList 
+            tickets={projectTickets} 
+            users={users || []}
+            emptyMessage={`No issues found for ${project.project_name}`} 
+          />
         </div>
       ) : (
         <ProjectOverview 
