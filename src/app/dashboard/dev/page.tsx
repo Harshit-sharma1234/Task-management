@@ -31,7 +31,7 @@ export default async function DevDashboard() {
 
 async function DevContent({ email, userId, userName }: { email: string; userId: string; userName?: string }) {
     const profile = await getCachedUserProfile(email)
-    if (!profile || profile.roles?.role_name !== 'Developer') {
+    if (!profile || (profile.roles?.role_name !== 'Senior Developer' && profile.roles?.role_name !== 'Junior Developer')) {
         redirect('/dashboard')
     }
     return <DashboardOverview userId={userId} userName={userName || profile.name || email} />
