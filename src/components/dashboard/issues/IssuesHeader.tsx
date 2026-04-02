@@ -66,14 +66,6 @@ export function IssuesHeader({ totalIssues, projects, users, activeFilter = 'all
               <Plus size={16} />
               <span>New Issue</span>
             </button>
-            <div className="ml-2 flex items-center gap-1 border-l border-gray-100 pl-3">
-              <div className="p-1.5 hover:bg-gray-100 rounded-md cursor-pointer text-gray-500 transition-colors">
-                <Filter size={16} />
-              </div>
-              <div className="p-1.5 hover:bg-gray-100 rounded-md cursor-pointer text-gray-500 transition-colors">
-                <SlidersHorizontal size={16} />
-              </div>
-            </div>
           </div>
         </div>
       </div>

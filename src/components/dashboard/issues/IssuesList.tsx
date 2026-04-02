@@ -10,7 +10,9 @@ import {
   X,
   ChevronDown,
   LayoutGrid,
-  Check
+  Check,
+  Filter,
+  SlidersHorizontal
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { UserAvatar } from '@/components/ui/UserAvatar';
@@ -41,6 +43,12 @@ interface IssuesListProps {
 export function IssuesList({ tickets, users = [], emptyMessage = "No issues found" }: IssuesListProps) {
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  
+  // Functional Filtering State
+  const [showFilters, setShowFilters] = useState(false);
+  const [showViewOptions, setShowViewOptions] = useState(false);
+  const [hideDone, setHideDone] = useState(false);
+  const [hideCancelled, setHideCancelled] = useState(false);
 
   // Group tickets by status
   const groupedTickets = tickets.reduce((acc: any, ticket: any) => {
@@ -94,7 +102,79 @@ export function IssuesList({ tickets, users = [], emptyMessage = "No issues foun
 
   return (
     <div className="space-y-8 relative pb-20">
+      {/* Functional View Controls */}
+      <div className="flex flex-wrap items-center gap-2 mb-2">
+        <div className="relative">
+          <button 
+            onClick={() => { setShowFilters(!showFilters); setShowViewOptions(false); }}
+            className={clsx(
+              "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-colors border",
+              showFilters ? "bg-gray-100 border-gray-200 text-gray-900" : "bg-white border-dashed border-gray-300 text-gray-500 hover:text-gray-700 hover:border-gray-400 hover:bg-gray-50"
+            )}
+          >
+            <Filter size={14} />
+            Filter
+          </button>
+          
+          {showFilters && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setShowFilters(false)} />
+              <div className="absolute top-full mt-1 left-0 w-56 bg-white border border-gray-100 shadow-xl rounded-xl z-20 py-2 animate-in fade-in zoom-in-95 duration-100">
+                <div className="px-3 pb-2 mb-2 border-b border-gray-50 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Visibility Filters</div>
+                <button 
+                  onClick={() => setHideDone(!hideDone)}
+                  className="w-full flex items-center justify-between px-3 py-1.5 hover:bg-gray-50 text-xs font-medium text-gray-700 transition-colors"
+                >
+                  Hide 'Done' issues
+                  {hideDone && <Check size={14} className="text-indigo-600" />}
+                </button>
+                <button 
+                  onClick={() => setHideCancelled(!hideCancelled)}
+                  className="w-full flex items-center justify-between px-3 py-1.5 hover:bg-gray-50 text-xs font-medium text-gray-700 transition-colors"
+                >
+                  Hide 'Cancelled' issues
+                  {hideCancelled && <Check size={14} className="text-indigo-600" />}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="relative">
+          <button 
+            onClick={() => { setShowViewOptions(!showViewOptions); setShowFilters(false); }}
+            className={clsx(
+              "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-colors border",
+              showViewOptions ? "bg-gray-100 border-gray-200 text-gray-900" : "bg-white border-dashed border-gray-300 text-gray-500 hover:text-gray-700 hover:border-gray-400 hover:bg-gray-50"
+            )}
+          >
+            <SlidersHorizontal size={14} />
+            Display
+          </button>
+          
+          {showViewOptions && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setShowViewOptions(false)} />
+              <div className="absolute top-full mt-1 left-0 w-48 bg-white border border-gray-100 shadow-xl rounded-xl z-20 py-2 animate-in fade-in zoom-in-95 duration-100">
+                <div className="px-3 pb-2 mb-2 border-b border-gray-50 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Grouping</div>
+                <div className="px-3 py-1.5 flex items-center justify-between w-full text-left text-xs font-medium text-gray-700 bg-gray-50/50 cursor-default">
+                  Group by Status
+                  <Check size={14} className="text-indigo-600" />
+                </div>
+                <div className="px-3 py-1.5 flex items-center justify-between w-full text-left text-xs font-medium text-gray-400 pointer-events-none">
+                  Group by Assignee
+                  <span className="text-[9px] bg-gray-100 px-1 py-0.5 rounded text-gray-500">Soon</span>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
       {orderedStatuses.map((status) => {
+        if (hideDone && status === 'done') return null;
+        if (hideCancelled && status === 'cancelled') return null;
+
         const statusData = statusIcons[status] || statusIcons['to_do'];
         const statusColor = statusData.color;
         const statusLabel = statusData.label;
