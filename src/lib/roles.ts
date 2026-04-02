@@ -32,24 +32,20 @@ export async function getUserProfile(
 
     const userRow = data?.[0] || null
 
-    console.log('[getUserProfile] email:', email)
-    console.log('[getUserProfile] data:', JSON.stringify(data))
-    console.log('[getUserProfile] error:', JSON.stringify(error))
-
     if (error) return null
 
     if (!userRow) {
-        console.log('[getUserProfile] User not found in public table, attempting proactive sync...')
         // Proactive sync for missing users
         const adminClient = createAdminClient()
         let authUser = null;
 
         if (id) {
-            const { data: { user }, error: getError } = await adminClient.auth.admin.getUserById(id)
+            const { data: { user } } = await adminClient.auth.admin.getUserById(id)
             if (user) authUser = user
         } else {
+            // Use listUsers and filter client-side (SDK does not support server-side email filter)
             const { data: { users: authUsers } } = await adminClient.auth.admin.listUsers()
-            authUser = authUsers?.find(u => u.email === email)
+            authUser = authUsers?.find(u => u.email === email) || null
         }
 
         if (authUser) {
