@@ -1,9 +1,9 @@
 import { createClient } from '@/lib/supabase/server';
 import { notFound, redirect } from 'next/navigation';
-import { 
-  CircleDot, 
-  Circle, 
-  CheckCircle2, 
+import {
+  CircleDot,
+  Circle,
+  CheckCircle2,
   CircleEllipsis,
   SignalHigh,
   SignalMedium,
@@ -51,7 +51,7 @@ const priorityIcons: Record<string, any> = {
 export default async function IssueDetailsPage({ params }: { params: { id: string } }) {
   const { id } = await params;
   const supabase = await createClient();
-  
+
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
@@ -141,14 +141,14 @@ export default async function IssueDetailsPage({ params }: { params: { id: strin
         <div className="flex-1 overflow-y-auto p-10 max-w-4xl border-r border-gray-100">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-6">{ticket.title}</h1>
-            
+
             <div className="prose prose-sm max-w-none text-gray-700 leading-relaxed">
               <p className="whitespace-pre-wrap">
                 {ticket.description || "No description provided."}
               </p>
             </div>
 
-            <PropertyInlineRow 
+            <PropertyInlineRow
               ticketId={id}
               initialStatus={ticket.status}
               initialPriority={ticket.priority}
@@ -167,48 +167,48 @@ export default async function IssueDetailsPage({ params }: { params: { id: strin
               <span>Activity</span>
             </div>
 
-              {/* Unified Activity Feed */}
-              <div className="space-y-6 mb-10">
-                {activity.map((item: any) => (
-                  <div key={`${item.type}-${item.id}`} className="flex gap-4">
-                    <UserAvatar
-                      name={item.users?.name || 'User'}
-                      size="md"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm font-semibold text-gray-900">{item.users?.name}</span>
-                        <span className="text-xs text-gray-400">
-                          {item.type === 'comment' ? 'commented' : item.message} • {new Date(item.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </div>
-                      {item.type === 'comment' && (
-                        <div className="text-sm text-gray-700 bg-gray-50/50 rounded-lg p-3 border border-gray-100/50">
-                          {item.comment}
-                        </div>
-                      )}
+            {/* Unified Activity Feed */}
+            <div className="space-y-6 mb-10">
+              {activity.map((item: any) => (
+                <div key={`${item.type}-${item.id}`} className="flex gap-4">
+                  <UserAvatar
+                    name={item.users?.name || 'User'}
+                    size="md"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm font-semibold text-gray-900">{item.users?.name}</span>
+                      <span className="text-xs text-gray-400">
+                        {item.type === 'comment' ? 'commented' : item.message} • {new Date(item.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </span>
                     </div>
+                    {item.type === 'comment' && (
+                      <div className="text-sm text-gray-700 bg-gray-50/50 rounded-lg p-3 border border-gray-100/50">
+                        {item.comment}
+                      </div>
+                    )}
                   </div>
-                ))}
-              </div>
-
-              {/* Reply Section */}
-              <CommentSection 
-                ticketId={id} 
-                comments={[]} 
-                currentUser={{
-                  name: profile?.name || 'Anonymous',
-                  email: user.email || ''
-                }}
-                hideList={true}
-              />
+                </div>
+              ))}
             </div>
+
+            {/* Reply Section */}
+            <CommentSection
+              ticketId={id}
+              comments={[]}
+              currentUser={{
+                name: profile?.name || 'Anonymous',
+                email: user.email || ''
+              }}
+              hideList={true}
+            />
           </div>
+        </div>
 
         <div className="w-72 bg-white flex flex-col p-6 overflow-y-auto border-l border-gray-100">
           <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-6">Properties</h3>
-          
-          <IssuePropertyControls 
+
+          <IssuePropertyControls
             ticketId={id}
             initialStatus={ticket.status}
             initialPriority={ticket.priority}
