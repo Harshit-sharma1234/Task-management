@@ -1,17 +1,22 @@
 'use client';
 
-import { Search, LogOut } from 'lucide-react';
+import { Search, LogOut, Settings, User as UserIcon, Shield } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { UserAvatar } from '@/components/ui/UserAvatar';
+import Link from 'next/link';
 
 export function Header({ initialProfile }: { initialProfile?: any }) {
   const router = useRouter();
-  const [userProfile, setUserProfile] = useState<{ name: string, avatar_url: string | null } | null>(initialProfile || null)
+  const [userProfile, setUserProfile] = useState<{ name: string, email: string, avatar_url: string | null } | null>(
+    initialProfile ? { ...initialProfile, email: initialProfile.email || '' } : null
+  )
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false)
+  const [isPopupOpen, setIsPopupOpen] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
   const supabase = useMemo(() => createClient(), [])
+  const popupRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     async function syncHeaderProfile(userOverride?: any) {
@@ -22,20 +27,22 @@ export function Header({ initialProfile }: { initialProfile?: any }) {
           user = session?.user;
         }
         
-        if (user && !initialProfile) {
+        if (user) {
           const { data } = await supabase
               .from('users')
-              .select('name, avatar_url')
+              .select('name, email, avatar_url')
               .eq('email', user.email)
           
           if (data && data.length > 0) {
             setUserProfile({ 
               name: data[0].name, 
+              email: data[0].email,
               avatar_url: data[0].avatar_url 
             })
           } else {
             setUserProfile({ 
               name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User', 
+              email: user.email || '',
               avatar_url: null 
             })
           }
@@ -54,13 +61,23 @@ export function Header({ initialProfile }: { initialProfile?: any }) {
       }
     })
 
-    return () => {
-      subscription.unsubscribe()
-    }
-  }, [])
+    const handleClickOutside = (event: MouseEvent) => {
+      if (popupRef.current && !popupRef.current.contains(event.target as Node)) {
+        setIsPopupOpen(false);
+      }
+    };
 
-  const handleSignOut = async () => {
+    document.addEventListener('mousedown', handleClickOutside);
+
+    return () => {
+      subscription.unsubscribe();
+      document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [supabase])
+
+  const handleSignOut = useCallback(async () => {
     setShowSignOutConfirm(false);
+    setIsPopupOpen(false);
     setSigningOut(true);
     try {
       await supabase.auth.signOut();
@@ -69,7 +86,7 @@ export function Header({ initialProfile }: { initialProfile?: any }) {
     } catch (error) {
       setSigningOut(false);
     }
-  };
+  }, [supabase, router]);
 
   return (
     <>
@@ -96,48 +113,120 @@ export function Header({ initialProfile }: { initialProfile?: any }) {
       <header className="h-16 border-b border-gray-100 bg-white flex items-center justify-between px-8 shrink-0">
         <div className="flex-1 overflow-hidden" />
         
-        <div className="flex items-center gap-4">
-          <UserAvatar
-            name={userProfile?.name || ''}
-            avatarUrl={userProfile?.avatar_url}
-            size="md"
-            className="cursor-pointer"
-          />
-
-          <div className="w-px h-6 bg-gray-200 mx-1"></div>
-
+        <div className="flex items-center gap-4 relative" ref={popupRef}>
+          {/* Interactive User Trigger */}
           <button 
-            onClick={() => setShowSignOutConfirm(true)}
-            className="text-gray-500 hover:text-indigo-600 flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-indigo-50 transition-colors text-sm font-medium"
+            onClick={() => setIsPopupOpen(!isPopupOpen)}
+            className={`flex items-center gap-2 p-1 rounded-full hover:bg-gray-50 transition-all border ${isPopupOpen ? 'border-gray-200 bg-gray-50 ring-4 ring-gray-50' : 'border-transparent'}`}
           >
-            <LogOut size={16} />
-            <span className="hidden sm:inline">Sign out</span>
+            <UserAvatar
+              name={userProfile?.name || ''}
+              avatarUrl={userProfile?.avatar_url}
+              size="md"
+              className={!userProfile ? 'animate-pulse bg-gray-100' : ''}
+            />
           </button>
+
+          {/* Premium Popup Menu */}
+          {isPopupOpen && (
+            <div className="absolute right-0 top-full mt-3 w-72 bg-white border border-gray-200 rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] z-[100] p-1.5 animate-in fade-in slide-in-from-top-2 duration-200 overflow-hidden">
+              {/* User Identity Section */}
+              <div className="px-4 py-4 mb-1">
+                <div className="flex items-center gap-3">
+                  <UserAvatar
+                    name={userProfile?.name || ''}
+                    avatarUrl={userProfile?.avatar_url}
+                    size="lg"
+                    className="ring-2 ring-gray-50"
+                  />
+                  <div className="flex flex-col overflow-hidden">
+                    <span className="text-[14px] font-bold text-gray-900 truncate leading-tight">
+                      {userProfile?.name}
+                    </span>
+                    <span className="text-[12px] text-gray-500 truncate mt-0.5 font-medium">
+                      {userProfile?.email}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="h-px bg-gray-100 mx-2 mb-1" />
+
+              {/* Navigation Actions */}
+              <div className="flex flex-col gap-0.5">
+                <Link 
+                  href="/dashboard/settings" 
+                  onClick={() => setIsPopupOpen(false)}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-semibold text-gray-700 hover:bg-gray-50 hover:text-indigo-600 transition-all group"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-gray-50 group-hover:bg-indigo-50 flex items-center justify-center transition-colors">
+                    <UserIcon size={16} className="text-gray-400 group-hover:text-indigo-500" />
+                  </div>
+                  My Profile
+                </Link>
+
+                <Link 
+                  href="/dashboard/settings" 
+                  onClick={() => setIsPopupOpen(false)}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-semibold text-gray-700 hover:bg-gray-50 hover:text-indigo-600 transition-all group"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-gray-50 group-hover:bg-indigo-50 flex items-center justify-center transition-colors">
+                    <Settings size={16} className="text-gray-400 group-hover:text-indigo-500" />
+                  </div>
+                  System Settings
+                </Link>
+
+                <div className="h-px bg-gray-100 mx-2 my-1" />
+
+                {/* Dangerous Action */}
+                <button 
+                  onClick={() => setShowSignOutConfirm(true)}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-semibold text-red-600 hover:bg-red-50 transition-all group"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-red-50/50 group-hover:bg-red-50 flex items-center justify-center transition-colors">
+                    <LogOut size={16} className="text-red-400 group-hover:text-red-500" />
+                  </div>
+                  Sign out
+                </button>
+              </div>
+
+              {/* Footer */}
+              <div className="mt-2 text-center p-2">
+                <div className="flex items-center justify-center gap-1.5 text-[10px] font-bold text-gray-300 uppercase tracking-widest">
+                  <Shield size={10} />
+                  Secure Session
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </header>
 
       {/* Sign Out Confirmation Modal */}
       {showSignOutConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center">
           <div 
-            className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+            className="absolute inset-0 bg-[#0e0e11]/40 backdrop-blur-[4px] animate-in fade-in duration-300"
             onClick={() => setShowSignOutConfirm(false)} 
           />
-          <div className="relative bg-white rounded-xl shadow-2xl border border-gray-200 px-6 py-5 w-full max-w-sm mx-4 animate-in fade-in zoom-in duration-150">
-            <h3 className="text-[15px] font-bold text-gray-900 mb-1">Confirm sign out</h3>
-            <p className="text-sm text-gray-500 mb-5">Are you sure you want to sign out of your account?</p>
-            <div className="flex items-center justify-end gap-2">
-              <button
-                onClick={() => setShowSignOutConfirm(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-              >
-                Cancel
-              </button>
+          <div className="relative bg-white rounded-3xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] border border-gray-100 px-8 py-8 w-full max-w-sm mx-4 animate-in fade-in zoom-in slide-in-from-bottom-4 duration-300">
+            <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mb-6 ring-8 ring-red-50/50">
+              <LogOut size={32} className="text-red-500" />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-2 tracking-tight">Come back soon</h3>
+            <p className="text-[15px] font-medium text-gray-500 mb-8 leading-relaxed">Are you sure you want to sign out? You'll need to log in again to access your workspace.</p>
+            <div className="flex flex-col gap-3">
               <button
                 onClick={handleSignOut}
-                className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors shadow-lg shadow-indigo-600/20"
+                className="w-full py-3.5 text-[15px] font-bold text-white bg-red-600 hover:bg-red-700 active:scale-[0.98] rounded-2xl transition-all shadow-xl shadow-red-200"
               >
                 Sign out
+              </button>
+              <button
+                onClick={() => setShowSignOutConfirm(false)}
+                className="w-full py-3.5 text-[15px] font-bold text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-2xl transition-all"
+              >
+                Cancel
               </button>
             </div>
           </div>

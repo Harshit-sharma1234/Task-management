@@ -2,6 +2,7 @@
 
 import { Trash2 } from 'lucide-react';
 import { deleteIssue } from '@/app/dashboard/issues/actions';
+import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 
 export function DeleteIssueButton({ id }: { id: string }) {
@@ -11,10 +12,11 @@ export function DeleteIssueButton({ id }: { id: string }) {
     if (confirm('Are you sure you want to delete this issue?')) {
       const res = await deleteIssue(id);
       if (res.success) {
+        toast.success('Issue deleted successfully');
         // Use window.location as a fallback if router.push doesn't trigger refresh enough
         window.location.href = '/dashboard/issues';
       } else {
-        alert(res.error);
+        toast.error(res.error);
       }
     }
   };

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Send, Loader2 } from 'lucide-react';
 import { addComment } from '@/app/dashboard/issues/actions';
+import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 
@@ -44,7 +45,7 @@ export function CommentSection({ ticketId, comments, currentUser, hideList = fal
       setNewComment('');
       router.refresh();
     } else {
-      alert(result.error || 'Failed to add comment');
+      toast.error(result.error || 'Failed to add comment');
     }
     setIsSubmitting(false);
   };

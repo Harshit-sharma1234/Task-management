@@ -4,23 +4,29 @@ import { createClient } from '@/lib/supabase/server'
 import { TeamList } from '@/components/dashboard/TeamList'
 import { TeamHeader } from '@/components/dashboard/TeamHeader'
 import { TeamSkeleton } from '@/components/dashboard/TeamSkeleton'
+import { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Team Directory',
+  description: 'View and manage your team members and roles.',
+}
 import { Users, FolderKanban, Shield } from 'lucide-react'
 import { getCachedUsers, getCachedStats, getCachedUserProfile } from '@/lib/cache'
 
-export default async function TeamPage() {
-    const supabase = await createClient()
-    const { data: authData, error: authError } = await supabase.auth.getUser()
-
-    if (authError || !authData?.user) redirect('/login')
-
+export default function TeamPage() {
     return (
         <Suspense fallback={<TeamSkeleton />}>
-            <TeamContent email={authData.user.email!} />
+            <TeamContent />
         </Suspense>
     )
 }
 
-async function TeamContent({ email }: { email: string }) {
+async function TeamContent() {
+    const supabase = await createClient()
+    const { data: authData } = await supabase.auth.getUser()
+    const email = authData?.user?.email;
+
+    if (!email) redirect('/login')
     // Use cached data fetching instead of direct Supabase calls
     // Note: getCachedUserProfile returns a result, while getCachedUsers/getCachedStats are already the cached functions
     const [currentUserProfile, users, stats] = await Promise.all([

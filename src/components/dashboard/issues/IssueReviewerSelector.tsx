@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { updateIssue } from '@/app/dashboard/issues/actions';
+import { toast } from 'sonner';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { Search, Loader2, User } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -55,7 +56,7 @@ export function IssueReviewerSelector({
             return;
         }
         if (userId && userId === assigneeId) {
-            alert("The reviewer cannot be the same as the assignee.");
+            toast.error("The reviewer cannot be the same as the assignee.");
             setIsOpen(false);
             return;
         }
@@ -64,7 +65,7 @@ export function IssueReviewerSelector({
         setIsUpdating(true);
         const res = await updateIssue(issueId, { reviewer_id: userId });
         if (res.error) {
-            alert(res.error);
+            toast.error(res.error);
         }
         setIsUpdating(false);
         router.refresh();
