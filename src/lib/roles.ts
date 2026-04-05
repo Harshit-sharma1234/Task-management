@@ -49,7 +49,7 @@ export async function getUserProfile(
         }
 
         if (authUser) {
-            const developerRoleId = 'ebd19f94-ad1e-4949-a2c4-36127425a718'
+            const developerRoleId = 'f1e5cb69-a296-43c7-8905-00fc99e1f5aa' // Junior Developer
             const { data: newNode, error: syncError } = await adminClient.from('users').upsert({
                 id: authUser.id,
                 auth_id: authUser.id,

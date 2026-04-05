@@ -16,6 +16,7 @@ import {
   FolderKanban
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { IssueStatusSelector } from './IssueStatusSelector';
 import { IssuePrioritySelector } from './IssuePrioritySelector';
 import { IssueAssigneeSelector } from './IssueAssigneeSelector';
@@ -84,7 +85,7 @@ export function IssuePropertyControls({
     if (result.success) {
       router.refresh();
     } else {
-      alert(result.error || 'Failed to update issue');
+      toast.error(result.error || 'Failed to update issue');
     }
     setIsUpdating(false);
   };

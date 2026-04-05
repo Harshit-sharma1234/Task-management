@@ -2,13 +2,8 @@
 
 import { useState } from 'react';
 import { Plus, Filter, SlidersHorizontal } from 'lucide-react';
-import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { clsx } from 'clsx';
-
-const AddIssueModal = dynamic(() => import('./AddIssueModal').then(mod => mod.AddIssueModal), {
-  ssr: false,
-});
 
 interface Project {
   id: string;
@@ -25,10 +20,10 @@ interface IssuesHeaderProps {
   projects: Project[];
   users: User[];
   activeFilter?: string;
+  onOpenModal: () => void;
 }
 
-export function IssuesHeader({ totalIssues, projects, users, activeFilter = 'all' }: IssuesHeaderProps) {
-  const [isModalOpen, setIsModalOpen] = useState(false);
+export function IssuesHeader({ totalIssues, projects, users, activeFilter = 'all', onOpenModal }: IssuesHeaderProps) {
 
   const filters = [
     { id: 'all', label: 'All issues' },
@@ -60,7 +55,7 @@ export function IssuesHeader({ totalIssues, projects, users, activeFilter = 'all
           </div>
           <div className="flex items-center gap-2">
             <button 
-              onClick={() => setIsModalOpen(true)}
+              onClick={onOpenModal}
               className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm"
             >
               <Plus size={16} />
@@ -70,14 +65,6 @@ export function IssuesHeader({ totalIssues, projects, users, activeFilter = 'all
         </div>
       </div>
 
-      {isModalOpen && (
-        <AddIssueModal 
-          isOpen={isModalOpen} 
-          onClose={() => setIsModalOpen(false)} 
-          projects={projects}
-          users={users}
-        />
-      )}
     </>
   );
 }

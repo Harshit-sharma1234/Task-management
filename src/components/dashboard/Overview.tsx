@@ -12,12 +12,16 @@ import {
     SignalMedium,
     SignalLow,
     MoreHorizontal,
-    Search
 } from 'lucide-react'
 import Link from 'next/link'
-import { CreateProjectButton } from '@/components/dashboard/CreateProjectButton'
+import dynamic from 'next/dynamic'
 import { clsx } from 'clsx'
 import { getCachedStats, getCachedUsers, getCachedRecentTickets } from '@/lib/cache'
+
+// Lazy load the interactive project creation button to reduce initial JS weight
+const CreateProjectButton = dynamic(() => import('@/components/dashboard/CreateProjectButton').then(mod => mod.CreateProjectButton), { 
+    loading: () => <div className="h-10 w-32 bg-gray-100 animate-pulse rounded-md" />
+})
 
 // Status Icon Mapping
 const statusIcons: Record<string, any> = {

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Link as LinkIcon, Share2, MoreHorizontal, Check, Trash2, ExternalLink } from 'lucide-react';
 import { deleteIssue } from '@/app/dashboard/issues/actions';
+import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 
 interface IssueHeaderActionsProps {
@@ -32,7 +33,7 @@ export function IssueHeaderActions({ ticketId, canDelete }: IssueHeaderActionsPr
       router.push('/dashboard/issues');
       router.refresh();
     } else {
-      alert(result.error || 'Failed to delete issue');
+      toast.error(result.error || 'Failed to delete issue');
       setIsDeleting(false);
     }
   };
