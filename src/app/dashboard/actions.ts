@@ -504,7 +504,7 @@ export async function updateUserAvatar(userId: string, avatarUrl: string) {
                 email: user.email,
                 name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
                 employee_id: `EMP-${Date.now()}`, // Temporary fallback for required columns
-                role_id: '861a7a01-447a-40ed-8785-580798939c81' // Hardcoded Developer role as fallback
+                role_id: 'f1e5cb69-a296-43c7-8905-00fc99e1f5aa' // Junior Developer
             })
         error = insertError
     }

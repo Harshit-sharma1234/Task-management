@@ -15,6 +15,7 @@ import {
   FolderKanban
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { IssueStatusSelector } from './IssueStatusSelector';
 import { IssuePrioritySelector } from './IssuePrioritySelector';
 import { IssueAssigneeSelector } from './IssueAssigneeSelector';
@@ -70,7 +71,7 @@ export function PropertyInlineRow({
     if (result.success) {
       router.refresh();
     } else {
-      alert(result.error || 'Failed to update issue');
+      toast.error(result.error || 'Failed to update issue');
       // Revert local state on error
       if (updates.status) setStatus(initialStatus);
       if (updates.priority) setPriority(initialPriority);

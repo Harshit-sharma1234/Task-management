@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, memo, useCallback } from 'react';
 import { updateIssue } from '@/app/dashboard/issues/actions';
+import { toast } from 'sonner';
 import { 
     SignalHigh,
     SignalMedium,
@@ -26,10 +27,10 @@ const priorityOptions = [
     { value: 'no_priority', label: 'No Priority', icon: Minus, color: 'text-gray-300' },
 ];
 
-export function IssuePrioritySelector({
+export const IssuePrioritySelector = memo(({
     issueId,
     currentPriority
-}: IssuePrioritySelectorProps) {
+}: IssuePrioritySelectorProps) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -47,7 +48,7 @@ export function IssuePrioritySelector({
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [isOpen]);
 
-    const handleSelect = async (e: React.MouseEvent, value: string) => {
+    const handleSelect = useCallback(async (e: React.MouseEvent, value: string) => {
         e.preventDefault();
         e.stopPropagation();
         
@@ -60,11 +61,11 @@ export function IssuePrioritySelector({
         setIsUpdating(true);
         const res = await updateIssue(issueId, { priority: value });
         if (res.error) {
-            alert(res.error);
+            toast.error(res.error);
         }
         setIsUpdating(false);
         router.refresh();
-    };
+    }, [issueId, currentPriority, router]);
 
     const renderPriorityIcon = (priority: string) => {
         switch (priority) {
@@ -153,4 +154,6 @@ export function IssuePrioritySelector({
             )}
         </div>
     );
-}
+})
+
+IssuePrioritySelector.displayName = 'IssuePrioritySelector';

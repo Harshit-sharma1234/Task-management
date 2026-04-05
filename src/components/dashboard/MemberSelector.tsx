@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useTransition } from 'react';
 import { Users, Check, Search, Plus, X } from 'lucide-react';
 import { toggleProjectMember } from '@/app/dashboard/actions';
+import { toast } from 'sonner';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 
 interface User {
@@ -52,7 +53,7 @@ export function MemberSelector({
     startTransition(async () => {
       const result = await toggleProjectMember(projectId, userId);
       if (result?.error) {
-        alert(result.error);
+        toast.error(result.error);
       }
     });
   };
@@ -66,18 +67,24 @@ export function MemberSelector({
         }}
         className={`flex items-center gap-2.5 py-1 outline-none group focus:ring-2 focus:ring-indigo-500/20 rounded-md transition-all max-w-full ${align === 'right' ? 'justify-end' : 'justify-start'}`}
       >
-        <div className="flex -space-x-1.5">
-          {currentMembers.map(m => (
-            <UserAvatar 
-              key={m.id}
-              name={m.name}
-              avatarUrl={m.avatar_url}
-              size="sm"
-              className="shadow-sm ring-2 ring-white group-hover:border-gray-200 transition-colors relative"
-            />
+        <div className="flex -space-x-1.5 shrink-0 mr-1">
+          {currentMembers.slice(0, 3).map((m, i) => (
+            <div key={m.id} style={{ zIndex: 10 - i }} className="relative shrink-0 flex">
+              <UserAvatar 
+                name={m.name}
+                avatarUrl={m.avatar_url}
+                size="sm"
+                className="shadow-sm ring-2 ring-white group-hover:border-gray-200 transition-colors max-w-none"
+              />
+            </div>
           ))}
+          {currentMembers.length > 3 && (
+            <div style={{ zIndex: 0 }} className="w-6 h-6 rounded-full bg-gray-50 flex items-center justify-center text-[9px] font-bold text-gray-500 shadow-sm ring-2 ring-white border border-gray-200 relative shrink-0">
+              +{currentMembers.length - 3}
+            </div>
+          )}
           {currentMembers.length === 0 && (
-            <div className="w-6 h-6 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 shadow-sm border border-gray-100 group-hover:border-gray-200 transition-colors ring-2 ring-white relative">
+            <div className="w-6 h-6 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 shadow-sm border border-gray-100 group-hover:border-gray-200 transition-colors ring-2 ring-white relative shrink-0">
               <Plus size={10} />
             </div>
           )}
