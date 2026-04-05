@@ -1,22 +1,66 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo, memo } from 'react'
 import { Search } from 'lucide-react'
 import { UserAvatar } from '@/components/ui/UserAvatar'
+
+/**
+ * Memoized row component to prevent unnecessary re-renders when 
+ * searching or switching filters if the user data hasn't changed.
+ */
+const TeamMemberRow = memo(({ user }: { user: any }) => {
+    const rawRole = user.roles?.role_name || 'User'
+    const displayRole = rawRole === 'Admin' ? 'Workspace admin' : rawRole
+    
+    return (
+        <tr className="group hover:bg-gray-50/40 transition-all border-b border-gray-50/10">
+            <td className="px-2 py-3 whitespace-nowrap">
+                <div className="flex items-center gap-3">
+                    <UserAvatar
+                        name={user.name || 'User'}
+                        avatarUrl={user.avatar_url}
+                        size="md"
+                    />
+                    <div className="flex flex-col">
+                        <div className="text-[13px] font-medium text-gray-900 group-hover:text-indigo-600 transition-colors leading-tight">
+                            {user.email}
+                        </div>
+                        <div className="text-[11px] text-gray-400 font-medium tracking-tight">
+                            {user.name}
+                        </div>
+                    </div>
+                </div>
+            </td>
+            <td className="px-2 py-3 whitespace-nowrap">
+                <div className="text-[13px] text-gray-500 font-medium tabular-nums">{user.email}</div>
+            </td>
+            <td className="px-2 py-3 whitespace-nowrap">
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50/50 text-indigo-600 ring-1 ring-indigo-100/50 transition-all group-hover:bg-indigo-100/30">
+                    {displayRole}
+                </span>
+            </td>
+        </tr>
+    )
+})
+
+TeamMemberRow.displayName = 'TeamMemberRow'
 
 export function TeamList({ initialUsers }: { initialUsers: any[] }) {
     const [searchTerm, setSearchTerm] = useState('')
     const [roleFilter, setRoleFilter] = useState('All')
 
-    const filteredUsers = initialUsers.filter(u => {
-        const matchesSearch = u.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            u.email?.toLowerCase().includes(searchTerm.toLowerCase())
-        
-        const matchesRole = roleFilter === 'All' || 
-            u.roles?.role_name?.toLowerCase() === roleFilter.toLowerCase()
+    // Memoize the filtered users calculation to avoid expensive re-computation on every minor state change
+    const filteredUsers = useMemo(() => {
+        return initialUsers.filter(u => {
+            const matchesSearch = u.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                u.email?.toLowerCase().includes(searchTerm.toLowerCase())
             
-        return matchesSearch && matchesRole
-    })
+            const matchesRole = roleFilter === 'All' || 
+                u.roles?.role_name?.toLowerCase() === roleFilter.toLowerCase()
+                
+            return matchesSearch && matchesRole
+        })
+    }, [initialUsers, searchTerm, roleFilter])
 
     return (
         <div className="flex flex-col gap-3 w-full">
@@ -44,7 +88,8 @@ export function TeamList({ initialUsers }: { initialUsers: any[] }) {
                         <option>All</option>
                         <option value="Admin">Admin</option>
                         <option value="Project Manager">Project Manager</option>
-                        <option value="Developer">Developer</option>
+                        <option value="Senior Developer">Senior Developer</option>
+                        <option value="Junior Developer">Junior Developer</option>
                     </select>
                     <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-400">
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
@@ -70,40 +115,9 @@ export function TeamList({ initialUsers }: { initialUsers: any[] }) {
                                 </td>
                             </tr>
                         ) : (
-                            filteredUsers.map((user) => {
-                                const rawRole = user.roles?.role_name || 'User'
-                                const displayRole = rawRole === 'Admin' ? 'Workspace admin' : rawRole
-                                
-                                return (
-                                    <tr key={user.id} className="group hover:bg-gray-50/40 transition-all border-b border-gray-50/10">
-                                        <td className="px-2 py-3 whitespace-nowrap">
-                                            <div className="flex items-center gap-3">
-                                                <UserAvatar
-                                                    name={user.name || 'User'}
-                                                    avatarUrl={user.avatar_url}
-                                                    size="md"
-                                                />
-                                                <div className="flex flex-col">
-                                                    <div className="text-[13px] font-medium text-gray-900 group-hover:text-indigo-600 transition-colors leading-tight">
-                                                        {user.email}
-                                                    </div>
-                                                    <div className="text-[11px] text-gray-400 font-medium tracking-tight">
-                                                        {user.name}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-2 py-3 whitespace-nowrap">
-                                            <div className="text-[13px] text-gray-500 font-medium tabular-nums">{user.email}</div>
-                                        </td>
-                                        <td className="px-2 py-3 whitespace-nowrap">
-                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50/50 text-indigo-600 ring-1 ring-indigo-100/50 transition-all group-hover:bg-indigo-100/30">
-                                                {displayRole}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                )
-                            })
+                            filteredUsers.map((user) => (
+                                <TeamMemberRow key={user.id} user={user} />
+                            ))
                         )}
                     </tbody>
                 </table>

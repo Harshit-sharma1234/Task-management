@@ -8,6 +8,7 @@ import { TargetDateSelector } from './TargetDateSelector';
 import { StatusSelector } from './StatusSelector';
 import { MemberSelector } from './MemberSelector';
 import { updateProjectDescription, addProjectResource, deleteProjectResource } from '@/app/dashboard/actions';
+import { toast } from 'sonner';
 import { ExternalLink, Trash2 } from 'lucide-react';
 
 
@@ -36,7 +37,7 @@ export function ProjectOverview({ project, users, currentMemberIds, currentUser,
     startTransition(async () => {
       const res = await updateProjectDescription(project.id, descriptionValue);
       if (res.error) {
-        alert(res.error);
+        toast.error(res.error);
       } else {
         setIsEditingDescription(false);
       }
@@ -142,7 +143,7 @@ export function ProjectOverview({ project, users, currentMemberIds, currentUser,
                   if (!resourceTitle || !resourceUrl) return;
                   startTransition(async () => {
                     const res = await addProjectResource(project.id, resourceTitle, resourceUrl);
-                    if (res?.error) alert(res.error);
+                    if (res?.error) toast.error(res.error);
                     else {
                       setIsAddingResource(false);
                       setResourceTitle('');

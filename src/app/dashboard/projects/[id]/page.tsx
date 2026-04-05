@@ -4,9 +4,27 @@ import { notFound, redirect } from 'next/navigation';
 import { ProjectOverview } from '@/components/dashboard/ProjectOverview';
 import { IssuesList } from '@/components/dashboard/issues/IssuesList';
 import { getUserProfile } from '@/lib/roles';
+import { getProjectDetails } from './data';
+import { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  // We can't easily get the session here without duplicating more boilerplate, 
+  // but we can query the project name using the service or let getProjectDetails pull it.
+  // Actually, createAdminClient is easiest for metadata if we don't want to pass session.
+  const adminClient = createAdminClient();
+  const { data: project } = await adminClient.from('projects').select('project_name, description').eq('id', id).single();
+  
+  if (!project) return { title: 'Project Not Found' };
+  
+  return {
+    title: project.project_name,
+    description: project.description || `View tasks and details for ${project.project_name}`,
+  };
+}
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -23,54 +41,27 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) redirect('/login');
 
-  // Fetch project details
-  const { data: project, error: projectError } = await supabase
-    .from('projects')
-    .select('*')
-    .eq('id', id)
-    .single();
+  const { project, projectError, users, members } = await getProjectDetails(id, session.user.email!, session.user.id);
 
   if (projectError || !project) {
     console.error('Project fetch error:', projectError);
     return notFound();
   }
 
-  // Fetch all users for selectors
-  const { data: users } = await supabase
-    .from('users')
-    .select('id, name, email, avatar_url');
-
-  // Fetch current project members - use admin client to bypass RLS visibility limits
-  const adminClient = createAdminClient();
-  const { data: members } = await adminClient
-    .from('project_members')
-    .select('user_id')
-    .eq('project_id', id);
-
   const currentMemberIds = (members as { user_id: string }[] | null)?.map(m => m.user_id) || [];
 
-  // Fetch user role for visibility control
-  const profile = await getUserProfile(supabase, session.user.email!, session.user.id);
-  const userRole = profile?.roles?.role_name || null;
+  const adminClient = createAdminClient();
+  const [ticketsRes, resourcesRes] = await Promise.all([
+    activeTab === 'issues' 
+      ? adminClient.from('tickets').select('id, title, status, priority, assignee_id, created_at, projects(id, project_name, status), assignees:users!assignee_id(id, name, avatar_url)').eq('project_id', id).order('created_at', { ascending: false })
+      : Promise.resolve({ data: [] }),
+    activeTab !== 'issues' 
+      ? adminClient.from('project_resources').select('*').eq('project_id', id).order('created_at', { ascending: false })
+      : Promise.resolve({ data: [] })
+  ]);
 
-  // Conditional Data Fetching: Tickets for this project
-  let projectTickets: any[] = [];
-  if (activeTab === 'issues') {
-    const { data: tickets } = await adminClient
-      .from('tickets')
-      .select('id, title, status, priority, assignee_id, created_at, projects(id, project_name, status), assignees:users!assignee_id(id, name, avatar_url)')
-      .eq('project_id', id)
-      .order('created_at', { ascending: false });
-    
-    projectTickets = tickets || [];
-  }
-
-  // Fetch project resources
-  const { data: resources } = await adminClient
-    .from('project_resources')
-    .select('*')
-    .eq('project_id', id)
-    .order('created_at', { ascending: false });
+  const projectTickets = ticketsRes.data || [];
+  const resources = resourcesRes.data || [];
 
   return (
     <>

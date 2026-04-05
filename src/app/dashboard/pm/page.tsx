@@ -3,17 +3,12 @@ import { createClient } from '@/lib/supabase/server'
 import { Briefcase } from 'lucide-react'
 import DashboardOverview from '@/components/dashboard/Overview'
 import { Suspense } from 'react'
-import OverviewSkeleton from '@/components/dashboard/OverviewSkeleton'
+import { OverviewSkeleton } from '@/components/dashboard/OverviewSkeleton'
 import { getCachedUserProfile } from '@/lib/cache'
 
 export const revalidate = 60;
 
-export default async function PMDashboard() {
-    const supabase = await createClient()
-    const { data, error } = await supabase.auth.getUser()
-
-    if (error || !data?.user) redirect('/login')
-
+export default function PMDashboard() {
     return (
         <div className="flex flex-col h-full w-full">
             <div className="px-8 pt-6 pb-0 flex items-center justify-end">
@@ -23,16 +18,21 @@ export default async function PMDashboard() {
                 </span>
             </div>
             <Suspense fallback={<OverviewSkeleton />}>
-                <PMContent email={data.user.email!} userId={data.user.id} userName={data.user.user_metadata?.full_name} />
+                <PMContent />
             </Suspense>
         </div>
     )
 }
 
-async function PMContent({ email, userId, userName }: { email: string; userId: string; userName?: string }) {
-    const profile = await getCachedUserProfile(email)
+async function PMContent() {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) redirect('/login')
+
+    const profile = await getCachedUserProfile(user.email!)
     if (!profile || profile.roles?.role_name !== 'Project Manager') {
         redirect('/dashboard')
     }
-    return <DashboardOverview userId={userId} userName={userName || profile.name || email} />
+    return <DashboardOverview userId={user.id} userName={user.user_metadata?.full_name || profile.name || user.email} />
 }

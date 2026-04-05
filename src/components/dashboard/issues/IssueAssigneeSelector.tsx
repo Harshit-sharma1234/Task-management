@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback, memo } from 'react';
 import { updateIssue } from '@/app/dashboard/issues/actions';
+import { toast } from 'sonner';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { Search, Loader2, User } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -14,12 +15,12 @@ interface IssueAssigneeSelectorProps {
     users: { id: string, name: string, avatar_url?: string | null }[];
 }
 
-export function IssueAssigneeSelector({
+export const IssueAssigneeSelector = memo(({
     issueId,
     currentAssigneeId,
     currentAssignee,
     users
-}: IssueAssigneeSelectorProps) {
+}: IssueAssigneeSelectorProps) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
     const [search, setSearch] = useState('');
@@ -27,9 +28,11 @@ export function IssueAssigneeSelector({
     const inputRef = useRef<HTMLInputElement>(null);
     const router = useRouter();
 
-    const filteredUsers = (users || []).filter(u => 
-        (u.name || '').toLowerCase().includes(search.toLowerCase())
-    );
+    const filteredUsers = useMemo(() => {
+        return (users || []).filter(u => 
+            (u.name || '').toLowerCase().includes(search.toLowerCase())
+        );
+    }, [users, search]);
 
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
@@ -44,7 +47,7 @@ export function IssueAssigneeSelector({
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [isOpen]);
 
-    const handleSelect = async (e: React.MouseEvent, userId: string | null) => {
+    const handleSelect = useCallback(async (e: React.MouseEvent, userId: string | null) => {
         e.preventDefault();
         e.stopPropagation();
         
@@ -57,11 +60,11 @@ export function IssueAssigneeSelector({
         setIsUpdating(true);
         const res = await updateIssue(issueId, { assignee_id: userId });
         if (res.error) {
-            alert(res.error);
+            toast.error(res.error);
         }
         setIsUpdating(false);
         router.refresh();
-    };
+    }, [issueId, currentAssigneeId, router]);
 
     return (
         <div className="relative group/assignee" ref={dropdownRef}>
@@ -152,4 +155,6 @@ export function IssueAssigneeSelector({
             )}
         </div>
     );
-}
+})
+
+IssueAssigneeSelector.displayName = 'IssueAssigneeSelector';

@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, memo, useCallback } from 'react';
 import { updateIssue } from '@/app/dashboard/issues/actions';
+import { toast } from 'sonner';
 import { 
     Circle, 
     CircleDot, 
@@ -28,10 +29,10 @@ const statusOptions = [
     { value: 'cancelled', label: 'Cancelled', icon: X, color: 'text-red-500', dot: 'bg-red-500' },
 ];
 
-export function IssueStatusSelector({
+export const IssueStatusSelector = memo(({
     issueId,
     currentStatus
-}: IssueStatusSelectorProps) {
+}: IssueStatusSelectorProps) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -51,7 +52,7 @@ export function IssueStatusSelector({
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [isOpen]);
 
-    const handleSelect = async (e: React.MouseEvent, value: string) => {
+    const handleSelect = useCallback(async (e: React.MouseEvent, value: string) => {
         e.preventDefault();
         e.stopPropagation();
         
@@ -64,11 +65,11 @@ export function IssueStatusSelector({
         setIsUpdating(true);
         const res = await updateIssue(issueId, { status: value });
         if (res.error) {
-            alert(res.error);
+            toast.error(res.error);
         }
         setIsUpdating(false);
         router.refresh();
-    };
+    }, [issueId, currentStatus, router]);
 
     return (
         <div className="relative" ref={dropdownRef}>
@@ -125,4 +126,6 @@ export function IssueStatusSelector({
             )}
         </div>
     );
-}
+})
+
+IssueStatusSelector.displayName = 'IssueStatusSelector';

@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useRef, useEffect, useTransition } from 'react';
+import { useState, useRef, useEffect, useTransition, memo, useCallback } from 'react';
 import { updateProjectTargetDate } from '@/app/dashboard/actions';
+import { toast } from 'sonner';
 import { CalendarPlus, ChevronLeft, ChevronRight, CornerDownLeft } from 'lucide-react';
 
 interface TargetDateSelectorProps {
@@ -17,11 +18,11 @@ const MONTHS = [
 
 const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 
-export function TargetDateSelector({ 
+export const TargetDateSelector = memo(({ 
     projectId, 
     currentTargetDate,
     align = 'left'
-}: TargetDateSelectorProps) {
+}: TargetDateSelectorProps) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -55,7 +56,7 @@ export function TargetDateSelector({
     }, [isOpen]);
 
     // Handle selection
-    const handleSelect = (dateStr: string | null) => {
+    const handleSelect = useCallback((dateStr: string | null) => {
         if (dateStr === currentTargetDate) {
             setIsOpen(false);
             return;
@@ -65,10 +66,10 @@ export function TargetDateSelector({
         startTransition(async () => {
             const res = await updateProjectTargetDate(projectId, dateStr);
             if (res.error) {
-                alert(res.error);
+                toast.error(res.error);
             }
         });
-    };
+    }, [projectId, currentTargetDate]);
 
     // Calendar grid calculations
     const year = viewDate.getFullYear();
@@ -218,4 +219,6 @@ export function TargetDateSelector({
             )}
         </div>
     );
-}
+})
+
+TargetDateSelector.displayName = 'TargetDateSelector';

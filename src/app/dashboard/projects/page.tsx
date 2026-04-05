@@ -3,17 +3,18 @@ import { createClient } from '@/lib/supabase/server';
 import { ProjectList } from '@/components/dashboard/ProjectList';
 import { getCachedProjects, getCachedUsers } from '@/lib/cache';
 import { Suspense } from 'react';
+import { Metadata } from 'next';
 
-export default async function ProjectsPage() {
-    const supabase = await createClient();
-    const { data: { user }, error } = await supabase.auth.getUser();
+import { ProjectSkeleton } from '@/components/dashboard/ProjectSkeleton';
 
-    if (error || !user) {
-        redirect('/login');
-    }
+export const metadata: Metadata = {
+  title: 'Projects',
+  description: 'Manage and view all your active workspaces and projects.',
+};
 
+export default function ProjectsPage() {
     return (
-        <Suspense fallback={<ProjectsLoadingSkeleton />}>
+        <Suspense fallback={<ProjectSkeleton />}>
             <ProjectsContent />
         </Suspense>
     );
@@ -46,19 +47,6 @@ async function ProjectsContent() {
                 users={typedUsers} 
                 userMap={userMap} 
             />
-        </div>
-    );
-}
-
-function ProjectsLoadingSkeleton() {
-    return (
-        <div className="flex flex-col h-full w-full bg-[#fbfbfb] p-8 animate-pulse">
-            <div className="h-8 w-48 bg-gray-200 rounded mb-6" />
-            <div className="space-y-3">
-                {[...Array(5)].map((_, i) => (
-                    <div key={i} className="h-16 bg-gray-100 rounded-lg" />
-                ))}
-            </div>
         </div>
     );
 }
