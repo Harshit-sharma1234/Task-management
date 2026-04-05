@@ -3,7 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { notFound, redirect } from 'next/navigation';
 import { ProjectDetailHeader } from '@/components/dashboard/ProjectDetailHeader';
 import { ProjectSidebar } from '@/components/dashboard/ProjectSidebar';
-import { getUserProfile } from '@/lib/roles';
+import { getProjectDetails } from './data';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -20,34 +20,14 @@ export default async function ProjectDetailLayout({ children, params }: LayoutPr
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) redirect('/login');
 
-  // Fetch project details
-  const { data: project, error: projectError } = await supabase
-    .from('projects')
-    .select('*')
-    .eq('id', id)
-    .single();
+  const { project, projectError, users, members, profile } = await getProjectDetails(id, session.user.email!, session.user.id);
 
   if (projectError || !project) {
     console.error('Project fetch error:', projectError);
     return notFound();
   }
 
-  // Fetch all users for selectors
-  const { data: users } = await supabase
-    .from('users')
-    .select('id, name, email, avatar_url');
-
-  // Fetch current project members - use admin client to bypass RLS visibility limits
-  const adminClient = createAdminClient();
-  const { data: members } = await adminClient
-    .from('project_members')
-    .select('user_id')
-    .eq('project_id', id);
-
   const currentMemberIds = (members as { user_id: string }[] | null)?.map(m => m.user_id) || [];
-
-  // Fetch user role for visibility control
-  const profile = await getUserProfile(supabase, session.user.email!, session.user.id);
   const userRole = profile?.roles?.role_name || null;
 
   return (

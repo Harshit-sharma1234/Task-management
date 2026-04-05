@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useRef, useEffect, useTransition } from 'react';
+import { useState, useRef, useEffect, useTransition, useMemo, useCallback, memo } from 'react';
 import { updateProjectLead } from '@/app/dashboard/actions';
 import { User as UserIcon, Search, Check } from 'lucide-react';
+import { toast } from 'sonner';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { getInitials, getBadgeColor } from '@/lib/avatar';
 
@@ -24,26 +25,28 @@ interface LeadSelectorProps {
 // Re-export for backward compatibility with any external consumers
 export { getBadgeColor, getInitials };
 
-export function LeadSelector({ 
+export const LeadSelector = memo(({ 
     projectId, 
     currentLeadId, 
     users, 
     showEmail = false,
     align = 'left'
-}: LeadSelectorProps) {
+}: LeadSelectorProps) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [isPending, startTransition] = useTransition();
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     // Filter users based on search
-    const filteredUsers = users.filter(user => 
-        user.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        user.email.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filteredUsers = useMemo(() => {
+        return users.filter(user => 
+            user.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+            user.email.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+    }, [users, searchQuery]);
 
     // Current lead processing
-    const currentLead = users.find(u => u.id === currentLeadId);
+    const currentLead = useMemo(() => users.find(u => u.id === currentLeadId), [users, currentLeadId]);
     const leadLabel = currentLead ? (showEmail ? currentLead.email : currentLead.name) : 'Unassigned';
 
     // Click outside logic
@@ -60,7 +63,7 @@ export function LeadSelector({
     }, [isOpen]);
 
     // Handle lead selection
-    const handleSelect = (leadId: string | null) => {
+    const handleSelect = useCallback((leadId: string | null) => {
         if (leadId === currentLeadId) {
             setIsOpen(false);
             return;
@@ -70,10 +73,10 @@ export function LeadSelector({
         startTransition(async () => {
             const res = await updateProjectLead(projectId, leadId);
             if (res.error) {
-                alert(res.error);
+                toast.error(res.error);
             }
         });
-    };
+    }, [projectId, currentLeadId]);
 
     return (
         <div className="relative flex items-center" ref={dropdownRef}>
@@ -169,4 +172,6 @@ export function LeadSelector({
             )}
         </div>
     );
-}
+})
+
+LeadSelector.displayName = 'LeadSelector';

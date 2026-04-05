@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useRef, useEffect, useTransition } from 'react';
+import { useState, useRef, useEffect, useTransition, memo, useCallback } from 'react';
 import { updateProjectPriority } from '@/app/dashboard/actions';
+import { toast } from 'sonner';
 import { AlertCircle, SignalHigh, SignalMedium, SignalLow, Ban } from 'lucide-react';
 
 interface PrioritySelectorProps {
@@ -43,12 +44,12 @@ const priorities = [
     { value: null, label: 'No priority', shortcut: '0', icon: <Ban size={14} className="text-gray-400" /> },
 ];
 
-export function PrioritySelector({
+export const PrioritySelector = memo(({
     projectId,
     currentPriority,
     showLabel = false,
     align = 'left'
-}: PrioritySelectorProps) {
+}: PrioritySelectorProps) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -69,7 +70,7 @@ export function PrioritySelector({
     }, [isOpen]);
 
     // Handle priority selection
-    const handleSelect = (value: string | null) => {
+    const handleSelect = useCallback((value: string | null) => {
         if (value === currentPriority && value !== null) {
             setIsOpen(false);
             return;
@@ -79,10 +80,10 @@ export function PrioritySelector({
         startTransition(async () => {
             const res = await updateProjectPriority(projectId, value);
             if (res.error) {
-                alert(res.error);
+                toast.error(res.error);
             }
         });
-    };
+    }, [projectId, currentPriority]);
 
     // Render the trigger icon (signal bars)
     const renderTriggerIcon = () => {
@@ -177,4 +178,6 @@ export function PrioritySelector({
             )}
         </div>
     );
-}
+})
+
+PrioritySelector.displayName = 'PrioritySelector';

@@ -24,8 +24,7 @@ export async function insertProjectLog(entry: LogEntry) {
       const u = userData.user
       // Try to upsert the user profile in the public table
       // Default to Developer role if we are creating a new profile
-      const developerRoleId = 'ebd19f94-ad1e-4949-a2c4-36127425a718' 
-      
+      const developerRoleId = 'f1e5cb69-a296-43c7-8905-00fc99e1f5aa' // Junior Developer      
       await adminClient.from('users').upsert({
         id: u.id,
         auth_id: u.id,

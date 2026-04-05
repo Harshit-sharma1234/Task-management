@@ -1,61 +1,51 @@
-'use client';
+import { Shimmer } from "@/components/ui/Skeleton";
 
 export function ProjectSkeleton() {
   return (
-    <div className="flex flex-col h-full w-full bg-[#fbfbfb]">
-      {/* Header Skeleton */}
-      <header className="px-8 py-6 border-b border-gray-100 flex items-center justify-between bg-white shrink-0">
-        <div className="flex items-center gap-4">
-          <div className="space-y-2">
-            <div className="h-8 w-48 bg-gray-100 rounded-md animate-shimmer"></div>
-            <div className="h-4 w-64 bg-gray-50 rounded-md animate-shimmer"></div>
-          </div>
+    <div className="flex flex-col h-full w-full bg-[#fbfbfb] animate-fade-in">
+      {/* Search and Filters placeholder */}
+      <div className="px-8 py-6 flex justify-between items-center h-20 shrink-0">
+        <Shimmer className="h-8 w-64 rounded-lg" />
+        <div className="flex gap-3">
+          {[1, 2, 3].map(i => <Shimmer key={i} className="h-8 w-24 rounded-lg" />)}
         </div>
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-64 bg-gray-50 rounded-md animate-shimmer"></div>
-          <div className="h-10 w-32 bg-gray-100 rounded-md animate-shimmer"></div>
-        </div>
-      </header>
+      </div>
 
-      {/* Main Content Skeleton */}
-      <main className="flex-1 p-8 overflow-y-auto">
-        <div className="max-w-7xl mx-auto">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-            {/* List Header Skeleton */}
-            <div className="grid grid-cols-[1fr_100px_140px_140px_140px] items-center border-b border-gray-100 bg-gray-50/50 py-3">
-              <div className="pl-5"><div className="h-3 w-12 bg-gray-200 rounded animate-shimmer"></div></div>
-              <div className="hidden md:block"><div className="h-3 w-16 bg-gray-200 rounded animate-shimmer"></div></div>
-              <div className="hidden sm:block"><div className="h-3 w-12 bg-gray-200 rounded animate-shimmer"></div></div>
-              <div className="hidden lg:block"><div className="h-3 w-20 bg-gray-200 rounded animate-shimmer ml-auto mr-5"></div></div>
-              <div className="text-right pr-5 ml-auto"><div className="h-3 w-16 bg-gray-200 rounded animate-shimmer"></div></div>
-            </div>
-
-            {/* List Body Skeleton Slots */}
-            <div className="divide-y divide-gray-100">
-              {[...Array(6)].map((_, i) => (
-                <div key={i} className="grid grid-cols-[1fr_100px_140px_140px_140px] items-center py-4">
-                  <div className="flex items-center gap-3 pl-5">
-                    <div className="w-4 h-4 bg-gray-100 rounded animate-shimmer"></div>
-                    <div className="h-4 w-40 bg-gray-100 rounded animate-shimmer"></div>
-                  </div>
-                  <div className="hidden md:block">
-                    <div className="h-6 w-16 bg-gray-50 rounded-full animate-shimmer"></div>
-                  </div>
-                  <div className="hidden sm:block">
-                    <div className="h-6 w-24 bg-gray-50 rounded-full animate-shimmer"></div>
-                  </div>
-                  <div className="hidden lg:block text-right pr-5 ml-auto">
-                    <div className="h-4 w-20 bg-gray-50 rounded animate-shimmer"></div>
-                  </div>
-                  <div className="flex justify-end pr-5 ml-auto">
-                    <div className="h-5 w-20 bg-gray-50 rounded-full animate-shimmer"></div>
-                  </div>
+      {/* Main Grid Content */}
+      <div className="px-8 flex-1 overflow-auto pb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {[...Array(8)].map((_, i) => (
+            <div key={i} className="bg-white border border-gray-100 p-6 rounded-2xl shadow-sm hover:shadow-md transition-all space-y-6 flex flex-col justify-between h-[280px]">
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <Shimmer className="h-10 w-10 rounded-xl" />
+                  <Shimmer className="h-6 w-3/4 rounded-md" />
                 </div>
-              ))}
+                <div className="space-y-2">
+                   <Shimmer className="h-3 w-full" />
+                   <Shimmer className="h-3 w-4/5" />
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                 <div className="flex justify-between items-center h-4">
+                    <Shimmer className="h-3 w-20" />
+                    <Shimmer className="h-3 w-12" />
+                 </div>
+                 <div className="w-full bg-gray-50 h-1.5 rounded-full overflow-hidden">
+                    <Shimmer className="h-full w-1/3" />
+                 </div>
+                 <div className="flex justify-between items-center pt-2">
+                    <div className="flex -space-x-2">
+                       {[1, 2, 3].map(j => <Shimmer key={j} className="h-8 w-8 rounded-full border-2 border-white" />)}
+                    </div>
+                    <Shimmer className="h-4 w-16 px-2 py-0.5 rounded-full" />
+                 </div>
+              </div>
             </div>
-          </div>
+          ))}
         </div>
-      </main>
+      </div>
     </div>
   );
 }

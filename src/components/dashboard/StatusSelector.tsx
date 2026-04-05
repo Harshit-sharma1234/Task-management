@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useRef, useEffect, useTransition } from 'react';
+import { useState, useRef, useEffect, useTransition, memo, useCallback } from 'react';
 import { updateProjectStatus } from '@/app/dashboard/actions';
+import { toast } from 'sonner';
 import { Circle, CircleDashed, CircleDot, Clock, Search, CheckCircle2, XCircle } from 'lucide-react';
 
 interface StatusSelectorProps {
@@ -18,11 +19,11 @@ const statuses = [
     { value: 'cancelled', label: 'Cancelled', shortcut: 'C', color: 'border-red-400', icon: <XCircle size={14} className="text-red-400" /> },
 ];
 
-export function StatusSelector({
+export const StatusSelector = memo(({
     projectId,
     currentStatus,
     align = 'left'
-}: StatusSelectorProps) {
+}: StatusSelectorProps) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -42,7 +43,7 @@ export function StatusSelector({
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [isOpen]);
 
-    const handleSelect = (value: string) => {
+    const handleSelect = useCallback((value: string) => {
         if (value === currentStatus) {
             setIsOpen(false);
             return;
@@ -52,10 +53,10 @@ export function StatusSelector({
         startTransition(async () => {
             const res = await updateProjectStatus(projectId, value);
             if (res.error) {
-                alert(res.error);
+                toast.error(res.error);
             }
         });
-    };
+    }, [projectId, currentStatus]);
 
     return (
         <div className="relative" ref={dropdownRef}>
@@ -116,4 +117,6 @@ export function StatusSelector({
             )}
         </div>
     );
-}
+})
+
+StatusSelector.displayName = 'StatusSelector';

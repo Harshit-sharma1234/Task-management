@@ -10,7 +10,8 @@ interface AddEmployeeModalProps {
 }
 
 const ROLES = [
-    { id: 'ebd19f94-ad1e-4949-a2c4-36127425a718', name: 'Developer' },
+    { id: 'f1e5cb69-a296-43c7-8905-00fc99e1f5aa', name: 'Junior Developer' },
+    { id: 'f660ccef-e2f5-466c-b4bd-7864576a63a6', name: 'Senior Developer' },
     { id: '2f06e25a-a784-4091-a845-c4837ba718bf', name: 'Project Manager' },
     { id: '83c755ee-b6c2-4d58-9492-ebd976d48486', name: 'Admin' },
 ]

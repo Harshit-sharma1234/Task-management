@@ -1,12 +1,15 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, memo } from 'react';
 import Link from 'next/link';
-import { Folder, Search, Calendar } from 'lucide-react';
-import { PrioritySelector } from '@/components/dashboard/PrioritySelector';
-import { LeadSelector } from '@/components/dashboard/LeadSelector';
-import { TargetDateSelector } from '@/components/dashboard/TargetDateSelector';
-import { CreateProjectButton } from '@/components/dashboard/CreateProjectButton';
+import { Folder, Search } from 'lucide-react';
+import dynamic from 'next/dynamic';
+
+// Heavy components that contain modals/complex logic should be lazy loaded
+const PrioritySelector = dynamic(() => import('@/components/dashboard/PrioritySelector').then(mod => mod.PrioritySelector), { ssr: false });
+const LeadSelector = dynamic(() => import('@/components/dashboard/LeadSelector').then(mod => mod.LeadSelector), { ssr: false });
+const TargetDateSelector = dynamic(() => import('@/components/dashboard/TargetDateSelector').then(mod => mod.TargetDateSelector), { ssr: false });
+const CreateProjectButton = dynamic(() => import('@/components/dashboard/CreateProjectButton').then(mod => mod.CreateProjectButton), { ssr: false });
 
 interface Project {
     id: string;
@@ -29,6 +32,67 @@ interface ProjectListProps {
     users: User[];
     userMap: Record<string, string>;
 }
+
+/**
+ * Memoized row component to prevent re-renders of the entire 
+ * project list when searching or filtering.
+ */
+const ProjectRow = memo(({ 
+    project, 
+    users, 
+    isLast 
+}: { 
+    project: Project; 
+    users: User[]; 
+    isLast: boolean;
+}) => {
+    return (
+        <div 
+            className="grid grid-cols-[1fr_100px_140px_140px_140px] items-center py-3.5 hover:bg-gray-50/50 transition-colors group text-sm relative hover:z-20 focus-within:z-20 border-b border-gray-100"
+        >
+            {/* Name */}
+            <div className="flex items-center gap-3 pl-5 min-w-0">
+                <Folder size={15} className="text-gray-400 group-hover:text-gray-600 shrink-0" />
+                <Link 
+                    href={`/dashboard/projects/${project.id}`}
+                    className="font-medium text-gray-900 truncate hover:text-indigo-600 transition-colors after:absolute after:inset-0 after:z-0"
+                >
+                    {project.project_name}
+                </Link>
+            </div>
+            
+            {/* Priority */}
+            <div className="hidden md:flex items-center relative z-10">
+                <PrioritySelector projectId={project.id} currentPriority={project.priority} />
+            </div>
+            
+            {/* Lead */}
+            <div className="hidden sm:flex items-center gap-2 relative z-10">
+                <LeadSelector projectId={project.id} currentLeadId={project.lead_id} users={users} align="left" />
+            </div>
+            
+            {/* Target date */}
+            <div className="hidden lg:flex items-center justify-end pr-5 relative z-10">
+                <TargetDateSelector projectId={project.id} currentTargetDate={project.start_date || null} align="right" />
+            </div>
+            
+            {/* Status */}
+            <div className="flex items-center justify-end pr-5 text-gray-500 gap-2 relative z-10">
+                <div className={`w-2 h-2 rounded-full ${
+                    project.status === 'done' ? 'bg-green-500' :
+                    project.status === 'in_progress' ? 'bg-indigo-500' :
+                    project.status === 'cancelled' ? 'bg-red-500' :
+                    'bg-orange-500'
+                }`}></div>
+                <span className="text-[10px] font-bold uppercase text-gray-400 tracking-tight">
+                    {project.status ? project.status.replace('_', ' ') : 'backlog'}
+                </span>
+            </div>
+        </div>
+    );
+});
+
+ProjectRow.displayName = 'ProjectRow';
 
 export function ProjectList({ projects, users, userMap }: ProjectListProps) {
     const [searchTerm, setSearchTerm] = useState('');
@@ -87,7 +151,7 @@ export function ProjectList({ projects, users, userMap }: ProjectListProps) {
                             {!searchTerm && <CreateProjectButton variant="header" users={users} />}
                         </div>
                     ) : (
-                        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+                        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                             {/* List Header */}
                             <div className="grid grid-cols-[1fr_100px_140px_140px_140px] items-center border-b border-gray-100 bg-gray-50/50 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
                                 <div className="pl-5">Name</div>
@@ -98,55 +162,15 @@ export function ProjectList({ projects, users, userMap }: ProjectListProps) {
                             </div>
 
                             {/* List Body */}
-                            <div className="divide-y divide-gray-100">
-                                {filteredProjects.map((project, index) => {
-                                    return (
-                                        <div 
-                                            key={project.id} 
-                                            className="grid grid-cols-[1fr_100px_140px_140px_140px] items-center py-3.5 hover:bg-gray-50/50 transition-colors group text-sm relative hover:z-20 focus-within:z-20"
-                                            style={{ zIndex: filteredProjects.length - index }}
-                                        >
-                                            {/* Name */}
-                                            <div className="flex items-center gap-3 pl-5 min-w-0">
-                                                <Folder size={15} className="text-gray-400 group-hover:text-gray-600 shrink-0" />
-                                                <Link 
-                                                    href={`/dashboard/projects/${project.id}`}
-                                                    className="font-medium text-gray-900 truncate hover:text-indigo-600 transition-colors after:absolute after:inset-0 after:z-0"
-                                                >
-                                                    {project.project_name}
-                                                </Link>
-                                            </div>
-                                            
-                                            {/* Priority */}
-                                            <div className="hidden md:flex items-center relative z-10">
-                                                <PrioritySelector projectId={project.id} currentPriority={project.priority} />
-                                            </div>
-                                            
-                                            {/* Lead */}
-                                            <div className="hidden sm:flex items-center gap-2 relative z-10">
-                                                <LeadSelector projectId={project.id} currentLeadId={project.lead_id} users={users} align="left" />
-                                            </div>
-                                            
-                                            {/* Target date */}
-                                            <div className="hidden lg:flex items-center justify-end pr-5 relative z-10">
-                                                <TargetDateSelector projectId={project.id} currentTargetDate={project.start_date || null} align="right" />
-                                            </div>
-                                            
-                                            {/* Status */}
-                                            <div className="flex items-center justify-end pr-5 text-gray-500 gap-2 relative z-10">
-                                                <div className={`w-2 h-2 rounded-full ${
-                                                    project.status === 'done' ? 'bg-green-500' :
-                                                    project.status === 'in_progress' ? 'bg-indigo-500' :
-                                                    project.status === 'cancelled' ? 'bg-red-500' :
-                                                    'bg-orange-500'
-                                                }`}></div>
-                                                <span className="text-[10px] font-bold uppercase text-gray-400 tracking-tight">
-                                                    {project.status ? project.status.replace('_', ' ') : 'backlog'}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
+                            <div className="bg-white">
+                                {filteredProjects.map((project, index) => (
+                                    <ProjectRow 
+                                        key={project.id} 
+                                        project={project} 
+                                        users={users} 
+                                        isLast={index === filteredProjects.length - 1} 
+                                    />
+                                ))}
                             </div>
                         </div>
                     )}
