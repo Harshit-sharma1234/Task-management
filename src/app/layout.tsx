@@ -14,22 +14,55 @@ const geistMono = Geist_Mono({
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
   title: {
-    template: '%s | Task Management',
-    default: 'Task Management - Manage your workspace efficiently',
+    template: '%s | Tectome - Modern Task Management',
+    default: 'Tectome | Modern Task Management for Growing Teams',
   },
-  description: 'A powerful, fast, and secure task management solution for modern teams.',
+  description: 'Tectome helps modern engineering teams organize, track, and ship high-quality products faster with a unified, real-time workspace inspired by Linear.',
+  keywords: ['task management', 'issue tracker', 'project management', 'saas', 'engineering workflow', 'linear task manager'],
+  authors: [{ name: 'Tectome' }],
+  creator: 'Tectome',
+  publisher: 'Tectome',
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
   openGraph: {
-    title: 'Task Management System',
-    description: 'A powerful, fast, and secure task management solution for modern teams.',
     type: 'website',
-    siteName: 'Task Management',
+    locale: 'en_US',
+    url: '/',
+    siteName: 'Tectome',
+    title: 'Tectome - Modern Task Management for High-Performing Teams',
+    description: 'Transform your team’s productivity with Tectome’s intuitive issue tracking and project management tools. Built for speed and collaboration.',
+    images: [
+      {
+        url: '/og-image.png', // Fallback to an OG image if one exists
+        width: 1200,
+        height: 630,
+        alt: 'Tectome Dashboard Preview',
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Task Management System',
-    description: 'A powerful, fast, and secure task management solution for modern teams.',
-  }
+    title: 'Tectome - Modern Task Management',
+    description: 'Organize chores and ship faster with Tectome.',
+    creator: '@tectome',
+    images: ['/og-image.png'],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
 };
 
 import { Toaster } from 'sonner';
