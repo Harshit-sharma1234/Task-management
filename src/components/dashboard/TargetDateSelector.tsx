@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef, useEffect, useTransition, memo, useCallback } from 'react';
-import { updateProjectTargetDate } from '@/app/dashboard/actions';
 import { toast } from 'sonner';
 import { CalendarPlus, ChevronLeft, ChevronRight, CornerDownLeft } from 'lucide-react';
 
@@ -9,6 +8,7 @@ interface TargetDateSelectorProps {
     projectId: string;
     currentTargetDate: string | null;
     align?: 'left' | 'right';
+    onUpdate?: (projectId: string, dateStr: string | null) => Promise<{ error?: string }>;
 }
 
 const MONTHS = [
@@ -21,7 +21,8 @@ const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 export const TargetDateSelector = memo(({ 
     projectId, 
     currentTargetDate,
-    align = 'left'
+    align = 'left',
+    onUpdate
 }: TargetDateSelectorProps) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
@@ -63,13 +64,17 @@ export const TargetDateSelector = memo(({
         }
 
         setIsOpen(false);
+        if (!onUpdate) {
+             toast.error("Not implemented yet");
+             return;
+        }
         startTransition(async () => {
-            const res = await updateProjectTargetDate(projectId, dateStr);
-            if (res.error) {
+            const res = await onUpdate(projectId, dateStr);
+            if (res && res.error) {
                 toast.error(res.error);
             }
         });
-    }, [projectId, currentTargetDate]);
+    }, [projectId, currentTargetDate, onUpdate]);
 
     // Calendar grid calculations
     const year = viewDate.getFullYear();

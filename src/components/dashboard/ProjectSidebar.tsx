@@ -18,6 +18,7 @@ import { TargetDateSelector } from './TargetDateSelector';
 import { MemberSelector } from './MemberSelector';
 import { StatusSelector } from './StatusSelector';
 import { getProjectLogs } from '@/app/dashboard/logging/actions';
+import { updateProjectTargetDate, updateProjectDueDate } from '@/app/dashboard/actions';
 import { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { clsx } from 'clsx';
@@ -183,7 +184,7 @@ export function ProjectSidebar({ project, users, currentMemberIds, userRole }: P
               <div className="flex items-center gap-3 px-2 py-1.5 rounded-md hover:bg-gray-50 transition-colors">
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest min-w-[80px] shrink-0">Start Date</span>
                 <div className="flex-1 flex justify-end overflow-hidden">
-                  <TargetDateSelector projectId={project.id} currentTargetDate={project.start_date || null} align="right" />
+                  <TargetDateSelector projectId={project.id} currentTargetDate={project.start_date || null} align="right" onUpdate={updateProjectTargetDate} />
                 </div>
               </div>
             </div>
@@ -192,10 +193,7 @@ export function ProjectSidebar({ project, users, currentMemberIds, userRole }: P
               <div className="flex items-center gap-3 px-2 py-1.5 rounded-md hover:bg-gray-50 transition-colors">
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest min-w-[80px] shrink-0">Due Date</span>
                 <div className="flex-1 flex justify-end overflow-hidden">
-                  <div className="flex items-center gap-1.5 text-gray-400 cursor-pointer hover:text-gray-600 px-2 py-1 rounded bg-white border border-gray-100/50 w-fit">
-                    <Calendar size={12} />
-                    <span className="text-[11px] font-semibold">Add target...</span>
-                  </div>
+                  <TargetDateSelector projectId={project.id} currentTargetDate={project.target_date || null} align="right" onUpdate={updateProjectDueDate} />
                 </div>
               </div>
             </div>

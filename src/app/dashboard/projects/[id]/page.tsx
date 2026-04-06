@@ -50,6 +50,8 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
 
   const currentMemberIds = (members as { user_id: string }[] | null)?.map(m => m.user_id) || [];
 
+  const adminClient = createAdminClient();
+
   // Fetch user role for visibility control
   const profile = await getUserProfile(supabase, session.user.email!, session.user.id);
   const userRole = profile?.roles?.role_name || null;
@@ -59,7 +61,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
   if (activeTab === 'issues') {
     const { data: tickets } = await adminClient
       .from('tickets')
-      .select('id, title, status, priority, assignee_id, attachments, created_at, projects(id, project_name, status), assignees:users!assignee_id(id, name, avatar_url)')
+      .select('id, title, status, priority, assignee_id, created_at, projects(id, project_name, status), assignees:users!assignee_id(id, name, avatar_url)')
       .eq('project_id', id)
       .order('created_at', { ascending: false });
     
