@@ -32,8 +32,11 @@ export function IssuePrioritySelector({
 }: IssuePrioritySelectorProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
+    const [optimisticPriority, setOptimisticPriority] = useState(currentPriority);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const router = useRouter();
+
+    useEffect(() => { setOptimisticPriority(currentPriority); }, [currentPriority]);
 
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
@@ -51,15 +54,18 @@ export function IssuePrioritySelector({
         e.preventDefault();
         e.stopPropagation();
         
-        if (value === currentPriority) {
+        if (value === optimisticPriority) {
             setIsOpen(false);
             return;
         }
 
+        const previousPriority = optimisticPriority;
+        setOptimisticPriority(value);
         setIsOpen(false);
         setIsUpdating(true);
         const res = await updateIssue(issueId, { priority: value });
         if (res.error) {
+            setOptimisticPriority(previousPriority);
             alert(res.error);
         }
         setIsUpdating(false);
@@ -118,12 +124,12 @@ export function IssuePrioritySelector({
                     "flex items-center justify-center w-8 h-8 rounded-md transition-all hover:bg-gray-100",
                     isOpen && "bg-gray-100"
                 )}
-                title={`Priority: ${currentPriority}`}
+                title={`Priority: ${optimisticPriority}`}
             >
                 {isUpdating ? (
                     <Loader2 size={12} className="animate-spin text-gray-400" />
                 ) : (
-                    renderPriorityIcon(currentPriority)
+                    renderPriorityIcon(optimisticPriority)
                 )}
             </button>
 
@@ -137,7 +143,7 @@ export function IssuePrioritySelector({
                                 onClick={(e) => handleSelect(e, opt.value)}
                                 className={clsx(
                                     "w-full flex items-center gap-2.5 px-3 py-1.5 text-left transition-colors hover:bg-gray-50",
-                                    currentPriority === opt.value ? "bg-gray-50 text-indigo-600" : "text-gray-500"
+                                    optimisticPriority === opt.value ? "bg-gray-50 text-indigo-600" : "text-gray-500"
                                 )}
                             >
                                 <div className="w-4 flex justify-center">

@@ -17,7 +17,9 @@ import {
   Clock,
   User,
   Tags,
-  FolderKanban
+  FolderKanban,
+  Paperclip,
+  FileIcon
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import Link from 'next/link';
@@ -83,7 +85,7 @@ export default async function IssueDetailsPage({ params }: { params: { id: strin
     getUserProfile(supabase, user.email!),
     supabase
       .from('users')
-      .select('id, name, avatar_url')
+      .select('id, name, email, avatar_url')
       .order('name')
   ]);
 
@@ -101,9 +103,11 @@ export default async function IssueDetailsPage({ params }: { params: { id: strin
   const canDelete = profile?.roles?.role_name === 'Admin' || profile?.roles?.role_name === 'Project Manager';
 
   // Merge comments and logs into a single activity feed
+  // Filter out 'commented' logs since the comment itself already appears in the feed
+  const filteredLogs = (logs || []).filter(l => l.action_type !== 'commented');
   const activity = [
     ...(comments || []).map(c => ({ ...c, type: 'comment' })),
-    ...(logs || []).map(l => ({ ...l, type: 'log' }))
+    ...filteredLogs.map(l => ({ ...l, type: 'log' }))
   ].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
   const statusData = statusIcons[ticket.status] || statusIcons['to_do'];
@@ -131,11 +135,42 @@ export default async function IssueDetailsPage({ params }: { params: { id: strin
           <div className="mb-12">
             <h1 className="text-3xl font-bold text-gray-900 mb-6">{ticket.title}</h1>
 
-            <div className="prose prose-sm max-w-none text-gray-700 leading-relaxed mb-10">
+            <div className="prose prose-sm max-w-none text-gray-700 leading-relaxed mb-6">
               <p className="whitespace-pre-wrap">
                 {ticket.description || "No description provided."}
               </p>
             </div>
+
+            {/* Attachments Section */}
+            {ticket.attachments && ticket.attachments.length > 0 && (
+              <div className="mt-8 pt-6 border-t border-gray-100/60">
+                <div className="flex items-center gap-2 mb-4">
+                  <Paperclip size={16} className="text-gray-400" />
+                  <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Attachments ({ticket.attachments.length})</h3>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {ticket.attachments.map((file: any, idx: number) => (
+                    <a 
+                      key={idx} 
+                      href={file.url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 p-3 border border-gray-100 rounded-xl hover:bg-gray-50 hover:border-indigo-100 transition-all group/attachment bg-gray-50/30"
+                    >
+                      <div className="w-10 h-10 bg-white border border-gray-100 rounded-lg flex items-center justify-center text-indigo-500 group-hover/attachment:bg-indigo-50 group-hover/attachment:border-indigo-100 transition-all shadow-sm">
+                        <FileIcon size={18} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-bold text-gray-900 truncate">{file.name}</div>
+                        <div className="text-[10px] text-gray-400 font-extrabold uppercase tracking-widest">
+                          {file.type ? file.type.split('/')[1]?.toUpperCase() : 'FILE'} · {(file.size / 1024).toFixed(1)} KB
+                        </div>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Activity Section */}
@@ -159,7 +194,7 @@ export default async function IssueDetailsPage({ params }: { params: { id: strin
                     <div className="flex items-center gap-2 mb-1.5">
                       <span className="text-[12px] font-bold text-gray-900">{item.users?.name}</span>
                       <span className="text-[11px] font-medium text-gray-400">
-                        {item.type === 'comment' ? '' : `${item.message} · `}{new Date(item.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        {item.type === 'comment' ? '' : `${item.message} · `}{new Date(item.created_at).toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' })}
                       </span>
                     </div>
                     {item.type === 'comment' && (

@@ -12,7 +12,8 @@ import {
   LayoutGrid,
   Check,
   Filter,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Paperclip
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { UserAvatar } from '@/components/ui/UserAvatar';
@@ -256,14 +257,22 @@ export function IssuesList({ tickets, users = [], emptyMessage = "No issues foun
                             />
                           </div>
 
-                          <Link 
-                            href={`/dashboard/issues/${ticket.id}`}
-                            className={clsx(
-                              "text-sm font-semibold truncate transition-colors",
-                              isSelected ? "text-indigo-900" : "text-gray-700 group-hover:text-indigo-600"
-                            )}>
-                              {ticket.title}
-                          </Link>
+                            <Link 
+                              href={`/dashboard/issues/${ticket.id}`}
+                              className={clsx(
+                                "text-sm font-semibold truncate transition-colors",
+                                isSelected ? "text-indigo-900" : "text-gray-700 group-hover:text-indigo-600"
+                              )}>
+                                {ticket.title}
+                            </Link>
+
+                            {/* Attachment Indicator */}
+                            {ticket.attachments && ticket.attachments.length > 0 && (
+                              <div className="flex items-center gap-1 ml-2 text-gray-400 group/attach-indicator border-l border-gray-100 pl-2 shrink-0">
+                                <Paperclip size={12} className="group-hover/attach-indicator:text-indigo-600 transition-colors" />
+                                <span className="text-[10px] font-bold">{ticket.attachments.length}</span>
+                              </div>
+                            )}
                         </div>
 
                         <div className="flex items-center gap-6 shrink-0">
