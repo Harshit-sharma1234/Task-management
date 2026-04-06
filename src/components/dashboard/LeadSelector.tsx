@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useTransition, useMemo, useCallback, memo } from 'react';
+import { useState, useRef, useEffect, useTransition, useMemo, useCallback, memo, forwardRef, useImperativeHandle } from 'react';
 import { updateProjectLead } from '@/app/dashboard/actions';
 import { User as UserIcon, Search, Check } from 'lucide-react';
 import { toast } from 'sonner';
@@ -25,17 +25,23 @@ interface LeadSelectorProps {
 // Re-export for backward compatibility with any external consumers
 export { getBadgeColor, getInitials };
 
-export const LeadSelector = memo(({ 
+import { SelectorHandle } from './StatusSelector';
+
+export const LeadSelector = memo(forwardRef<SelectorHandle, LeadSelectorProps>(({ 
     projectId, 
     currentLeadId, 
     users, 
     showEmail = false,
     align = 'left'
-}: LeadSelectorProps) => {
+}, ref) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [isPending, startTransition] = useTransition();
     const dropdownRef = useRef<HTMLDivElement>(null);
+
+    useImperativeHandle(ref, () => ({
+        toggle: () => setIsOpen(prev => !prev),
+    }));
 
     // Filter users based on search
     const filteredUsers = useMemo(() => {
@@ -172,6 +178,6 @@ export const LeadSelector = memo(({
             )}
         </div>
     );
-})
+}))
 
 LeadSelector.displayName = 'LeadSelector';
