@@ -160,7 +160,7 @@ export async function createIssue(formData: FormData) {
     })
   }
 
-  revalidatePath('/dashboard/issues')
+  revalidatePath('/dashboard/issues', 'page')
   return { success: true, data }
 }
 
@@ -261,7 +261,7 @@ export async function addComment(ticketId: string, comment: string) {
     }
   })()
 
-  revalidatePath(`/dashboard/issues/${ticketId}`)
+  revalidatePath(`/dashboard/issues/${ticketId}`, 'page')
   return { success: true, data }
 }
 
@@ -283,7 +283,7 @@ export async function updateIssue(ticketId: string, updates: {
     getUserProfile(supabase, user.email!),
     supabase
       .from('tickets')
-      .select('*')
+      .select('id, title, status, priority, assignee_id, reviewer_id, created_by')
       .eq('id', ticketId)
       .single()
   ])
@@ -347,7 +347,7 @@ export async function updateIssue(ticketId: string, updates: {
       updated_at: new Date().toISOString()
     })
     .eq('id', ticketId)
-    .select()
+    .select('id, status, priority, assignee_id, reviewer_id')
     .single()
 
   if (error) {
@@ -396,8 +396,8 @@ export async function updateIssue(ticketId: string, updates: {
   // Fire all log + notification writes — don't await them
   Promise.all(postUpdatePromises).catch(err => console.error('Post-update side effects error:', err))
 
-  revalidatePath(`/dashboard/issues/${ticketId}`)
-  revalidatePath('/dashboard/issues')
+  revalidatePath(`/dashboard/issues/${ticketId}`, 'page')
+  revalidatePath('/dashboard/issues', 'page')
   return { success: true, data }
 }
 
@@ -432,8 +432,76 @@ export async function deleteIssue(ticketId: string) {
     return { error: `Failed to delete issue: ${error.message}` }
   }
 
-  revalidatePath('/dashboard/issues')
-  revalidatePath(`/dashboard/issues/${ticketId}`)
-  revalidatePath('/dashboard')
+  revalidatePath('/dashboard/issues', 'page')
+  revalidatePath('/dashboard', 'page')
   return { success: true }
+}
+
+/**
+ * Bulk update multiple issues in a single batch.
+ * Performs one auth check and one DB query instead of N separate server calls.
+ */
+export async function bulkUpdateIssues(
+  ticketIds: string[],
+  updates: { status?: string; priority?: string }
+) {
+  if (!ticketIds.length) return { error: 'No tickets selected' }
+
+  const supabase = await createClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) return { error: 'Not authenticated' }
+
+  const profile = await getUserProfile(supabase, user.email!)
+  if (!profile) return { error: 'Profile not found' }
+
+  const role = profile.roles?.role_name
+  if (role !== 'Admin' && role !== 'Project Manager') {
+    return { error: 'Only Admins and Project Managers can perform bulk updates' }
+  }
+
+  // Single batch update using .in()
+  const { data, error } = await supabase
+    .from('tickets')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .in('id', ticketIds)
+    .select('id')
+
+  if (error) {
+    console.error('SUPABASE ERROR BULK UPDATING TICKETS:', error)
+    return { error: `Failed to bulk update: ${error.message}` }
+  }
+
+  revalidatePath('/dashboard/issues', 'page')
+  return { success: true, updatedCount: data?.length || 0 }
+}
+
+/**
+ * Bulk delete multiple issues in a single batch.
+ * Performs one auth check and one DB query instead of N separate server calls.
+ */
+export async function bulkDeleteIssues(ticketIds: string[]) {
+  if (!ticketIds.length) return { error: 'No tickets selected' }
+
+  const supabase = await createClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) return { error: 'Not authenticated' }
+
+  const profile = await getUserProfile(supabase, user.email!)
+  if (!profile) return { error: 'Profile not found' }
+
+  // Use admin client to bypass RLS for batch deletion
+  const adminClient = createAdminClient()
+  const { error } = await adminClient
+    .from('tickets')
+    .delete()
+    .in('id', ticketIds)
+
+  if (error) {
+    console.error('SUPABASE ERROR BULK DELETING TICKETS:', error)
+    return { error: `Failed to bulk delete: ${error.message}` }
+  }
+
+  revalidatePath('/dashboard/issues', 'page')
+  revalidatePath('/dashboard', 'page')
+  return { success: true, deletedCount: ticketIds.length }
 }
