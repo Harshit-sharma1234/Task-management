@@ -3,6 +3,12 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { IssuesView } from '@/components/dashboard/issues/IssuesView';
 import { IssueListSkeleton } from '@/components/dashboard/issues/IssueListSkeleton';
+import { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Issues',
+  description: 'View and manage all issues.',
+};
 
 export const dynamic = 'force-dynamic';
 
