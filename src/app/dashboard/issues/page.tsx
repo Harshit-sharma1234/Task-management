@@ -32,7 +32,7 @@ async function IssueListContent({ filter }: { filter: string }) {
   // We use adminClient to show ALL issues as requested for this global view
   let query = adminClient
     .from('tickets')
-    .select('id, title, status, priority, assignee_id, created_at, projects(id, project_name, status), assignees:users!assignee_id(id, name, avatar_url)')
+    .select('id, title, status, priority, assignee_id, attachments, created_at, projects(id, project_name, status), assignees:users!assignee_id(id, name, avatar_url)')
     .order('created_at', { ascending: false });
 
   if (filter === 'active') {

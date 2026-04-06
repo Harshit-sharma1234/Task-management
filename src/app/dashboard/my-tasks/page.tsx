@@ -27,7 +27,7 @@ async function MyTasksContent({ userId }: { userId: string }) {
   // Fetch only assigned tickets (My Tasks)
   const { data: ticketsRes } = await supabase
     .from('tickets')
-    .select('id, title, status, priority, assignee_id, created_by, created_at, projects(id, project_name)')
+    .select('id, title, status, priority, assignee_id, created_by, created_at, attachments, projects(id, project_name)')
     .eq('assignee_id', userId)
     .order('created_at', { ascending: false });
 

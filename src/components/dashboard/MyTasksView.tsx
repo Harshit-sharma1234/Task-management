@@ -15,7 +15,8 @@ import {
   Plus,
   SlidersHorizontal,
   LayoutGrid,
-  ChevronDown
+  ChevronDown,
+  Paperclip
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import dynamic from 'next/dynamic';
@@ -127,6 +128,14 @@ export function MyTasksView({ initialTickets, projects, users }: MyTasksViewProp
                         <span className="text-sm font-semibold text-gray-800 truncate group-hover:text-indigo-600 transition-colors">
                           {ticket.title}
                         </span>
+                        
+                        {/* Attachment Indicator */}
+                        {ticket.attachments && ticket.attachments.length > 0 && (
+                          <div className="flex items-center gap-1 ml-2 text-gray-400 group/attach-indicator border-l border-gray-100 pl-2 shrink-0">
+                            <Paperclip size={12} className="group-hover/attach-indicator:text-indigo-600 transition-colors" />
+                            <span className="text-[10px] font-bold">{ticket.attachments.length}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
 
