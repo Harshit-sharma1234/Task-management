@@ -17,28 +17,7 @@ export interface LogEntry {
 export async function insertProjectLog(entry: LogEntry) {
   const adminClient = createAdminClient()
 
-  // First, ensure the user exists in the public users table to satisfy foreign key constraints
-  try {
-    const { data: userData, error: userError } = await adminClient.auth.admin.getUserById(entry.userId)
-    if (!userError && userData?.user) {
-      const u = userData.user
-      // Try to upsert the user profile in the public table
-      // Default to Developer role if we are creating a new profile
-      const developerRoleId = 'f1e5cb69-a296-43c7-8905-00fc99e1f5aa' // Junior Developer      
-      await adminClient.from('users').upsert({
-        id: u.id,
-        auth_id: u.id,
-        email: u.email,
-        name: u.user_metadata?.full_name || u.email?.split('@')[0] || 'Unknown',
-        avatar_url: u.user_metadata?.avatar_url || null,
-        role_id: u.user_metadata?.role_id || developerRoleId, // Favor existing role if any
-        employee_id: u.user_metadata?.employee_id || `EMP-${u.id.substring(0, 8).toUpperCase()}`
-      }, { onConflict: 'id' })
-    }
-  } catch (syncError) {
-    console.error('FAILED TO SYNC USER BEFORE LOGGING:', syncError)
-  }
-  
+  // User profile is guaranteed to exist — callers verify via getUserProfile() before logging
   const { error } = await adminClient
     .from('project_logs')
     .insert({

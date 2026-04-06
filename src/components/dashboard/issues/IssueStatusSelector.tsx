@@ -12,7 +12,6 @@ import {
     Loader2
 } from 'lucide-react';
 import { clsx } from 'clsx';
-import { useRouter } from 'next/navigation';
 
 interface IssueStatusSelectorProps {
     issueId: string;
@@ -43,7 +42,6 @@ export const IssueStatusSelector = memo(({
     const [isUpdating, setIsUpdating] = useState(false);
     const [optimisticStatus, setOptimisticStatus] = useState(currentStatus);
     const dropdownRef = useRef<HTMLDivElement>(null);
-    const router = useRouter();
 
     const role = currentUser?.roles?.role_name;
     const isOwner = currentUser?.id === assigneeId || currentUser?.id === reviewerId;
@@ -88,11 +86,13 @@ export const IssueStatusSelector = memo(({
 
         const res = await updateIssue(issueId, { status: value });
         if (res.error) {
+            // Revert on failure
+            setOptimisticStatus(previousStatus);
             toast.error(res.error);
         }
         setIsUpdating(false);
-        router.refresh();
-    }, [issueId, currentStatus, router]);
+        // No router.refresh() — revalidatePath in the server action already handles revalidation
+    }, [issueId, optimisticStatus]);
 
     return (
         <div className="relative" ref={dropdownRef}>

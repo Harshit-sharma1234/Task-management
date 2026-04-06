@@ -54,13 +54,17 @@ export const PrioritySelector = memo(forwardRef<SelectorHandle, PrioritySelector
 }, ref) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
+    const [optimisticPriority, setOptimisticPriority] = useState(currentPriority);
     const dropdownRef = useRef<HTMLDivElement>(null);
+
+    // Sync with server props when they arrive
+    useEffect(() => { setOptimisticPriority(currentPriority); }, [currentPriority]);
 
     useImperativeHandle(ref, () => ({
         toggle: () => setIsOpen(prev => !prev),
     }));
 
-    const activePriority = priorities.find(p => p.value === currentPriority) || priorities[0];
+    const activePriority = priorities.find(p => p.value === optimisticPriority) || priorities[0];
 
     // Click outside logic
     useEffect(() => {
@@ -77,46 +81,50 @@ export const PrioritySelector = memo(forwardRef<SelectorHandle, PrioritySelector
 
     // Handle priority selection
     const handleSelect = useCallback((value: string | null) => {
-        if (value === currentPriority && value !== null) {
+        if (value === optimisticPriority && value !== null) {
             setIsOpen(false);
             return;
         }
 
+        // Optimistic: instantly update the UI
+        const previousPriority = optimisticPriority;
+        setOptimisticPriority(value);
         setIsOpen(false);
+
         startTransition(async () => {
             const res = await updateProjectPriority(projectId, value);
             if (res.error) {
+                // Revert on failure
+                setOptimisticPriority(previousPriority);
                 toast.error(res.error);
             }
         });
-    }, [projectId, currentPriority]);
+    }, [projectId, optimisticPriority]);
 
     // Render the trigger icon (signal bars)
     const renderTriggerIcon = () => {
-        if (isPending) return <div className="w-3 h-3 rounded-full border-2 border-gray-300 border-t-indigo-500 animate-spin"></div>;
-
-        if (currentPriority === 'urgent') return (
+        if (optimisticPriority === 'urgent') return (
             <div className="flex gap-0.5 items-end h-3" title="Urgent">
                 <div className="w-1 h-3 bg-red-500 rounded-sm"></div>
                 <div className="w-1 h-3 bg-red-500 rounded-sm"></div>
                 <div className="w-1 h-3 bg-red-500 rounded-sm"></div>
             </div>
         );
-        if (currentPriority === 'high') return (
+        if (optimisticPriority === 'high') return (
             <div className="flex gap-0.5 items-end h-3" title="High">
                 <div className="w-1 h-2 bg-orange-500 rounded-sm"></div>
                 <div className="w-1 h-2.5 bg-orange-500 rounded-sm"></div>
                 <div className="w-1 h-3 bg-orange-500 rounded-sm"></div>
             </div>
         );
-        if (currentPriority === 'medium') return (
+        if (optimisticPriority === 'medium') return (
             <div className="flex gap-0.5 items-end h-3" title="Medium">
                 <div className="w-1 h-1.5 bg-gray-400 rounded-sm"></div>
                 <div className="w-1 h-2.5 bg-gray-400 rounded-sm"></div>
                 <div className="w-1 h-3 bg-gray-200 rounded-sm"></div>
             </div>
         );
-        if (currentPriority === 'low') return (
+        if (optimisticPriority === 'low') return (
             <div className="flex gap-0.5 items-end h-3" title="Low">
                 <div className="w-1 h-1.5 bg-gray-400 rounded-sm"></div>
                 <div className="w-1 h-3 bg-gray-200 rounded-sm"></div>
@@ -133,7 +141,7 @@ export const PrioritySelector = memo(forwardRef<SelectorHandle, PrioritySelector
                     e.stopPropagation();
                     setIsOpen(!isOpen);
                 }}
-                className={`flex items-center gap-2 py-1 rounded-md hover:bg-gray-100/80 transition-colors text-gray-500 hover:text-gray-900 ${isPending ? 'opacity-50' : ''}`}
+                className="flex items-center gap-2 py-1 rounded-md hover:bg-gray-100/80 transition-colors text-gray-500 hover:text-gray-900"
             >
                 {renderTriggerIcon()}
                 {showLabel && (
@@ -151,7 +159,7 @@ export const PrioritySelector = memo(forwardRef<SelectorHandle, PrioritySelector
 
                     <div className="flex flex-col">
                         {priorities.map((p) => {
-                            const isSelected = currentPriority === p.value || (!currentPriority && p.value === null);
+                            const isSelected = optimisticPriority === p.value || (!optimisticPriority && p.value === null);
 
                             return (
                                 <button
