@@ -39,9 +39,10 @@ interface IssueRowProps {
   users: any[];
   isSelected: boolean;
   onToggleSelection: (e: React.MouseEvent, id: string) => void;
+  currentUser: any;
 }
 
-const IssueRow = memo(({ ticket, users, isSelected, onToggleSelection }: IssueRowProps) => {
+const IssueRow = memo(({ ticket, users, isSelected, onToggleSelection, currentUser }: IssueRowProps) => {
   return (
     <div
       className={clsx(
@@ -67,7 +68,10 @@ const IssueRow = memo(({ ticket, users, isSelected, onToggleSelection }: IssueRo
         <div className="hidden md:flex items-center shrink-0">
           <IssuePrioritySelector 
             issueId={ticket.id} 
-            currentPriority={ticket.priority || 'no_priority'} 
+            currentPriority={ticket.priority || 'no_priority'}
+            currentUser={currentUser}
+            assigneeId={ticket.assignee_id}
+            reviewerId={ticket.reviewer_id}
           />
         </div>
 
@@ -82,7 +86,10 @@ const IssueRow = memo(({ ticket, users, isSelected, onToggleSelection }: IssueRo
         <div className="w-24 shrink-0">
           <IssueStatusSelector 
             issueId={ticket.id} 
-            currentStatus={ticket.status || 'to_do'} 
+            currentStatus={ticket.status || 'to_do'}
+            currentUser={currentUser}
+            assigneeId={ticket.assignee_id}
+            reviewerId={ticket.reviewer_id}
           />
         </div>
 
@@ -118,6 +125,7 @@ const IssueRow = memo(({ ticket, users, isSelected, onToggleSelection }: IssueRo
             currentAssigneeId={ticket.assignee_id}
             currentAssignee={ticket.assignees}
             users={users}
+            currentUser={currentUser}
           />
         </div>
 
@@ -136,9 +144,10 @@ interface IssuesListProps {
   users?: any[];
   emptyMessage?: string;
   onOpenModal?: () => void;
+  currentUser?: any;
 }
 
-export function IssuesList({ tickets, users = [], emptyMessage = "No issues found", onOpenModal }: IssuesListProps) {
+export function IssuesList({ tickets, users = [], emptyMessage = "No issues found", onOpenModal, currentUser }: IssuesListProps) {
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   
@@ -322,7 +331,8 @@ export function IssuesList({ tickets, users = [], emptyMessage = "No issues foun
                       ticket={ticket} 
                       users={users} 
                       isSelected={selectedIds.has(ticket.id)} 
-                      onToggleSelection={toggleSelection} 
+                      onToggleSelection={toggleSelection}
+                      currentUser={currentUser}
                     />
                   ))}
                 </div>
@@ -336,6 +346,7 @@ export function IssuesList({ tickets, users = [], emptyMessage = "No issues foun
         selectedIds={Array.from(selectedIds)} 
         onClear={clearSelection} 
         totalTickets={tickets.length}
+        currentUser={currentUser}
       />
     </div>
   );

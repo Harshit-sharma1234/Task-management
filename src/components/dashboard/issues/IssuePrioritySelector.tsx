@@ -17,6 +17,9 @@ import { useRouter } from 'next/navigation';
 interface IssuePrioritySelectorProps {
     issueId: string;
     currentPriority: string;
+    currentUser?: any;
+    assigneeId?: string | null;
+    reviewerId?: string | null;
 }
 
 const priorityOptions = [
@@ -29,13 +32,21 @@ const priorityOptions = [
 
 export const IssuePrioritySelector = memo(({
     issueId,
-    currentPriority
+    currentPriority,
+    currentUser,
+    assigneeId,
+    reviewerId
 }: IssuePrioritySelectorProps) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
     const [optimisticPriority, setOptimisticPriority] = useState(currentPriority);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const router = useRouter();
+
+    const role = currentUser?.roles?.role_name;
+    const isOwner = currentUser?.id === assigneeId || currentUser?.id === reviewerId;
+    const isAdmin = role === 'Admin' || role === 'Project Manager';
+    const canUpdate = isAdmin || isOwner;
 
     useEffect(() => { setOptimisticPriority(currentPriority); }, [currentPriority]);
 
@@ -115,13 +126,15 @@ export const IssuePrioritySelector = memo(({
         <div className="relative" ref={dropdownRef}>
             <button
                 onClick={(e) => {
+                    if (!canUpdate) return;
                     e.preventDefault();
                     e.stopPropagation();
                     setIsOpen(!isOpen);
                 }}
-                disabled={isUpdating}
+                disabled={isUpdating || !canUpdate}
                 className={clsx(
-                    "flex items-center justify-center w-8 h-8 rounded-md transition-all hover:bg-gray-100",
+                    "flex items-center justify-center w-8 h-8 rounded-md transition-all",
+                    canUpdate ? "hover:bg-gray-100" : "cursor-not-allowed opacity-50",
                     isOpen && "bg-gray-100"
                 )}
                 title={`Priority: ${optimisticPriority}`}

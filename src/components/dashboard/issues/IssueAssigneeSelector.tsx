@@ -13,13 +13,15 @@ interface IssueAssigneeSelectorProps {
     currentAssigneeId: string | null;
     currentAssignee: { name: string, avatar_url?: string | null } | null;
     users: { id: string, name: string, email?: string, avatar_url?: string | null }[];
+    currentUser?: any;
 }
 
 export const IssueAssigneeSelector = memo(({
     issueId,
     currentAssigneeId,
     currentAssignee,
-    users
+    users,
+    currentUser
 }: IssueAssigneeSelectorProps) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
@@ -28,6 +30,15 @@ export const IssueAssigneeSelector = memo(({
     const dropdownRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const router = useRouter();
+
+    const role = currentUser?.roles?.role_name;
+    const isOwner = currentUser?.id === currentAssigneeId; // Currently only checking assignee since reviewerId is not passed here yet
+    const isAdmin = role === 'Admin' || role === 'Project Manager';
+    const canUpdate = isAdmin || isOwner;
+
+    const optimisticAssignee = useMemo(() => 
+        users.find(u => u.id === optimisticAssigneeId) || null
+    , [users, optimisticAssigneeId]);
 
     const filteredUsers = useMemo(() => {
         return (users || []).filter(u => 
@@ -73,13 +84,15 @@ export const IssueAssigneeSelector = memo(({
         <div className="relative group/assignee" ref={dropdownRef}>
             <button
                 onClick={(e) => {
+                    if (!canUpdate) return;
                     e.preventDefault();
                     e.stopPropagation();
                     setIsOpen(!isOpen);
                 }}
-                disabled={isUpdating}
+                disabled={isUpdating || !canUpdate}
                 className={clsx(
-                    "relative flex items-center transition-all hover:scale-110",
+                    "relative flex items-center transition-all",
+                    canUpdate ? "hover:scale-110" : "cursor-not-allowed",
                     isUpdating && "opacity-50"
                 )}
             >
