@@ -34,10 +34,14 @@ export function IssueStatusSelector({
 }: IssueStatusSelectorProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
+    const [optimisticStatus, setOptimisticStatus] = useState(currentStatus);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const router = useRouter();
 
-    const activeStatus = statusOptions.find(s => s.value === currentStatus) || statusOptions[1];
+    // Sync with server props when they arrive
+    useEffect(() => { setOptimisticStatus(currentStatus); }, [currentStatus]);
+
+    const activeStatus = statusOptions.find(s => s.value === optimisticStatus) || statusOptions[1];
 
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
@@ -55,15 +59,20 @@ export function IssueStatusSelector({
         e.preventDefault();
         e.stopPropagation();
         
-        if (value === currentStatus) {
+        if (value === optimisticStatus) {
             setIsOpen(false);
             return;
         }
 
+        // Optimistic: instantly update the UI
+        const previousStatus = optimisticStatus;
+        setOptimisticStatus(value);
         setIsOpen(false);
         setIsUpdating(true);
+
         const res = await updateIssue(issueId, { status: value });
         if (res.error) {
+            setOptimisticStatus(previousStatus); // Rollback on error
             alert(res.error);
         }
         setIsUpdating(false);

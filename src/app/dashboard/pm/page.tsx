@@ -16,12 +16,6 @@ export default async function PMDashboard() {
 
     return (
         <div className="flex flex-col h-full w-full">
-            <div className="px-8 pt-6 pb-0 flex items-center justify-end">
-                <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-amber-500/15 text-amber-500 border border-amber-500/25 flex items-center shadow-sm">
-                    <Briefcase size={12} className="mr-1" />
-                    Project Manager View
-                </span>
-            </div>
             <Suspense fallback={<OverviewSkeleton />}>
                 <PMContent email={data.user.email!} userId={data.user.id} userName={data.user.user_metadata?.full_name} />
             </Suspense>
