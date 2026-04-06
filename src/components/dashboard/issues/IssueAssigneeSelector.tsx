@@ -6,7 +6,6 @@ import { toast } from 'sonner';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { Search, Loader2, User } from 'lucide-react';
 import { clsx } from 'clsx';
-import { useRouter } from 'next/navigation';
 
 interface IssueAssigneeSelectorProps {
     issueId: string;
@@ -29,7 +28,7 @@ export const IssueAssigneeSelector = memo(({
     const [optimisticAssigneeId, setOptimisticAssigneeId] = useState(currentAssigneeId);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
-    const router = useRouter();
+
 
     const role = currentUser?.roles?.role_name;
     const isOwner = currentUser?.id === currentAssigneeId; // Currently only checking assignee since reviewerId is not passed here yet
@@ -74,11 +73,12 @@ export const IssueAssigneeSelector = memo(({
         setIsUpdating(true);
         const res = await updateIssue(issueId, { assignee_id: userId });
         if (res.error) {
+            // Revert on failure
+            setOptimisticAssigneeId(previousAssigneeId);
             toast.error(res.error);
         }
         setIsUpdating(false);
-        router.refresh();
-    }, [issueId, currentAssigneeId, router]);
+    }, [issueId, optimisticAssigneeId]);
 
     return (
         <div className="relative group/assignee" ref={dropdownRef}>
