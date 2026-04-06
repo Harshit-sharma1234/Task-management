@@ -33,6 +33,9 @@ export async function createProject(formData: FormData) {
     if (!projectName?.trim()) {
         return { error: 'Project name is required' }
     }
+    if (!description?.trim()) {
+        return { error: 'Description is required' }
+    }
     if (!leadId) {
         return { error: 'Lead is required' }
     }
@@ -41,6 +44,12 @@ export async function createProject(formData: FormData) {
     }
     if (!status) {
         return { error: 'Status is required' }
+    }
+    if (!startDate) {
+        return { error: 'Start date is required' }
+    }
+    if (!assignedTo || assignedTo.length === 0 || (assignedTo.length === 1 && !assignedTo[0])) {
+        return { error: 'At least one assignee is required' }
     }
 
     const { data: newProject, error: projectError } = await supabase

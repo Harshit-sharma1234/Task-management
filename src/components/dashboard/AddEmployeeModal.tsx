@@ -81,7 +81,7 @@ export function AddEmployeeModal({ isOpen, onClose }: AddEmployeeModalProps) {
                     )}
 
                     <div className="space-y-1">
-                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Full Name</label>
+                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Full Name *</label>
                         <div className="relative">
                             <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-gray-400">
                                 <UserPlus size={16} />
@@ -97,7 +97,7 @@ export function AddEmployeeModal({ isOpen, onClose }: AddEmployeeModalProps) {
                     </div>
 
                     <div className="space-y-1">
-                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Email Address</label>
+                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Email Address *</label>
                         <div className="relative">
                             <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-gray-400">
                                 <Mail size={16} />
@@ -114,7 +114,7 @@ export function AddEmployeeModal({ isOpen, onClose }: AddEmployeeModalProps) {
 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
-                            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Employee ID</label>
+                            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Employee ID *</label>
                             <input 
                                 type="text" 
                                 name="employee_id"
@@ -124,7 +124,7 @@ export function AddEmployeeModal({ isOpen, onClose }: AddEmployeeModalProps) {
                             />
                         </div>
                         <div className="space-y-1">
-                            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Role</label>
+                            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Role *</label>
                             <select 
                                 name="role_id"
                                 required

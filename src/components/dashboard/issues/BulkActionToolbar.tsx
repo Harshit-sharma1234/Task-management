@@ -12,7 +12,7 @@ import {
     Loader2
 } from 'lucide-react';
 import { useState } from 'react';
-import { updateIssue } from '@/app/dashboard/issues/actions';
+import { updateIssue, deleteIssue } from '@/app/dashboard/issues/actions';
 import { useRouter } from 'next/navigation';
 
 interface BulkActionToolbarProps {
@@ -30,8 +30,13 @@ export function BulkActionToolbar({ selectedIds, onClear, totalTickets }: BulkAc
 
     const handleBulkStatusUpdate = async (status: string) => {
         setIsUpdating(true);
-        const promises = selectedIds.map(id => updateIssue(id, { status }));
-        await Promise.all(promises);
+        const results = await Promise.all(selectedIds.map(id => updateIssue(id, { status })));
+        
+        const errors = results.filter(r => r.error);
+        if (errors.length > 0) {
+            alert(`Some updates failed. ${errors.length} of ${selectedIds.length} items could not be updated.`);
+        }
+        
         setIsUpdating(false);
         onClear();
         router.refresh();
@@ -39,8 +44,31 @@ export function BulkActionToolbar({ selectedIds, onClear, totalTickets }: BulkAc
 
     const handleBulkPriorityUpdate = async (priority: string) => {
         setIsUpdating(true);
-        const promises = selectedIds.map(id => updateIssue(id, { priority }));
-        await Promise.all(promises);
+        const results = await Promise.all(selectedIds.map(id => updateIssue(id, { priority })));
+        
+        const errors = results.filter(r => r.error);
+        if (errors.length > 0) {
+            alert(`Some updates failed. ${errors.length} of ${selectedIds.length} items could not be updated.`);
+        }
+        
+        setIsUpdating(false);
+        onClear();
+        router.refresh();
+    };
+
+    const handleBulkDelete = async () => {
+        if (!confirm(`Are you sure you want to delete ${selectedIds.length} issues? This action cannot be undone.`)) {
+            return;
+        }
+
+        setIsUpdating(true);
+        const results = await Promise.all(selectedIds.map(id => deleteIssue(id)));
+        
+        const errors = results.filter(r => r && r.error);
+        if (errors.length > 0) {
+            alert(`Some deletions failed. ${errors.length} of ${selectedIds.length} items could not be deleted.`);
+        }
+        
         setIsUpdating(false);
         onClear();
         router.refresh();
@@ -121,7 +149,11 @@ export function BulkActionToolbar({ selectedIds, onClear, totalTickets }: BulkAc
                                     
                                     <div className="h-px bg-gray-800 my-2" />
                                     
-                                    <button className="w-full text-left px-3 py-2 text-xs hover:bg-red-900/40 text-red-400 rounded-md flex items-center gap-2 transition-colors">
+                                    <button 
+                                        onClick={handleBulkDelete}
+                                        disabled={isUpdating}
+                                        className="w-full text-left px-3 py-2 text-xs hover:bg-red-900/40 text-red-400 rounded-md flex items-center gap-2 transition-colors disabled:opacity-50"
+                                    >
                                         <Trash2 size={12} /> Delete Issues
                                     </button>
                                 </div>

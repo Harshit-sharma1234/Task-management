@@ -12,7 +12,8 @@ import {
   LayoutGrid,
   Check,
   Filter,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Paperclip
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { UserAvatar } from '@/components/ui/UserAvatar';
