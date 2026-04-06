@@ -173,50 +173,22 @@ export default async function IssueDetailsPage({ params }: { params: { id: strin
             )}
           </div>
 
-          {/* Activity Section */}
+          {/* Activity Section — fully real-time via CommentSection */}
           <div className="mt-16 pt-8 border-t border-gray-100">
             <div className="flex justify-between items-center mb-8 border-b border-gray-100/60 pb-3">
               <h3 className="text-sm font-bold text-gray-900">Activity</h3>
             </div>
 
-            {/* Unified Activity Feed */}
-            <div className="space-y-6 mb-10 pl-1">
-              {activity.map((item: any) => (
-                <div key={`${item.type}-${item.id}`} className="flex gap-3">
-                  <div className="mt-0.5">
-                    <UserAvatar
-                      name={item.users?.name || 'User'}
-                      avatarUrl={item.users?.avatar_url}
-                      size="sm"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <span className="text-[12px] font-bold text-gray-900">{item.users?.name}</span>
-                      <span className="text-[11px] font-medium text-gray-400">
-                        {item.type === 'comment' ? '' : `${item.message} · `}{new Date(item.created_at).toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' })}
-                      </span>
-                    </div>
-                    {item.type === 'comment' && (
-                      <div className="text-[13px] text-gray-700 leading-snug">
-                        {item.comment}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Reply Section */}
             <CommentSection
               ticketId={id}
-              comments={[]}
+              initialComments={comments || []}
+              initialLogs={logs || []}
               currentUser={{
+                id: profile?.id || '',
                 name: profile?.name || 'Anonymous',
                 email: user.email || '',
                 avatar_url: profile?.avatar_url || null
               }}
-              hideList={true}
             />
           </div>
         </div>
