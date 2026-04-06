@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useTransition } from 'react';
+import { useState, useRef, useEffect, useTransition, forwardRef, useImperativeHandle } from 'react';
 import { Users, Check, Search, Plus, X } from 'lucide-react';
 import { toggleProjectMember } from '@/app/dashboard/actions';
 import { toast } from 'sonner';
@@ -21,17 +21,23 @@ interface MemberSelectorProps {
   align?: 'left' | 'right';
 }
 
-export function MemberSelector({ 
+import { SelectorHandle } from './StatusSelector';
+
+export const MemberSelector = forwardRef<SelectorHandle, MemberSelectorProps>(({ 
   projectId, 
   users, 
   currentMemberIds, 
   showEmails = false,
   align = 'left' 
-}: MemberSelectorProps) {
+}, ref) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [isPending, startTransition] = useTransition();
+
+  useImperativeHandle(ref, () => ({
+    toggle: () => setIsOpen(prev => !prev),
+  }));
 
   const currentMembers = users.filter(u => currentMemberIds.includes(u.id));
   const filteredUsers = users.filter(user => 
@@ -147,4 +153,6 @@ export function MemberSelector({
       )}
     </div>
   );
-}
+})
+
+MemberSelector.displayName = 'MemberSelector';
