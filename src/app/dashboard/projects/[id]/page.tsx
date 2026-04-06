@@ -50,18 +50,28 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
 
   const currentMemberIds = (members as { user_id: string }[] | null)?.map(m => m.user_id) || [];
 
-  const adminClient = createAdminClient();
-  const [ticketsRes, resourcesRes] = await Promise.all([
-    activeTab === 'issues' 
-      ? adminClient.from('tickets').select('id, title, status, priority, assignee_id, created_at, projects(id, project_name, status), assignees:users!assignee_id(id, name, avatar_url)').eq('project_id', id).order('created_at', { ascending: false })
-      : Promise.resolve({ data: [] }),
-    activeTab !== 'issues' 
-      ? adminClient.from('project_resources').select('*').eq('project_id', id).order('created_at', { ascending: false })
-      : Promise.resolve({ data: [] })
-  ]);
+  // Fetch user role for visibility control
+  const profile = await getUserProfile(supabase, session.user.email!, session.user.id);
+  const userRole = profile?.roles?.role_name || null;
 
-  const projectTickets = ticketsRes.data || [];
-  const resources = resourcesRes.data || [];
+  // Conditional Data Fetching: Tickets for this project
+  let projectTickets: any[] = [];
+  if (activeTab === 'issues') {
+    const { data: tickets } = await adminClient
+      .from('tickets')
+      .select('id, title, status, priority, assignee_id, attachments, created_at, projects(id, project_name, status), assignees:users!assignee_id(id, name, avatar_url)')
+      .eq('project_id', id)
+      .order('created_at', { ascending: false });
+    
+    projectTickets = tickets || [];
+  }
+
+  // Fetch project resources
+  const { data: resources } = await adminClient
+    .from('project_resources')
+    .select('*')
+    .eq('project_id', id)
+    .order('created_at', { ascending: false });
 
   return (
     <>
