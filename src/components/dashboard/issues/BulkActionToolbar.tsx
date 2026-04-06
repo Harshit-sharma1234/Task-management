@@ -19,17 +19,21 @@ interface BulkActionToolbarProps {
     selectedIds: string[];
     onClear: () => void;
     totalTickets: number;
+    currentUser?: any;
 }
 
-export function BulkActionToolbar({ selectedIds, onClear, totalTickets }: BulkActionToolbarProps) {
-    const [isUpdating, setIsUpdating] = useState(false);
+export function BulkActionToolbar({ selectedIds, onClear, totalTickets, currentUser }: BulkActionToolbarProps) {
+    const [loadingAction, setLoadingAction] = useState<string | null>(null);
     const [showMoreActions, setShowMoreActions] = useState(false);
     const router = useRouter();
 
-    if (selectedIds.length === 0) return null;
+    const role = currentUser?.roles?.role_name;
+    const canBulkAction = role === 'Admin' || role === 'Project Manager';
 
-    const handleBulkStatusUpdate = async (status: string) => {
-        setIsUpdating(true);
+    if (selectedIds.length === 0 || !canBulkAction) return null;
+
+    const handleBulkStatusUpdate = async (status: string, actionKey: string = 'status') => {
+        setLoadingAction(actionKey);
         const results = await Promise.all(selectedIds.map(id => updateIssue(id, { status })));
         
         const errors = results.filter(r => r.error);
@@ -37,13 +41,13 @@ export function BulkActionToolbar({ selectedIds, onClear, totalTickets }: BulkAc
             alert(`Some updates failed. ${errors.length} of ${selectedIds.length} items could not be updated.`);
         }
         
-        setIsUpdating(false);
+        setLoadingAction(null);
         onClear();
         router.refresh();
     };
 
     const handleBulkPriorityUpdate = async (priority: string) => {
-        setIsUpdating(true);
+        setLoadingAction('priority');
         const results = await Promise.all(selectedIds.map(id => updateIssue(id, { priority })));
         
         const errors = results.filter(r => r.error);
@@ -51,7 +55,7 @@ export function BulkActionToolbar({ selectedIds, onClear, totalTickets }: BulkAc
             alert(`Some updates failed. ${errors.length} of ${selectedIds.length} items could not be updated.`);
         }
         
-        setIsUpdating(false);
+        setLoadingAction(null);
         onClear();
         router.refresh();
     };
@@ -61,7 +65,7 @@ export function BulkActionToolbar({ selectedIds, onClear, totalTickets }: BulkAc
             return;
         }
 
-        setIsUpdating(true);
+        setLoadingAction('delete');
         const results = await Promise.all(selectedIds.map(id => deleteIssue(id)));
         
         const errors = results.filter(r => r && r.error);
@@ -69,7 +73,7 @@ export function BulkActionToolbar({ selectedIds, onClear, totalTickets }: BulkAc
             alert(`Some deletions failed. ${errors.length} of ${selectedIds.length} items could not be deleted.`);
         }
         
-        setIsUpdating(false);
+        setLoadingAction(null);
         onClear();
         router.refresh();
     };
@@ -92,21 +96,21 @@ export function BulkActionToolbar({ selectedIds, onClear, totalTickets }: BulkAc
 
                 <div className="flex items-center gap-2">
                     <button 
-                        disabled={isUpdating}
-                        onClick={() => handleBulkStatusUpdate('backlog')}
+                        disabled={!!loadingAction}
+                        onClick={() => handleBulkStatusUpdate('backlog', 'backlog')}
                         className="flex items-center gap-2 px-3 py-1.5 rounded-full hover:bg-gray-800 text-xs font-semibold transition-all disabled:opacity-50"
                     >
-                        {isUpdating ? <Loader2 size={13} className="animate-spin" /> : <CircleDot size={13} />}
+                        {loadingAction === 'backlog' ? <Loader2 size={13} className="animate-spin text-indigo-400" /> : <CircleDot size={13} />}
                         Move to Backlog
                     </button>
 
 
                     <button 
-                        disabled={isUpdating}
-                        onClick={() => handleBulkStatusUpdate('done')}
+                        disabled={!!loadingAction}
+                        onClick={() => handleBulkStatusUpdate('done', 'done')}
                         className="flex items-center gap-2 px-3 py-1.5 rounded-full hover:bg-gray-800 text-xs font-semibold transition-all disabled:opacity-50"
                     >
-                        <CheckCircle2 size={13} className="text-green-400" />
+                        {loadingAction === 'done' ? <Loader2 size={13} className="animate-spin text-green-400" /> : <CheckCircle2 size={13} className="text-green-400" />}
                         Mark as Done
                     </button>
 
@@ -151,10 +155,11 @@ export function BulkActionToolbar({ selectedIds, onClear, totalTickets }: BulkAc
                                     
                                     <button 
                                         onClick={handleBulkDelete}
-                                        disabled={isUpdating}
+                                        disabled={!!loadingAction}
                                         className="w-full text-left px-3 py-2 text-xs hover:bg-red-900/40 text-red-400 rounded-md flex items-center gap-2 transition-colors disabled:opacity-50"
                                     >
-                                        <Trash2 size={12} /> Delete Issues
+                                        {loadingAction === 'delete' ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />} 
+                                        Delete Issues
                                     </button>
                                 </div>
                             </>
