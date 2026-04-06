@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useTransition, memo, useCallback } from 'react';
+import { useState, useRef, useEffect, useTransition, memo, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { toast } from 'sonner';
 import { CalendarPlus, ChevronLeft, ChevronRight, CornerDownLeft } from 'lucide-react';
 
@@ -18,17 +18,23 @@ const MONTHS = [
 
 const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 
-export const TargetDateSelector = memo(({ 
+import { SelectorHandle } from './StatusSelector';
+
+export const TargetDateSelector = memo(forwardRef<SelectorHandle, TargetDateSelectorProps>(({
     projectId, 
     currentTargetDate,
     align = 'left',
     onUpdate
-}: TargetDateSelectorProps) => {
+}, ref) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
     const dropdownRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const [searchValue, setSearchValue] = useState('');
+
+    useImperativeHandle(ref, () => ({
+        toggle: () => setIsOpen(prev => !prev),
+    }));
 
     // Calendar state
     const [viewDate, setViewDate] = useState(() => {
@@ -224,6 +230,6 @@ export const TargetDateSelector = memo(({
             )}
         </div>
     );
-})
+}))
 
 TargetDateSelector.displayName = 'TargetDateSelector';
