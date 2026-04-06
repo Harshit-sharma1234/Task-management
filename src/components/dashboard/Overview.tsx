@@ -16,7 +16,7 @@ import {
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { clsx } from 'clsx'
-import { getCachedStats, getCachedUsers, getCachedRecentTickets } from '@/lib/cache'
+import { getCachedStats, getCachedUsers, getCachedRecentTickets, getCachedProjects } from '@/lib/cache'
 
 // Lazy load the interactive project creation button to reduce initial JS weight
 const CreateProjectButton = dynamic(() => import('@/components/dashboard/CreateProjectButton').then(mod => mod.CreateProjectButton), { 
@@ -49,18 +49,20 @@ interface DashboardOverviewProps {
 }
 
 export default async function DashboardOverview({ userId, userName }: DashboardOverviewProps) {
-    // Fetch all cached data in parallel — no auth call needed (passed as props)
-    const [users, stats, tickets] = await Promise.all([
+    // Fetch all cached data in parallel including the full projects list
+    const [users, stats, tickets, allProjects] = await Promise.all([
         getCachedUsers(),
         getCachedStats(),
-        getCachedRecentTickets(10)
+        getCachedRecentTickets(10),
+        getCachedProjects()
     ]);
 
     const currentUserId = userId;
 
-    // Use data from cached stats
-    const projects = stats.recentProjects || []
-
+    // Use recently created projects for the summary grid
+    const recentProjects = stats.recentProjects || []
+    
+    // Stats counts
     const totalProjectsCount = stats.projectsCount
     const completedProjectsCount = stats.completedProjectsCount
     const inProgressProjectsCount = stats.inProgressProjectsCount
@@ -146,7 +148,7 @@ export default async function DashboardOverview({ userId, userName }: DashboardO
                             </Link>
                         </div>
 
-                        {projects.length === 0 ? (
+                        {recentProjects.length === 0 ? (
                             <div className="bg-white border border-gray-100 rounded-xl p-12 shadow-sm flex flex-col items-center justify-center min-h-[320px]">
                                 <div className="bg-gray-100 p-4 rounded-full text-gray-400 mb-4">
                                     <Folder size={32} />
@@ -157,18 +159,18 @@ export default async function DashboardOverview({ userId, userName }: DashboardO
                         ) : (
                             <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden flex flex-col min-h-[180px]">
                                 <div className="grid grid-cols-1 divide-y divide-gray-100 flex-1">
-                                    {projects.slice(0, 3).map((project: any) => (
+                                    {recentProjects.map((project: any) => (
                                         <Link 
                                             key={project.id} 
                                             href={`/dashboard/projects/${project.id}`}
-                                            className="p-5 hover:bg-gray-50 transition-colors flex items-center justify-between"
+                                            className="p-5 hover:bg-gray-50 transition-all flex items-center justify-between group/project border-b border-gray-50 last:border-0"
                                         >
                                             <div className="flex items-center gap-4">
-                                                <div className="bg-indigo-50 p-3 rounded-lg text-indigo-600">
+                                                <div className="bg-indigo-50 p-3 rounded-lg text-indigo-600 group-hover/project:bg-indigo-100 transition-colors">
                                                     <Folder size={20} />
                                                 </div>
                                                 <div>
-                                                    <h3 className="text-sm font-semibold text-gray-900">{project.project_name}</h3>
+                                                    <h3 className="text-sm font-semibold text-gray-900 group-hover/project:text-indigo-600 transition-colors">{project.project_name}</h3>
                                                     <p className="text-xs text-gray-500 mt-1 line-clamp-1">{project.description || 'No description'}</p>
                                                 </div>
                                             </div>
@@ -217,14 +219,14 @@ export default async function DashboardOverview({ userId, userName }: DashboardO
                                             <Link 
                                                 key={ticket.id} 
                                                 href={`/dashboard/issues/${ticket.id}`}
-                                                className="p-5 hover:bg-gray-50 transition-colors flex items-center justify-between"
+                                                className="p-5 hover:bg-gray-50 transition-all flex items-center justify-between group/ticket border-b border-gray-50 last:border-0"
                                             >
                                                 <div className="flex items-center gap-4">
-                                                    <div className={clsx("p-2 rounded-lg", statusColor.replace('text-', 'bg-') + "/10", statusColor)}>
+                                                    <div className={clsx("p-2 rounded-lg transition-colors", statusColor.replace('text-', 'bg-') + "/10", statusColor, "group-hover/ticket:bg-opacity-20")}>
                                                         <StatusIcon size={20} />
                                                     </div>
                                                     <div>
-                                                        <h3 className="text-sm font-semibold text-gray-900">{ticket.title}</h3>
+                                                        <h3 className="text-sm font-semibold text-gray-900 group-hover/ticket:text-indigo-600 transition-colors">{ticket.title}</h3>
                                                         <p className="text-xs text-gray-500 mt-1 line-clamp-1">{ticket.projects?.project_name || 'No Project'}</p>
                                                     </div>
                                                 </div>
@@ -288,7 +290,7 @@ export default async function DashboardOverview({ userId, userName }: DashboardO
                         </div>
                         {inProgressProjectsCount > 0 ? (
                             <div className="flex flex-col gap-3">
-                                {projects
+                                {allProjects
                                     .filter((p: any) => p.status === 'in_progress')
                                     .slice(0, 3)
                                     .map((project: any) => (
