@@ -62,7 +62,7 @@ async function IssueListContent({ filter }: { filter: string }) {
       .order('project_name'),
     adminClient
       .from('users')
-      .select('id, name, avatar_url')
+      .select('id, name, avatar_url, roles(role_name)')
       .order('name')
   ]);
 
