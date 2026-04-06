@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { getInitials, getBadgeColor } from '@/lib/avatar';
@@ -37,6 +37,7 @@ import {
     ArrowLeft
 } from 'lucide-react';
 import { PropertyInlineRow } from '@/components/dashboard/issues/PropertyInlineRow';
+import { useNotificationStore } from '@/lib/store/notifications';
 
 
 
@@ -83,8 +84,9 @@ export default function InboxPage() {
     const [showViewOptions, setShowViewOptions] = useState(false);
     const [typeFilter, setTypeFilter] = useState<string[]>([]);
     const [allUsers, setAllUsers] = useState<any[]>([]);
+    const setGlobalUnreadCount = useNotificationStore((s) => s.setUnreadCount);
 
-    const supabase = createClient();
+    const supabase = useMemo(() => createClient(), []);
 
     useEffect(() => {
         let channel: ReturnType<typeof supabase.channel> | null = null;
@@ -266,7 +268,7 @@ export default function InboxPage() {
         return result;
     }, [notifications, viewOptions, typeFilter]);
 
-    const selectedNotification = notifications.find(n => n.id === selectedId);
+    const selectedNotification = useMemo(() => notifications.find(n => n.id === selectedId), [notifications, selectedId]);
 
     function handleSelect(notification: any) {
         setSelectedId(notification.id);
@@ -280,6 +282,7 @@ export default function InboxPage() {
 
     const handleMarkAllRead = async () => {
         await markAllAsRead();
+        setGlobalUnreadCount(0);
         if (currentUser) fetchNotifications(currentUser.id);
         setShowActions(false);
     };
