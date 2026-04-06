@@ -1,9 +1,9 @@
 'use client';
 
-import { 
-    X, 
-    ArrowUpRight, 
-    Trash2, 
+import {
+    X,
+    ArrowUpRight,
+    Trash2,
     MoreHorizontal,
     CheckCircle2,
     CircleDot,
@@ -14,6 +14,8 @@ import {
 import { useState } from 'react';
 import { updateIssue, deleteIssue } from '@/app/dashboard/issues/actions';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+import { clsx } from 'clsx';
 
 interface BulkActionToolbarProps {
     selectedIds: string[];
@@ -30,17 +32,20 @@ export function BulkActionToolbar({ selectedIds, onClear, totalTickets, currentU
     const role = currentUser?.roles?.role_name;
     const canBulkAction = role === 'Admin' || role === 'Project Manager';
 
-    if (selectedIds.length === 0 || !canBulkAction) return null;
+    if (selectedIds.length === 0) return null;
 
     const handleBulkStatusUpdate = async (status: string, actionKey: string = 'status') => {
         setLoadingAction(actionKey);
         const results = await Promise.all(selectedIds.map(id => updateIssue(id, { status })));
-        
+
         const errors = results.filter(r => r.error);
         if (errors.length > 0) {
-            alert(`Some updates failed. ${errors.length} of ${selectedIds.length} items could not be updated.`);
+            const msg = errors[0].error || 'You do not have permission to update these issues.';
+            toast.error(errors.length === 1 ? msg : `Multiple updates failed: ${msg}`);
+        } else {
+            toast.success(`Updated ${selectedIds.length} issues`);
         }
-        
+
         setLoadingAction(null);
         onClear();
         router.refresh();
@@ -49,12 +54,15 @@ export function BulkActionToolbar({ selectedIds, onClear, totalTickets, currentU
     const handleBulkPriorityUpdate = async (priority: string) => {
         setLoadingAction('priority');
         const results = await Promise.all(selectedIds.map(id => updateIssue(id, { priority })));
-        
+
         const errors = results.filter(r => r.error);
         if (errors.length > 0) {
-            alert(`Some updates failed. ${errors.length} of ${selectedIds.length} items could not be updated.`);
+            const msg = errors[0].error || 'Permission denied for priority updates.';
+            toast.error(errors.length === 1 ? msg : `Multiple updates failed: ${msg}`);
+        } else {
+            toast.success(`Priority updated for ${selectedIds.length} issues`);
         }
-        
+
         setLoadingAction(null);
         onClear();
         router.refresh();
@@ -67,12 +75,15 @@ export function BulkActionToolbar({ selectedIds, onClear, totalTickets, currentU
 
         setLoadingAction('delete');
         const results = await Promise.all(selectedIds.map(id => deleteIssue(id)));
-        
+
         const errors = results.filter(r => r && r.error);
         if (errors.length > 0) {
-            alert(`Some deletions failed. ${errors.length} of ${selectedIds.length} items could not be deleted.`);
+            const msg = errors[0].error || 'You do not have permission to delete these issues.';
+            toast.error(errors.length === 1 ? msg : `Multiple deletions failed: ${msg}`);
+        } else {
+            toast.success(`Deleted ${selectedIds.length} issues`);
         }
-        
+
         setLoadingAction(null);
         onClear();
         router.refresh();
@@ -86,7 +97,7 @@ export function BulkActionToolbar({ selectedIds, onClear, totalTickets, currentU
                         {selectedIds.length}
                     </span>
                     <span className="text-xs font-medium text-gray-300">selected</span>
-                    <button 
+                    <button
                         onClick={onClear}
                         className="p-1 hover:bg-gray-800 rounded-full transition-colors ml-1"
                     >
@@ -95,7 +106,7 @@ export function BulkActionToolbar({ selectedIds, onClear, totalTickets, currentU
                 </div>
 
                 <div className="flex items-center gap-2">
-                    <button 
+                    <button
                         disabled={!!loadingAction}
                         onClick={() => handleBulkStatusUpdate('backlog', 'backlog')}
                         className="flex items-center gap-2 px-3 py-1.5 rounded-full hover:bg-gray-800 text-xs font-semibold transition-all disabled:opacity-50"
@@ -105,7 +116,7 @@ export function BulkActionToolbar({ selectedIds, onClear, totalTickets, currentU
                     </button>
 
 
-                    <button 
+                    <button
                         disabled={!!loadingAction}
                         onClick={() => handleBulkStatusUpdate('done', 'done')}
                         className="flex items-center gap-2 px-3 py-1.5 rounded-full hover:bg-gray-800 text-xs font-semibold transition-all disabled:opacity-50"
@@ -115,7 +126,7 @@ export function BulkActionToolbar({ selectedIds, onClear, totalTickets, currentU
                     </button>
 
                     <div className="relative">
-                        <button 
+                        <button
                             onClick={() => setShowMoreActions(!showMoreActions)}
                             className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-all text-xs font-semibold hover:bg-gray-800 ${showMoreActions ? 'bg-gray-800' : ''}`}
                         >
@@ -134,9 +145,9 @@ export function BulkActionToolbar({ selectedIds, onClear, totalTickets, currentU
                                     <button onClick={() => handleBulkStatusUpdate('in_review')} className="w-full text-left px-3 py-2 text-xs hover:bg-gray-800 rounded-md flex items-center gap-2 transition-colors">
                                         <CircleDot size={12} className="text-purple-400" /> Move to In Review
                                     </button>
-                                    
+
                                     <div className="h-px bg-gray-800 my-2" />
-                                    
+
                                     <div className="px-3 py-1.5 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Update Priority</div>
                                     <button onClick={() => handleBulkPriorityUpdate('urgent')} className="w-full text-left px-3 py-2 text-xs hover:bg-gray-800 rounded-md flex items-center gap-2 transition-colors">
                                         <SignalHigh size={12} className="text-red-500" /> Urgent
@@ -150,15 +161,15 @@ export function BulkActionToolbar({ selectedIds, onClear, totalTickets, currentU
                                     <button onClick={() => handleBulkPriorityUpdate('low')} className="w-full text-left px-3 py-2 text-xs hover:bg-gray-800 rounded-md flex items-center gap-2 transition-colors">
                                         <SignalHigh size={12} className="text-indigo-400" /> Low
                                     </button>
-                                    
+
                                     <div className="h-px bg-gray-800 my-2" />
-                                    
-                                    <button 
+
+                                    <button
                                         onClick={handleBulkDelete}
                                         disabled={!!loadingAction}
                                         className="w-full text-left px-3 py-2 text-xs hover:bg-red-900/40 text-red-400 rounded-md flex items-center gap-2 transition-colors disabled:opacity-50"
                                     >
-                                        {loadingAction === 'delete' ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />} 
+                                        {loadingAction === 'delete' ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
                                         Delete Issues
                                     </button>
                                 </div>
