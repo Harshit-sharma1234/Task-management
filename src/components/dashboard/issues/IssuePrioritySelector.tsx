@@ -12,7 +12,6 @@ import {
     Loader2
 } from 'lucide-react';
 import { clsx } from 'clsx';
-import { useRouter } from 'next/navigation';
 
 interface IssuePrioritySelectorProps {
     issueId: string;
@@ -41,7 +40,7 @@ export const IssuePrioritySelector = memo(({
     const [isUpdating, setIsUpdating] = useState(false);
     const [optimisticPriority, setOptimisticPriority] = useState(currentPriority);
     const dropdownRef = useRef<HTMLDivElement>(null);
-    const router = useRouter();
+
 
     const role = currentUser?.roles?.role_name;
     const isOwner = currentUser?.id === assigneeId || currentUser?.id === reviewerId;
@@ -77,11 +76,13 @@ export const IssuePrioritySelector = memo(({
         setIsUpdating(true);
         const res = await updateIssue(issueId, { priority: value });
         if (res.error) {
+            // Revert on failure
+            setOptimisticPriority(previousPriority);
             toast.error(res.error);
         }
         setIsUpdating(false);
-        router.refresh();
-    }, [issueId, currentPriority, router]);
+        // No router.refresh() — revalidatePath in the server action already handles revalidation
+    }, [issueId, optimisticPriority]);
 
     const renderPriorityIcon = (priority: string) => {
         switch (priority) {

@@ -6,7 +6,6 @@ import { toast } from 'sonner';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { Search, Loader2, User } from 'lucide-react';
 import { clsx } from 'clsx';
-import { useRouter } from 'next/navigation';
 
 interface IssueReviewerSelectorProps {
     issueId: string;
@@ -31,7 +30,7 @@ export function IssueReviewerSelector({
     const [optimisticReviewerId, setOptimisticReviewerId] = useState(currentReviewerId);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
-    const router = useRouter();
+
 
     const role = currentUser?.roles?.role_name;
     const isOwner = currentUser?.id === assigneeId || currentUser?.id === currentReviewerId;
@@ -84,10 +83,11 @@ export function IssueReviewerSelector({
         setIsUpdating(true);
         const res = await updateIssue(issueId, { reviewer_id: userId });
         if (res.error) {
+            // Revert on failure
+            setOptimisticReviewerId(previousReviewerId);
             toast.error(res.error);
         }
         setIsUpdating(false);
-        router.refresh();
     };
 
     return (

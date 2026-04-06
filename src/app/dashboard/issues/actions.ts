@@ -352,7 +352,8 @@ export async function updateIssue(ticketId: string, updates: {
     return { error: `Failed to update issue: ${error.message}` }
   }
 
-  // Logging & Notifications (fire concurrently for speed)
+  // Logging & Notifications — fire-and-forget (non-blocking)
+  // These don't need to block the response to the user
   const postUpdatePromises = []
 
   if (updates.status && updates.status !== ticket.status) {
@@ -389,8 +390,8 @@ export async function updateIssue(ticketId: string, updates: {
     postUpdatePromises.push(logActivity(supabase, profile.id, ticketId, 'priority_change', `Updated priority to ${updates.priority}`))
   }
 
-  // Fire all log + notification writes concurrently
-  await Promise.all(postUpdatePromises)
+  // Fire all log + notification writes — don't await them
+  Promise.all(postUpdatePromises).catch(err => console.error('Post-update side effects error:', err))
 
   revalidatePath(`/dashboard/issues/${ticketId}`)
   revalidatePath('/dashboard/issues')
