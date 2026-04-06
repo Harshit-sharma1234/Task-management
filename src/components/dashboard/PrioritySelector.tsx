@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useTransition, memo, useCallback } from 'react';
+import { useState, useRef, useEffect, useTransition, memo, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { updateProjectPriority } from '@/app/dashboard/actions';
 import { toast } from 'sonner';
 import { AlertCircle, SignalHigh, SignalMedium, SignalLow, Ban } from 'lucide-react';
@@ -44,15 +44,21 @@ const priorities = [
     { value: null, label: 'No priority', shortcut: '0', icon: <Ban size={14} className="text-gray-400" /> },
 ];
 
-export const PrioritySelector = memo(({
+import { SelectorHandle } from './StatusSelector';
+
+export const PrioritySelector = memo(forwardRef<SelectorHandle, PrioritySelectorProps>(({
     projectId,
     currentPriority,
     showLabel = false,
     align = 'left'
-}: PrioritySelectorProps) => {
+}, ref) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
     const dropdownRef = useRef<HTMLDivElement>(null);
+
+    useImperativeHandle(ref, () => ({
+        toggle: () => setIsOpen(prev => !prev),
+    }));
 
     const activePriority = priorities.find(p => p.value === currentPriority) || priorities[0];
 
@@ -178,6 +184,6 @@ export const PrioritySelector = memo(({
             )}
         </div>
     );
-})
+}))
 
 PrioritySelector.displayName = 'PrioritySelector';

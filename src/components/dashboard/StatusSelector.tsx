@@ -1,9 +1,13 @@
 'use client';
 
-import { useState, useRef, useEffect, useTransition, memo, useCallback } from 'react';
+import { useState, useRef, useEffect, useTransition, memo, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { updateProjectStatus } from '@/app/dashboard/actions';
 import { toast } from 'sonner';
 import { Circle, CircleDashed, CircleDot, Clock, Search, CheckCircle2, XCircle } from 'lucide-react';
+
+export interface SelectorHandle {
+    toggle: () => void;
+}
 
 interface StatusSelectorProps {
     projectId: string;
@@ -19,14 +23,18 @@ const statuses = [
     { value: 'cancelled', label: 'Cancelled', shortcut: 'C', color: 'border-red-400', icon: <XCircle size={14} className="text-red-400" /> },
 ];
 
-export const StatusSelector = memo(({
+export const StatusSelector = memo(forwardRef<SelectorHandle, StatusSelectorProps>(({
     projectId,
     currentStatus,
     align = 'left'
-}: StatusSelectorProps) => {
+}, ref) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
     const dropdownRef = useRef<HTMLDivElement>(null);
+
+    useImperativeHandle(ref, () => ({
+        toggle: () => setIsOpen(prev => !prev),
+    }));
 
     const activeStatus = statuses.find(s => s.value === currentStatus) || statuses[0];
 
@@ -117,6 +125,6 @@ export const StatusSelector = memo(({
             )}
         </div>
     );
-})
+}))
 
 StatusSelector.displayName = 'StatusSelector';
