@@ -12,8 +12,7 @@ import {
     Loader2
 } from 'lucide-react';
 import { useState } from 'react';
-import { updateIssue, deleteIssue } from '@/app/dashboard/issues/actions';
-import { useRouter } from 'next/navigation';
+import { bulkUpdateIssues, bulkDeleteIssues } from '@/app/dashboard/issues/actions';
 import { toast } from 'sonner';
 import { clsx } from 'clsx';
 
@@ -27,7 +26,6 @@ interface BulkActionToolbarProps {
 export function BulkActionToolbar({ selectedIds, onClear, totalTickets, currentUser }: BulkActionToolbarProps) {
     const [loadingAction, setLoadingAction] = useState<string | null>(null);
     const [showMoreActions, setShowMoreActions] = useState(false);
-    const router = useRouter();
 
     const role = currentUser?.roles?.role_name;
     const canBulkAction = role === 'Admin' || role === 'Project Manager';
@@ -36,36 +34,30 @@ export function BulkActionToolbar({ selectedIds, onClear, totalTickets, currentU
 
     const handleBulkStatusUpdate = async (status: string, actionKey: string = 'status') => {
         setLoadingAction(actionKey);
-        const results = await Promise.all(selectedIds.map(id => updateIssue(id, { status })));
+        const result = await bulkUpdateIssues(selectedIds, { status });
 
-        const errors = results.filter(r => r.error);
-        if (errors.length > 0) {
-            const msg = errors[0].error || 'You do not have permission to update these issues.';
-            toast.error(errors.length === 1 ? msg : `Multiple updates failed: ${msg}`);
+        if (result.error) {
+            toast.error(result.error);
         } else {
-            toast.success(`Updated ${selectedIds.length} issues`);
+            toast.success(`Updated ${result.updatedCount || selectedIds.length} issues`);
         }
 
         setLoadingAction(null);
         onClear();
-        router.refresh();
     };
 
     const handleBulkPriorityUpdate = async (priority: string) => {
         setLoadingAction('priority');
-        const results = await Promise.all(selectedIds.map(id => updateIssue(id, { priority })));
+        const result = await bulkUpdateIssues(selectedIds, { priority });
 
-        const errors = results.filter(r => r.error);
-        if (errors.length > 0) {
-            const msg = errors[0].error || 'Permission denied for priority updates.';
-            toast.error(errors.length === 1 ? msg : `Multiple updates failed: ${msg}`);
+        if (result.error) {
+            toast.error(result.error);
         } else {
-            toast.success(`Priority updated for ${selectedIds.length} issues`);
+            toast.success(`Priority updated for ${result.updatedCount || selectedIds.length} issues`);
         }
 
         setLoadingAction(null);
         onClear();
-        router.refresh();
     };
 
     const handleBulkDelete = async () => {
@@ -74,19 +66,16 @@ export function BulkActionToolbar({ selectedIds, onClear, totalTickets, currentU
         }
 
         setLoadingAction('delete');
-        const results = await Promise.all(selectedIds.map(id => deleteIssue(id)));
+        const result = await bulkDeleteIssues(selectedIds);
 
-        const errors = results.filter(r => r && r.error);
-        if (errors.length > 0) {
-            const msg = errors[0].error || 'You do not have permission to delete these issues.';
-            toast.error(errors.length === 1 ? msg : `Multiple deletions failed: ${msg}`);
+        if (result.error) {
+            toast.error(result.error);
         } else {
-            toast.success(`Deleted ${selectedIds.length} issues`);
+            toast.success(`Deleted ${result.deletedCount || selectedIds.length} issues`);
         }
 
         setLoadingAction(null);
         onClear();
-        router.refresh();
     };
 
     return (
