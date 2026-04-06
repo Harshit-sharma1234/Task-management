@@ -158,7 +158,11 @@ export default async function DashboardOverview({ userId, userName }: DashboardO
                             <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden flex flex-col min-h-[180px]">
                                 <div className="grid grid-cols-1 divide-y divide-gray-100 flex-1">
                                     {projects.slice(0, 3).map((project: any) => (
-                                        <div key={project.id} className="p-5 hover:bg-gray-50 transition-colors flex items-center justify-between">
+                                        <Link 
+                                            key={project.id} 
+                                            href={`/dashboard/projects/${project.id}`}
+                                            className="p-5 hover:bg-gray-50 transition-colors flex items-center justify-between"
+                                        >
                                             <div className="flex items-center gap-4">
                                                 <div className="bg-indigo-50 p-3 rounded-lg text-indigo-600">
                                                     <Folder size={20} />
@@ -178,7 +182,7 @@ export default async function DashboardOverview({ userId, userName }: DashboardO
                                                     {project.status ? project.status.replace('_', ' ') : 'backlog'}
                                                 </span>
                                             </div>
-                                        </div>
+                                        </Link>
                                     ))}
                                 </div>
                             </div>
@@ -210,7 +214,11 @@ export default async function DashboardOverview({ userId, userName }: DashboardO
                                         const statusColor = statusData.color
 
                                         return (
-                                            <div key={ticket.id} className="p-5 hover:bg-gray-50 transition-colors flex items-center justify-between">
+                                            <Link 
+                                                key={ticket.id} 
+                                                href={`/dashboard/issues/${ticket.id}`}
+                                                className="p-5 hover:bg-gray-50 transition-colors flex items-center justify-between"
+                                            >
                                                 <div className="flex items-center gap-4">
                                                     <div className={clsx("p-2 rounded-lg", statusColor.replace('text-', 'bg-') + "/10", statusColor)}>
                                                         <StatusIcon size={20} />
@@ -228,7 +236,7 @@ export default async function DashboardOverview({ userId, userName }: DashboardO
                                                         {new Date(ticket.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                                     </span>
                                                 </div>
-                                            </div>
+                                            </Link>
                                         )
                                     })}
                                 </div>
