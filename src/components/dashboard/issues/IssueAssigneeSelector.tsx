@@ -12,7 +12,7 @@ interface IssueAssigneeSelectorProps {
     issueId: string;
     currentAssigneeId: string | null;
     currentAssignee: { name: string, avatar_url?: string | null } | null;
-    users: { id: string, name: string, avatar_url?: string | null }[];
+    users: { id: string, name: string, email?: string, avatar_url?: string | null }[];
 }
 
 export const IssueAssigneeSelector = memo(({
@@ -24,6 +24,7 @@ export const IssueAssigneeSelector = memo(({
     const [isOpen, setIsOpen] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
     const [search, setSearch] = useState('');
+    const [optimisticAssigneeId, setOptimisticAssigneeId] = useState(currentAssigneeId);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const router = useRouter();
@@ -51,11 +52,13 @@ export const IssueAssigneeSelector = memo(({
         e.preventDefault();
         e.stopPropagation();
         
-        if (userId === currentAssigneeId) {
+        if (userId === optimisticAssigneeId) {
             setIsOpen(false);
             return;
         }
 
+        const previousAssigneeId = optimisticAssigneeId;
+        setOptimisticAssigneeId(userId);
         setIsOpen(false);
         setIsUpdating(true);
         const res = await updateIssue(issueId, { assignee_id: userId });
@@ -82,8 +85,8 @@ export const IssueAssigneeSelector = memo(({
             >
                 <div className="relative">
                     <UserAvatar
-                        name={currentAssignee?.name || 'Unassigned'}
-                        avatarUrl={currentAssignee?.avatar_url}
+                        name={optimisticAssignee?.name || 'Unassigned'}
+                        avatarUrl={optimisticAssignee?.avatar_url}
                         size="sm"
                     />
                     {isUpdating && (
@@ -116,7 +119,7 @@ export const IssueAssigneeSelector = memo(({
                                 onClick={(e) => handleSelect(e, null)}
                                 className={clsx(
                                     "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-colors",
-                                    !currentAssigneeId ? "bg-gray-50" : "hover:bg-gray-50"
+                                    !optimisticAssigneeId ? "bg-gray-50" : "hover:bg-gray-50"
                                 )}
                             >
                                 <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-gray-400">
@@ -131,16 +134,19 @@ export const IssueAssigneeSelector = memo(({
                                     onClick={(e) => handleSelect(e, u.id)}
                                     className={clsx(
                                         "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-colors",
-                                        currentAssigneeId === u.id ? "bg-indigo-50" : "hover:bg-gray-50"
+                                        optimisticAssigneeId === u.id ? "bg-indigo-50" : "hover:bg-gray-50"
                                     )}
                                 >
                                     <UserAvatar name={u.name} avatarUrl={u.avatar_url} size="xs" />
-                                    <span className={clsx(
-                                        "text-xs font-semibold",
-                                        currentAssigneeId === u.id ? "text-indigo-600" : "text-gray-700"
-                                    )}>
-                                        {u.name}
-                                    </span>
+                                    <div className="flex flex-col min-w-0">
+                                        <span className={clsx(
+                                            "text-xs font-semibold truncate",
+                                            optimisticAssigneeId === u.id ? "text-indigo-600" : "text-gray-700"
+                                        )}>
+                                            {u.name}
+                                        </span>
+                                        {u.email && <span className="text-[10px] text-gray-400 truncate">{u.email}</span>}
+                                    </div>
                                 </button>
                             ))}
 

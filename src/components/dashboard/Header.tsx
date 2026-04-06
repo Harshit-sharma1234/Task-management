@@ -5,13 +5,21 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { UserAvatar } from '@/components/ui/UserAvatar';
-import Link from 'next/link';
+import { UserDropdown } from './UserDropdown';
 
 export function Header({ initialProfile }: { initialProfile?: any }) {
   const router = useRouter();
-  const [userProfile, setUserProfile] = useState<{ name: string, email: string, avatar_url: string | null } | null>(
-    initialProfile ? { ...initialProfile, email: initialProfile.email || '' } : null
-  )
+  const [userProfile, setUserProfile] = useState<{ 
+    name: string, 
+    email: string,
+    avatar_url: string | null,
+    role?: string
+  } | null>(initialProfile ? {
+    name: initialProfile.name,
+    email: initialProfile.email,
+    avatar_url: initialProfile.avatar_url,
+    role: initialProfile.roles?.role_name
+  } : null)
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false)
   const [isPopupOpen, setIsPopupOpen] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
@@ -30,20 +38,26 @@ export function Header({ initialProfile }: { initialProfile?: any }) {
         if (user) {
           const { data } = await supabase
               .from('users')
-              .select('name, email, avatar_url')
+              .select('name, email, avatar_url, roles(role_name)')
               .eq('email', user.email)
           
           if (data && data.length > 0) {
+            const profile = data[0];
+            const roles: any = profile.roles;
+            const roleName = Array.isArray(roles) ? roles[0]?.role_name : roles?.role_name;
+            
             setUserProfile({ 
-              name: data[0].name, 
-              email: data[0].email,
-              avatar_url: data[0].avatar_url 
+              name: profile.name, 
+              email: profile.email,
+              avatar_url: profile.avatar_url,
+              role: roleName
             })
           } else {
             setUserProfile({ 
               name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User', 
               email: user.email || '',
-              avatar_url: null 
+              avatar_url: null,
+              role: 'Member'
             })
           }
         }
@@ -113,91 +127,12 @@ export function Header({ initialProfile }: { initialProfile?: any }) {
       <header className="h-16 border-b border-gray-100 bg-white flex items-center justify-between px-8 shrink-0">
         <div className="flex-1 overflow-hidden" />
         
-        <div className="flex items-center gap-4 relative" ref={popupRef}>
-          {/* Interactive User Trigger */}
-          <button 
-            onClick={() => setIsPopupOpen(!isPopupOpen)}
-            className={`flex items-center gap-2 p-1 rounded-full hover:bg-gray-50 transition-all border ${isPopupOpen ? 'border-gray-200 bg-gray-50 ring-4 ring-gray-50' : 'border-transparent'}`}
-          >
-            <UserAvatar
-              name={userProfile?.name || ''}
-              avatarUrl={userProfile?.avatar_url}
-              size="md"
-              className={!userProfile ? 'animate-pulse bg-gray-100' : ''}
+        <div className="flex items-center gap-4">
+          {userProfile && (
+            <UserDropdown 
+              profile={userProfile} 
+              onSignOut={() => setShowSignOutConfirm(true)} 
             />
-          </button>
-
-          {/* Premium Popup Menu */}
-          {isPopupOpen && (
-            <div className="absolute right-0 top-full mt-3 w-72 bg-white border border-gray-200 rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] z-[100] p-1.5 animate-in fade-in slide-in-from-top-2 duration-200 overflow-hidden">
-              {/* User Identity Section */}
-              <div className="px-4 py-4 mb-1">
-                <div className="flex items-center gap-3">
-                  <UserAvatar
-                    name={userProfile?.name || ''}
-                    avatarUrl={userProfile?.avatar_url}
-                    size="lg"
-                    className="ring-2 ring-gray-50"
-                  />
-                  <div className="flex flex-col overflow-hidden">
-                    <span className="text-[14px] font-bold text-gray-900 truncate leading-tight">
-                      {userProfile?.name}
-                    </span>
-                    <span className="text-[12px] text-gray-500 truncate mt-0.5 font-medium">
-                      {userProfile?.email}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="h-px bg-gray-100 mx-2 mb-1" />
-
-              {/* Navigation Actions */}
-              <div className="flex flex-col gap-0.5">
-                <Link 
-                  href="/dashboard/settings" 
-                  onClick={() => setIsPopupOpen(false)}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-semibold text-gray-700 hover:bg-gray-50 hover:text-indigo-600 transition-all group"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-gray-50 group-hover:bg-indigo-50 flex items-center justify-center transition-colors">
-                    <UserIcon size={16} className="text-gray-400 group-hover:text-indigo-500" />
-                  </div>
-                  My Profile
-                </Link>
-
-                <Link 
-                  href="/dashboard/settings" 
-                  onClick={() => setIsPopupOpen(false)}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-semibold text-gray-700 hover:bg-gray-50 hover:text-indigo-600 transition-all group"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-gray-50 group-hover:bg-indigo-50 flex items-center justify-center transition-colors">
-                    <Settings size={16} className="text-gray-400 group-hover:text-indigo-500" />
-                  </div>
-                  System Settings
-                </Link>
-
-                <div className="h-px bg-gray-100 mx-2 my-1" />
-
-                {/* Dangerous Action */}
-                <button 
-                  onClick={() => setShowSignOutConfirm(true)}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-semibold text-red-600 hover:bg-red-50 transition-all group"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-red-50/50 group-hover:bg-red-50 flex items-center justify-center transition-colors">
-                    <LogOut size={16} className="text-red-400 group-hover:text-red-500" />
-                  </div>
-                  Sign out
-                </button>
-              </div>
-
-              {/* Footer */}
-              <div className="mt-2 text-center p-2">
-                <div className="flex items-center justify-center gap-1.5 text-[10px] font-bold text-gray-300 uppercase tracking-widest">
-                  <Shield size={10} />
-                  Secure Session
-                </div>
-              </div>
-            </div>
           )}
         </div>
       </header>

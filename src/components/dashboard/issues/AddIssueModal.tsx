@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   X,
   Maximize2,
@@ -15,7 +15,9 @@ import {
   User,
   FolderKanban,
   Paperclip,
-  Loader2
+  Loader2,
+  FileIcon,
+  Trash2
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { createIssue } from '@/app/dashboard/issues/actions';
@@ -60,44 +62,48 @@ export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModa
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    status: 'to_do',
-    priority: 'no_priority',
+    status: '',
+    priority: '',
     project_id: '',
     assignee_id: '',
   });
 
-  // Initialize project_id when projects become available
-  useEffect(() => {
-    if (projects.length > 0 && !formData.project_id) {
-      setFormData(prev => ({ ...prev, project_id: projects[0].id }));
-    }
-  }, [projects, formData.project_id]);
-
-  if (!isOpen) return null;
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
     setError(null);
+    setIsSubmitting(true);
 
     const data = new FormData();
     Object.entries(formData).forEach(([key, value]) => data.append(key, value));
+    
+    // Append files
+    selectedFiles.forEach((file) => data.append('attachments', file));
 
-    const result = await createIssue(data);
+    try {
+      const result = await createIssue(data);
 
-    if (result.error) {
-      setError(result.error);
+      if (result.error) {
+        setError(result.error);
+        setIsSubmitting(false);
+      } else {
+        setIsSubmitting(false);
+        onClose();
+        router.refresh();
+      }
+    } catch (err: any) {
+      console.error('Submission error:', err);
+      setError(err.message || 'An unexpected error occurred. Please try again.');
       setIsSubmitting(false);
-    } else {
-      setIsSubmitting(false);
-      onClose();
-      router.refresh();
     }
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-[2px] animate-in fade-in duration-200">
@@ -134,11 +140,33 @@ export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModa
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
             />
             <textarea
-              placeholder="Add description..."
+              placeholder="Add description... *"
+              required
               className="bg-transparent border-none text-sm text-gray-600 placeholder-gray-300 focus:outline-none w-full min-h-[120px] resize-none leading-relaxed"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             />
+
+            {/* Selected Files Display */}
+            {selectedFiles.length > 0 && (
+              <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-50 mt-2">
+                {selectedFiles.map((file, idx) => (
+                  <div key={idx} className="flex items-center gap-2 bg-indigo-50/50 border border-indigo-100 rounded-lg px-2.5 py-1.5 animate-in zoom-in-95 duration-200 group/file">
+                    <FileIcon size={14} className="text-indigo-500" />
+                    <span className="text-xs font-semibold text-indigo-700 max-w-[120px] truncate">
+                      {file.name}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedFiles(prev => prev.filter((_, i) => i !== idx))}
+                      className="p-0.5 text-indigo-400 hover:text-red-500 transition-colors"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Controls Bar */}
@@ -148,8 +176,10 @@ export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModa
               <select
                 className="appearance-none bg-white border border-gray-200 rounded-md px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/20 pr-8 cursor-pointer shadow-sm"
                 value={formData.status}
+                required
                 onChange={(e) => setFormData({ ...formData, status: e.target.value })}
               >
+                <option value="" disabled className="text-gray-400">Select status</option>
                 {statusOptions.map((opt) => (
                   <option key={opt.value} value={opt.value} className="text-gray-900">
                     {opt.label}
@@ -169,8 +199,10 @@ export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModa
               <select
                 className="appearance-none bg-white border border-gray-200 rounded-md px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/20 pr-8 cursor-pointer shadow-sm"
                 value={formData.priority}
+                required
                 onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
               >
+                <option value="" disabled className="text-gray-400">Select priority</option>
                 {priorityOptions.map((opt) => (
                   <option key={opt.value} value={opt.value} className="text-gray-900">
                     {opt.label}
@@ -190,8 +222,10 @@ export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModa
               <select
                 className="appearance-none bg-white border border-gray-200 rounded-md px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/20 pr-8 cursor-pointer w-full shadow-sm"
                 value={formData.assignee_id}
+                required
                 onChange={(e) => setFormData({ ...formData, assignee_id: e.target.value })}
               >
+                <option value="" disabled className="text-gray-400">Select assignee</option>
                 <option value="" className="text-gray-900">Unassigned</option>
                 {users.map((u) => (
                   <option key={u.id} value={u.id} className="text-gray-900">
@@ -212,6 +246,7 @@ export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModa
                 onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
                 required
               >
+                <option value="" disabled className="text-gray-400">Select project</option>
                 {projects.map((p) => (
                   <option key={p.id} value={p.id} className="text-gray-900">
                     {p.name}
@@ -227,8 +262,28 @@ export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModa
           {/* Footer */}
           <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <button type="button" className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-all">
+              <input
+                type="file"
+                multiple
+                ref={fileInputRef}
+                className="hidden"
+                onChange={(e) => {
+                  const files = Array.from(e.target.files || []);
+                  setSelectedFiles(prev => [...prev, ...files]);
+                  e.target.value = ''; // Reset to allow re-selecting same file
+                }}
+              />
+              <button 
+                type="button" 
+                onClick={() => fileInputRef.current?.click()}
+                className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-all group/paperclip relative"
+              >
                 <Paperclip size={18} />
+                {selectedFiles.length > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-indigo-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white">
+                    {selectedFiles.length}
+                  </span>
+                )}
               </button>
             </div>
 
