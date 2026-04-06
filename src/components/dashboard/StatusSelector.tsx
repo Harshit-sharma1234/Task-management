@@ -30,13 +30,17 @@ export const StatusSelector = memo(forwardRef<SelectorHandle, StatusSelectorProp
 }, ref) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
+    const [optimisticStatus, setOptimisticStatus] = useState(currentStatus);
     const dropdownRef = useRef<HTMLDivElement>(null);
+
+    // Sync with server props when they arrive
+    useEffect(() => { setOptimisticStatus(currentStatus); }, [currentStatus]);
 
     useImperativeHandle(ref, () => ({
         toggle: () => setIsOpen(prev => !prev),
     }));
 
-    const activeStatus = statuses.find(s => s.value === currentStatus) || statuses[0];
+    const activeStatus = statuses.find(s => s.value === optimisticStatus) || statuses[0];
 
     // Click outside logic
     useEffect(() => {
@@ -52,19 +56,25 @@ export const StatusSelector = memo(forwardRef<SelectorHandle, StatusSelectorProp
     }, [isOpen]);
 
     const handleSelect = useCallback((value: string) => {
-        if (value === currentStatus) {
+        if (value === optimisticStatus) {
             setIsOpen(false);
             return;
         }
 
+        // Optimistic: instantly update the UI
+        const previousStatus = optimisticStatus;
+        setOptimisticStatus(value);
         setIsOpen(false);
+
         startTransition(async () => {
             const res = await updateProjectStatus(projectId, value);
             if (res.error) {
+                // Revert on failure
+                setOptimisticStatus(previousStatus);
                 toast.error(res.error);
             }
         });
-    }, [projectId, currentStatus]);
+    }, [projectId, optimisticStatus]);
 
     return (
         <div className="relative" ref={dropdownRef}>
@@ -74,13 +84,8 @@ export const StatusSelector = memo(forwardRef<SelectorHandle, StatusSelectorProp
                     setIsOpen(!isOpen);
                 }}
                 className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded border border-gray-200/50 text-gray-600 hover:bg-gray-100 transition-colors"
-                disabled={isPending}
             >
-                {isPending ? (
-                    <div className="w-2 h-2 rounded-full border border-gray-300 border-t-indigo-500 animate-spin"></div>
-                ) : (
-                    <div className={`w-2 h-2 rounded-full border ${activeStatus.color}`}></div>
-                )}
+                <div className={`w-2 h-2 rounded-full border ${activeStatus.color}`}></div>
                 <span className="text-xs">{activeStatus.label}</span>
             </button>
 
@@ -92,7 +97,7 @@ export const StatusSelector = memo(forwardRef<SelectorHandle, StatusSelectorProp
 
                     <div className="flex flex-col">
                         {statuses.map((s) => {
-                            const isSelected = currentStatus === s.value || (!currentStatus && s.value === 'backlog');
+                            const isSelected = optimisticStatus === s.value || (!optimisticStatus && s.value === 'backlog');
 
                             return (
                                 <button
