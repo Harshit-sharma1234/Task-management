@@ -5,11 +5,14 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PU
 const supabase = createClient(supabaseUrl, supabaseKey)
 
 async function run() {
-  const { data, error } = await supabase.from('users').select('id, name, email, avatar_url').limit(5)
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, auth_id, email, name, roles(role_name)')
+    
   console.log('Error?', error)
   console.log('Users Data:')
   if (data) {
-      data.forEach(u => console.log(`- ${u.name} (${u.email}): ${u.avatar_url}`))
+      data.forEach(u => console.log(`- ID: ${u.id} | AUTH_ID: ${u.auth_id} | Email: ${u.email} | Role: ${u.roles?.role_name}`))
   }
 }
 run()
