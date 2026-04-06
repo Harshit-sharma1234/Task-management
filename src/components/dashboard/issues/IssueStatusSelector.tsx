@@ -48,9 +48,9 @@ export const IssueStatusSelector = memo(({
     const isAdmin = role === 'Admin' || role === 'Project Manager';
     const canUpdate = isAdmin || isOwner;
 
-    // Restricted statuses for assignees (cannot move to review or done)
+    // Restricted statuses for assignees (cannot move to in_review or done)
     const isRestrictedAssignee = currentUser?.id === assigneeId && !isAdmin;
-    const restrictedStatuses = ['review', 'in_review', 'done'];
+    const restrictedStatuses = ['in_review', 'done'];
 
     // Sync with server props when they arrive
     useEffect(() => { setOptimisticStatus(currentStatus); }, [currentStatus]);

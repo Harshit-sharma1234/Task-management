@@ -29,6 +29,7 @@ import { IssuePropertyControls } from '@/components/dashboard/issues/IssueProper
 import { PropertyInlineRow } from '@/components/dashboard/issues/PropertyInlineRow';
 import { IssueHeaderActions } from '@/components/dashboard/issues/IssueHeaderActions';
 import { getUserProfile } from '@/lib/roles';
+import { HumanDate } from '@/components/ui/HumanDate';
 
 // Status Icon Mapping
 const statusIcons: Record<string, any> = {
@@ -85,7 +86,7 @@ export default async function IssueDetailsPage({ params }: { params: { id: strin
     getUserProfile(supabase, user.email!),
     supabase
       .from('users')
-      .select('id, name, email, avatar_url')
+      .select('id, name, email, avatar_url, roles(role_name)')
       .order('name')
   ]);
 
@@ -150,10 +151,10 @@ export default async function IssueDetailsPage({ params }: { params: { id: strin
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {ticket.attachments.map((file: any, idx: number) => (
-                    <a 
-                      key={idx} 
-                      href={file.url} 
-                      target="_blank" 
+                    <a
+                      key={idx}
+                      href={file.url}
+                      target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-3 p-3 border border-gray-100 rounded-xl hover:bg-gray-50 hover:border-indigo-100 transition-all group/attachment bg-gray-50/30"
                     >
@@ -179,6 +180,7 @@ export default async function IssueDetailsPage({ params }: { params: { id: strin
               <h3 className="text-sm font-bold text-gray-900">Activity</h3>
             </div>
 
+            {/* Reply Section */}
             <CommentSection
               ticketId={id}
               initialComments={comments || []}
@@ -201,6 +203,7 @@ export default async function IssueDetailsPage({ params }: { params: { id: strin
             initialAssigneeId={ticket.assignee_id}
             initialReviewerId={ticket.reviewer_id}
             currentUserId={profile?.id || ''}
+            currentUser={profile}
             projectName={ticket.projects?.project_name || 'N/A'}
             dueDate={ticket.due_date || null}
             users={allUsers || []}
