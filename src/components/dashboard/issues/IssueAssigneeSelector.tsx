@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useMemo, useCallback, memo } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback, memo, startTransition } from 'react';
 import { updateIssue } from '@/app/dashboard/issues/actions';
 import { toast } from 'sonner';
 import { UserAvatar } from '@/components/ui/UserAvatar';
@@ -58,7 +58,7 @@ export const IssueAssigneeSelector = memo(({
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [isOpen]);
 
-    const handleSelect = useCallback(async (e: React.MouseEvent, userId: string | null) => {
+    const handleSelect = useCallback((e: React.MouseEvent, userId: string | null) => {
         e.preventDefault();
         e.stopPropagation();
         
@@ -71,13 +71,16 @@ export const IssueAssigneeSelector = memo(({
         setOptimisticAssigneeId(userId);
         setIsOpen(false);
         setIsUpdating(true);
-        const res = await updateIssue(issueId, { assignee_id: userId });
-        if (res.error) {
-            // Revert on failure
-            setOptimisticAssigneeId(previousAssigneeId);
-            toast.error(res.error);
-        }
-        setIsUpdating(false);
+        
+        startTransition(async () => {
+            const res = await updateIssue(issueId, { assignee_id: userId });
+            if (res.error) {
+                // Revert on failure
+                setOptimisticAssigneeId(previousAssigneeId);
+                toast.error(res.error);
+            }
+            setIsUpdating(false);
+        });
     }, [issueId, optimisticAssigneeId]);
 
     return (

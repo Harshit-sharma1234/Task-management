@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, memo, useCallback } from 'react';
+import { useState, useRef, useEffect, memo, useCallback, startTransition } from 'react';
 import { updateIssue } from '@/app/dashboard/issues/actions';
 import { toast } from 'sonner';
 import { 
@@ -61,7 +61,7 @@ export const IssuePrioritySelector = memo(({
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [isOpen]);
 
-    const handleSelect = useCallback(async (e: React.MouseEvent, value: string) => {
+    const handleSelect = useCallback((e: React.MouseEvent, value: string) => {
         e.preventDefault();
         e.stopPropagation();
         
@@ -74,14 +74,17 @@ export const IssuePrioritySelector = memo(({
         setOptimisticPriority(value);
         setIsOpen(false);
         setIsUpdating(true);
-        const res = await updateIssue(issueId, { priority: value });
-        if (res.error) {
-            // Revert on failure
-            setOptimisticPriority(previousPriority);
-            toast.error(res.error);
-        }
-        setIsUpdating(false);
-        // No router.refresh() — revalidatePath in the server action already handles revalidation
+
+        startTransition(async () => {
+            const res = await updateIssue(issueId, { priority: value });
+            if (res.error) {
+                // Revert on failure
+                setOptimisticPriority(previousPriority);
+                toast.error(res.error);
+            }
+            setIsUpdating(false);
+            // No router.refresh() — revalidatePath in the server action already handles revalidation
+        });
     }, [issueId, optimisticPriority]);
 
     const renderPriorityIcon = (priority: string) => {
