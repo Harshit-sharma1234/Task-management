@@ -32,13 +32,17 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
 
 async function IssueListContent({ filter }: { filter: string }) {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const { getUserProfile } = await import('@/lib/roles');
+  const currentUser = user ? await getUserProfile(supabase, user.email!, user.id) : null;
+
   const { createAdminClient } = await import('@/lib/supabase/admin');
   const adminClient = createAdminClient();
 
   // We use adminClient to show ALL issues as requested for this global view
   let query = adminClient
     .from('tickets')
-    .select('id, title, status, priority, assignee_id, attachments, created_at, projects(id, project_name, status), assignees:users!assignee_id(id, name, avatar_url)')
+    .select('id, title, status, priority, assignee_id, reviewer_id, attachments, created_at, projects(id, project_name, status), assignees:users!assignee_id(id, name, avatar_url)')
     .order('created_at', { ascending: false });
 
   if (filter === 'active') {
@@ -75,6 +79,7 @@ async function IssueListContent({ filter }: { filter: string }) {
       projects={projects}
       users={users}
       activeFilter={filter}
+      currentUser={currentUser}
     />
   );
 }
