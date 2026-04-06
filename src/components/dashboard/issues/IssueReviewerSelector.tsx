@@ -12,7 +12,7 @@ interface IssueReviewerSelectorProps {
     currentReviewerId: string | null;
     assigneeId: string | null;
     currentReviewer: { name: string, avatar_url?: string | null } | null;
-    users: { id: string, name: string, avatar_url?: string | null }[];
+    users: { id: string, name: string, email?: string, avatar_url?: string | null }[];
 }
 
 export function IssueReviewerSelector({
@@ -25,9 +25,14 @@ export function IssueReviewerSelector({
     const [isOpen, setIsOpen] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
     const [search, setSearch] = useState('');
+    const [optimisticReviewerId, setOptimisticReviewerId] = useState(currentReviewerId);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const router = useRouter();
+
+    useEffect(() => { setOptimisticReviewerId(currentReviewerId); }, [currentReviewerId]);
+
+    const optimisticReviewer = users.find(u => u.id === optimisticReviewerId) || null;
 
     const filteredUsers = (users || []).filter(u => 
         (u.name || '').toLowerCase().includes(search.toLowerCase())
@@ -50,7 +55,7 @@ export function IssueReviewerSelector({
         e.preventDefault();
         e.stopPropagation();
         
-        if (userId === currentReviewerId) {
+        if (userId === optimisticReviewerId) {
             setIsOpen(false);
             return;
         }
@@ -60,10 +65,13 @@ export function IssueReviewerSelector({
             return;
         }
 
+        const previousReviewerId = optimisticReviewerId;
+        setOptimisticReviewerId(userId);
         setIsOpen(false);
         setIsUpdating(true);
         const res = await updateIssue(issueId, { reviewer_id: userId });
         if (res.error) {
+            setOptimisticReviewerId(previousReviewerId);
             alert(res.error);
         }
         setIsUpdating(false);
@@ -85,10 +93,10 @@ export function IssueReviewerSelector({
                 )}
             >
                 <div className="relative shrink-0">
-                    {currentReviewer ? (
+                    {optimisticReviewer ? (
                         <UserAvatar
-                            name={currentReviewer.name}
-                            avatarUrl={currentReviewer.avatar_url}
+                            name={optimisticReviewer.name}
+                            avatarUrl={optimisticReviewer.avatar_url}
                             size="xs"
                         />
                     ) : (
@@ -103,7 +111,7 @@ export function IssueReviewerSelector({
                     )}
                 </div>
                 <span className="text-[11px] font-semibold text-gray-600 flex-1 truncate">
-                    {currentReviewer?.name || 'No reviewer'}
+                    {optimisticReviewer?.name || 'No reviewer'}
                 </span>
             </button>
 
@@ -129,7 +137,7 @@ export function IssueReviewerSelector({
                                 onClick={(e) => handleSelect(e, null)}
                                 className={clsx(
                                     "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-colors",
-                                    !currentReviewerId ? "bg-gray-50" : "hover:bg-gray-50"
+                                    !optimisticReviewerId ? "bg-gray-50" : "hover:bg-gray-50"
                                 )}
                             >
                                 <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 border border-gray-200">
@@ -145,17 +153,20 @@ export function IssueReviewerSelector({
                                     title={u.id === assigneeId ? "Reviewer cannot be the same as assignee" : ""}
                                     className={clsx(
                                         "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-colors",
-                                        currentReviewerId === u.id ? "bg-indigo-50" : "hover:bg-gray-50",
+                                        optimisticReviewerId === u.id ? "bg-indigo-50" : "hover:bg-gray-50",
                                         u.id === assigneeId ? "opacity-50 cursor-not-allowed" : ""
                                     )}
                                 >
                                     <UserAvatar name={u.name} avatarUrl={u.avatar_url} size="xs" />
-                                    <span className={clsx(
-                                        "text-xs font-semibold",
-                                        currentReviewerId === u.id ? "text-indigo-600" : "text-gray-700"
-                                    )}>
-                                        {u.name}
-                                    </span>
+                                    <div className="flex flex-col min-w-0">
+                                        <span className={clsx(
+                                            "text-xs font-semibold truncate",
+                                            optimisticReviewerId === u.id ? "text-indigo-600" : "text-gray-700"
+                                        )}>
+                                            {u.name}
+                                        </span>
+                                        {u.email && <span className="text-[10px] text-gray-400 truncate">{u.email}</span>}
+                                    </div>
                                 </button>
                             ))}
                         </div>

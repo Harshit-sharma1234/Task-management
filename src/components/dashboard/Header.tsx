@@ -5,10 +5,21 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useEffect, useState, useMemo } from 'react';
 import { UserAvatar } from '@/components/ui/UserAvatar';
+import { UserDropdown } from './UserDropdown';
 
 export function Header({ initialProfile }: { initialProfile?: any }) {
   const router = useRouter();
-  const [userProfile, setUserProfile] = useState<{ name: string, avatar_url: string | null } | null>(initialProfile || null)
+  const [userProfile, setUserProfile] = useState<{ 
+    name: string, 
+    email: string,
+    avatar_url: string | null,
+    role?: string
+  } | null>(initialProfile ? {
+    name: initialProfile.name,
+    email: initialProfile.email,
+    avatar_url: initialProfile.avatar_url,
+    role: initialProfile.roles?.role_name
+  } : null)
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
   const supabase = useMemo(() => createClient(), [])
@@ -25,18 +36,26 @@ export function Header({ initialProfile }: { initialProfile?: any }) {
         if (user && !initialProfile) {
           const { data } = await supabase
               .from('users')
-              .select('name, avatar_url')
+              .select('name, email, avatar_url, roles(role_name)')
               .eq('email', user.email)
           
           if (data && data.length > 0) {
+            const profile = data[0];
+            const roles: any = profile.roles;
+            const roleName = Array.isArray(roles) ? roles[0]?.role_name : roles?.role_name;
+            
             setUserProfile({ 
-              name: data[0].name, 
-              avatar_url: data[0].avatar_url 
+              name: profile.name, 
+              email: profile.email,
+              avatar_url: profile.avatar_url,
+              role: roleName
             })
           } else {
             setUserProfile({ 
               name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User', 
-              avatar_url: null 
+              email: user.email || '',
+              avatar_url: null,
+              role: 'Member'
             })
           }
         }
@@ -97,22 +116,12 @@ export function Header({ initialProfile }: { initialProfile?: any }) {
         <div className="flex-1 overflow-hidden" />
         
         <div className="flex items-center gap-4">
-          <UserAvatar
-            name={userProfile?.name || ''}
-            avatarUrl={userProfile?.avatar_url}
-            size="md"
-            className="cursor-pointer"
-          />
-
-          <div className="w-px h-6 bg-gray-200 mx-1"></div>
-
-          <button 
-            onClick={() => setShowSignOutConfirm(true)}
-            className="text-gray-500 hover:text-indigo-600 flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-indigo-50 transition-colors text-sm font-medium"
-          >
-            <LogOut size={16} />
-            <span className="hidden sm:inline">Sign out</span>
-          </button>
+          {userProfile && (
+            <UserDropdown 
+              profile={userProfile} 
+              onSignOut={() => setShowSignOutConfirm(true)} 
+            />
+          )}
         </div>
       </header>
 
