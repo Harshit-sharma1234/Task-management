@@ -1,5 +1,12 @@
 import { create } from 'zustand';
 
+/**
+ * Minimal Zustand store for notification badge state.
+ * 
+ * Philosophy: Server → fetch data, Client → minimal state.
+ * Only stores the unread count needed by the Sidebar badge.
+ * The full notification list lives in the Inbox page's local state.
+ */
 interface NotificationStore {
   unreadCount: number;
   isHydrated: boolean;
