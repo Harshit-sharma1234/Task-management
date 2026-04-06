@@ -1,12 +1,14 @@
 import { MetadataRoute } from 'next'
 
 export default function robots(): MetadataRoute.Robots {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://task-management.vercel.app'
+
   return {
     rules: {
       userAgent: '*',
-      allow: ['/', '/login'],
-      disallow: ['/dashboard'],
+      allow: '/',
+      disallow: ['/api', '/_next'],
     },
-    sitemap: `${process.env.NEXT_PUBLIC_APP_URL || 'https://task-management.vercel.app'}/sitemap.xml`,
+    sitemap: `${baseUrl}/sitemap.xml`,
   }
 }
