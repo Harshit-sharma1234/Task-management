@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, memo, useCallback } from 'react';
+import { useState, useRef, useEffect, memo, useCallback, startTransition } from 'react';
 import { updateIssue } from '@/app/dashboard/issues/actions';
 import { toast } from 'sonner';
 import { 
@@ -69,7 +69,7 @@ export const IssueStatusSelector = memo(({
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [isOpen]);
 
-    const handleSelect = useCallback(async (e: React.MouseEvent, value: string) => {
+    const handleSelect = useCallback((e: React.MouseEvent, value: string) => {
         e.preventDefault();
         e.stopPropagation();
         
@@ -84,14 +84,16 @@ export const IssueStatusSelector = memo(({
         setIsOpen(false);
         setIsUpdating(true);
 
-        const res = await updateIssue(issueId, { status: value });
-        if (res.error) {
-            // Revert on failure
-            setOptimisticStatus(previousStatus);
-            toast.error(res.error);
-        }
-        setIsUpdating(false);
-        // No router.refresh() — revalidatePath in the server action already handles revalidation
+        startTransition(async () => {
+            const res = await updateIssue(issueId, { status: value });
+            if (res.error) {
+                // Revert on failure
+                setOptimisticStatus(previousStatus);
+                toast.error(res.error);
+            }
+            setIsUpdating(false);
+            // No router.refresh() — revalidatePath in the server action already handles revalidation
+        });
     }, [issueId, optimisticStatus]);
 
     return (
