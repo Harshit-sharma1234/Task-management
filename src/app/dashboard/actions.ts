@@ -275,6 +275,52 @@ export async function updateProjectTargetDate(projectId: string, startDate: stri
     return { success: true }
 }
 
+export async function updateProjectDueDate(projectId: string, dueDate: string | null) {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+        return { error: 'You must be logged in to update a project' }
+    }
+
+    const adminClient = createAdminClient()
+    const [profile, { data: oldProject }] = await Promise.all([
+        getUserProfile(supabase, user.email!, user.id),
+        adminClient.from('projects').select('target_date').eq('id', projectId).single()
+    ])
+    if (!profile) return { error: 'User profile not found' };
+
+    const { data, error } = await adminClient
+        .from('projects')
+        .update({ target_date: dueDate })
+        .eq('id', projectId)
+        .select()
+
+    if (error) {
+        // If target_date column does not exist gracefully exit
+        return { error: `Failed to update date: maybe target_date column is missing (${error.message})` }
+    }
+
+    if (!data || data.length === 0) {
+        return { error: 'Project not found' }
+    }
+
+    // Non-blocking log
+    const oldDateStr = oldProject?.target_date ? new Date(oldProject.target_date).toLocaleDateString() : 'No date'
+    const newDateStr = dueDate ? new Date(dueDate).toLocaleDateString() : 'No date'
+    insertProjectLog({
+        projectId,
+        userId: profile.id,
+        actionType: 'target_date_change',
+        description: `changed due date from ${oldDateStr} to ${newDateStr}`,
+        oldValue: { target_date: oldProject?.target_date },
+        newValue: { target_date: dueDate }
+    }).catch(() => {})
+
+    revalidatePath('/dashboard', 'layout')
+    return { success: true }
+}
+
 export async function updateProjectStatus(projectId: string, status: string | null) {
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
