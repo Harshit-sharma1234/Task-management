@@ -8,6 +8,7 @@ interface IssuesViewProps {
   projects: any[];
   users: any[];
   activeFilter: string;
+  currentUser: any;
 }
 
 import { useState } from 'react';
@@ -17,7 +18,7 @@ const AddIssueModal = dynamic(() => import('./AddIssueModal').then(mod => mod.Ad
   ssr: false,
 });
 
-export function IssuesView({ tickets, projects, users, activeFilter }: IssuesViewProps) {
+export function IssuesView({ tickets, projects, users, activeFilter, currentUser }: IssuesViewProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   return (
@@ -34,7 +35,8 @@ export function IssuesView({ tickets, projects, users, activeFilter }: IssuesVie
         <IssuesList 
           tickets={tickets} 
           users={users} 
-          onOpenModal={() => setIsModalOpen(true)} 
+          onOpenModal={() => setIsModalOpen(true)}
+          currentUser={currentUser}
         />
       </div>
 

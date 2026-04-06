@@ -17,6 +17,9 @@ import { useRouter } from 'next/navigation';
 interface IssueStatusSelectorProps {
     issueId: string;
     currentStatus: string;
+    currentUser?: any;
+    assigneeId?: string | null;
+    reviewerId?: string | null;
 }
 
 const statusOptions = [
@@ -31,13 +34,25 @@ const statusOptions = [
 
 export const IssueStatusSelector = memo(({
     issueId,
-    currentStatus
+    currentStatus,
+    currentUser,
+    assigneeId,
+    reviewerId
 }: IssueStatusSelectorProps) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
     const [optimisticStatus, setOptimisticStatus] = useState(currentStatus);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const router = useRouter();
+
+    const role = currentUser?.roles?.role_name;
+    const isOwner = currentUser?.id === assigneeId || currentUser?.id === reviewerId;
+    const isAdmin = role === 'Admin' || role === 'Project Manager';
+    const canUpdate = isAdmin || isOwner;
+
+    // Restricted statuses for assignees (cannot move to review or done)
+    const isRestrictedAssignee = currentUser?.id === assigneeId && !isAdmin;
+    const restrictedStatuses = ['review', 'in_review', 'done'];
 
     // Sync with server props when they arrive
     useEffect(() => { setOptimisticStatus(currentStatus); }, [currentStatus]);
@@ -83,13 +98,15 @@ export const IssueStatusSelector = memo(({
         <div className="relative" ref={dropdownRef}>
             <button
                 onClick={(e) => {
+                    if (!canUpdate) return;
                     e.preventDefault();
                     e.stopPropagation();
                     setIsOpen(!isOpen);
                 }}
-                disabled={isUpdating}
+                disabled={isUpdating || !canUpdate}
                 className={clsx(
-                    "flex items-center gap-1.5 px-2 py-1 rounded-md transition-all hover:bg-gray-100 group/status min-w-[100px]",
+                    "flex items-center gap-1.5 px-2 py-1 rounded-md transition-all min-w-[100px]",
+                    canUpdate ? "hover:bg-gray-100 group/status" : "cursor-not-allowed opacity-70",
                     isOpen && "bg-gray-100"
                 )}
             >
@@ -114,10 +131,17 @@ export const IssueStatusSelector = memo(({
                         {statusOptions.map((opt) => (
                             <button
                                 key={opt.value}
-                                onClick={(e) => handleSelect(e, opt.value)}
+                                onClick={(e) => {
+                                    if (isRestrictedAssignee && restrictedStatuses.includes(opt.value)) {
+                                        toast.error(`Assignees cannot move issues to ${opt.label}`);
+                                        return;
+                                    }
+                                    handleSelect(e, opt.value);
+                                }}
                                 className={clsx(
-                                    "w-full flex items-center gap-2.5 px-3 py-1.5 text-left transition-colors hover:bg-gray-50",
-                                    currentStatus === opt.value ? "bg-gray-50" : ""
+                                    "w-full flex items-center gap-2.5 px-3 py-1.5 text-left transition-colors",
+                                    currentStatus === opt.value ? "bg-gray-50" : "hover:bg-gray-50",
+                                    isRestrictedAssignee && restrictedStatuses.includes(opt.value) && "opacity-40 cursor-not-allowed grayscale"
                                 )}
                             >
                                 <div className={clsx("w-2 h-2 rounded-full", opt.dot)}></div>
