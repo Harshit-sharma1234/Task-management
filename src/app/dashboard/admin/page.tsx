@@ -5,6 +5,11 @@ import { Shield } from 'lucide-react'
 import DashboardOverview from '@/components/dashboard/Overview'
 import { OverviewSkeleton } from '@/components/dashboard/OverviewSkeleton'
 import { getCachedUserProfile } from '@/lib/cache'
+import { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Admin Dashboard',
+}
 
 export const revalidate = 60;
 

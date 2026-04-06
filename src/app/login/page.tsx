@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/client';
 import { redirect } from 'next/navigation';
 
 export const metadata = {
-  title: 'Log in | Linear Clone',
+  title: 'Log in',
 };
 
 export default async function Login({ searchParams }: { searchParams: { message: string } }) {
