@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { useNotificationStore } from '@/lib/store/notifications';
 import { 
   Building2, 
   ChevronDown, 
@@ -16,26 +17,18 @@ import {
   Bell
 } from 'lucide-react';
 
-export function Sidebar({ initialUnreadCount }: { initialUnreadCount?: number }) {
+export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const [unreadCount, setUnreadCount] = useState(initialUnreadCount || 0);
+  const unreadCount = useNotificationStore((s) => s.unreadCount);
+  const setUnreadCount = useNotificationStore((s) => s.setUnreadCount);
+  const isHydrated = useNotificationStore((s) => s.isHydrated);
   const supabase = useMemo(() => createClient(), []);
+  const didHydrate = useRef(false);
 
-  // Prefetch major routes and handle notification counts
+  // Handle notification counts
   useEffect(() => {
-    // 1. Prefetching for speed
-    const routes = [
-      '/dashboard',
-      '/dashboard/projects',
-      '/dashboard/issues',
-      '/dashboard/team',
-      '/dashboard/settings',
-      '/dashboard/inbox'
-    ];
-    routes.forEach(route => router.prefetch(route));
-
-    // 2. Notification Badge Logic
+    // Notification Badge Logic
     let channel: ReturnType<typeof supabase.channel> | null = null;
 
     async function loadSidebarData(userOverride?: any) {
@@ -96,12 +89,12 @@ export function Sidebar({ initialUnreadCount }: { initialUnreadCount?: number })
       if (channel) supabase.removeChannel(channel);
       subscription.unsubscribe();
     };
-  }, [router, supabase, initialUnreadCount]);
+  }, [supabase, setUnreadCount]);
 
   return (
     <aside className="w-64 shrink-0 border-r border-gray-200 bg-white flex flex-col h-full">
       {/* Workspace Selector */}
-      <div className="h-16 flex items-center px-4 border-b border-gray-100 justify-between cursor-pointer hover:bg-gray-50 transition-colors">
+      <Link href="/dashboard" className="h-16 flex items-center px-4 border-b border-gray-100 justify-between cursor-pointer hover:bg-gray-50 transition-colors">
         <div className="flex items-center gap-3">
           <div className="flex items-center justify-center w-8 h-8 rounded bg-indigo-600 text-white">
             <Building2 size={16} />
@@ -110,7 +103,7 @@ export function Sidebar({ initialUnreadCount }: { initialUnreadCount?: number })
             <span className="text-sm font-semibold text-gray-900 leading-tight">Tectome</span>
           </div>
         </div>
-      </div>
+      </Link>
 
       {/* Main Navigation */}
       <nav className="flex-1 py-4 px-3 flex flex-col gap-1">

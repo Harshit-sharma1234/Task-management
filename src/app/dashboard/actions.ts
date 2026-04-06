@@ -17,7 +17,10 @@ export async function createProject(formData: FormData) {
         return { error: 'You must be logged in to create a project' }
     }
 
-    const profile = await getUserProfile(supabase, user.email!)
+    // Fetch profile in parallel with validation — auth user is already available
+    const [profile] = await Promise.all([
+        getUserProfile(supabase, user.email!)
+    ])
     if (!profile) {
         return { error: 'User profile not found in database.' }
     }
@@ -414,14 +417,16 @@ export async function toggleProjectMember(projectId: string, userId: string) {
         return { error: 'You must be logged in' }
     }
 
-    // 1. Get permissions & setup bypass
-    const profile = await getUserProfile(supabase, user.email!, user.id)
+    // 1. Get permissions & setup bypass — fetch profile and project in parallel
+    const [profile, { data: project, error: projectError }] = await Promise.all([
+        getUserProfile(supabase, user.email!, user.id),
+        supabase
+            .from('projects')
+            .select('lead_id, created_by')
+            .eq('id', projectId)
+            .single()
+    ])
     if (!profile) return { error: 'User profile not found' }
-    const { data: project, error: projectError } = await supabase
-        .from('projects')
-        .select('lead_id, created_by')
-        .eq('id', projectId)
-        .single()
 
     if (projectError) {
         console.error('ERROR FETCHING PROJECT:', projectError)
@@ -472,9 +477,11 @@ export async function toggleProjectMember(projectId: string, userId: string) {
         }
 
         // --- Notification & Log Trigger ---
-        // Fetch project name first
-        const { data: project } = await supabase.from('projects').select('project_name').eq('id', projectId).single()
-        const { data: targetUser } = await supabase.from('users').select('name').eq('id', userId).single()
+        // Fetch project name and target user in parallel
+        const [{ data: project }, { data: targetUser }] = await Promise.all([
+            supabase.from('projects').select('project_name').eq('id', projectId).single(),
+            supabase.from('users').select('name').eq('id', userId).single()
+        ])
 
         await createNotification({
             userId: userId,
