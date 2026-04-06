@@ -13,7 +13,8 @@ interface IssueReviewerSelectorProps {
     currentReviewerId: string | null;
     assigneeId: string | null;
     currentReviewer: { name: string, avatar_url?: string | null } | null;
-    users: { id: string, name: string, email?: string, avatar_url?: string | null }[];
+    users: { id: string, name: string, email?: string, avatar_url?: string | null, roles?: { role_name: string } }[];
+    currentUser?: any;
 }
 
 export function IssueReviewerSelector({
@@ -21,7 +22,8 @@ export function IssueReviewerSelector({
     currentReviewerId,
     assigneeId,
     currentReviewer,
-    users
+    users,
+    currentUser
 }: IssueReviewerSelectorProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
@@ -31,13 +33,23 @@ export function IssueReviewerSelector({
     const inputRef = useRef<HTMLInputElement>(null);
     const router = useRouter();
 
+    const role = currentUser?.roles?.role_name;
+    const isOwner = currentUser?.id === assigneeId || currentUser?.id === currentReviewerId;
+    const isAdmin = role === 'Admin' || role === 'Project Manager';
+    const canUpdate = isAdmin || isOwner;
+
     useEffect(() => { setOptimisticReviewerId(currentReviewerId); }, [currentReviewerId]);
 
     const optimisticReviewer = users.find(u => u.id === optimisticReviewerId) || null;
 
-    const filteredUsers = (users || []).filter(u => 
-        (u.name || '').toLowerCase().includes(search.toLowerCase())
-    );
+    const filteredUsers = (users || [])
+        .filter(u => {
+            const matchesSearch = (u.name || '').toLowerCase().includes(search.toLowerCase());
+            // Filter reviewer eligibility: Only Admin, PM, or Senior Developer
+            const userRole = (u as any).roles?.role_name;
+            const isEligible = userRole === 'Admin' || userRole === 'Project Manager' || userRole === 'Senior Developer';
+            return matchesSearch && isEligible;
+        });
 
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
@@ -82,13 +94,15 @@ export function IssueReviewerSelector({
         <div className="relative group/reviewer" ref={dropdownRef}>
             <button
                 onClick={(e) => {
+                    if (!canUpdate) return;
                     e.preventDefault();
                     e.stopPropagation();
                     setIsOpen(!isOpen);
                 }}
-                disabled={isUpdating}
+                disabled={isUpdating || !canUpdate}
                 className={clsx(
-                    "relative flex items-center gap-2 transition-all hover:bg-gray-100 rounded-md px-1 py-1 w-full text-left",
+                    "relative flex items-center gap-2 transition-all rounded-md px-1 py-1 w-full text-left",
+                    canUpdate ? "hover:bg-gray-100" : "cursor-not-allowed opacity-50",
                     isUpdating && "opacity-50"
                 )}
             >
