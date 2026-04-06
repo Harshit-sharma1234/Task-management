@@ -4,6 +4,12 @@ import { createClient } from '@/lib/supabase/server'
 import { SettingsTabs } from '@/app/dashboard/settings/SettingsTabs'
 import { SettingsSkeleton } from '@/components/dashboard/SettingsSkeleton'
 import { getCachedUserProfile } from '@/lib/cache'
+import { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Settings',
+  description: 'Manage your personal profile and preferences.',
+}
 
 export default async function SettingsPage() {
     const supabase = await createClient()

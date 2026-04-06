@@ -5,6 +5,11 @@ import DashboardOverview from '@/components/dashboard/Overview'
 import { Suspense } from 'react'
 import { OverviewSkeleton } from '@/components/dashboard/OverviewSkeleton'
 import { getCachedUserProfile } from '@/lib/cache'
+import { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Developer Dashboard',
+}
 
 export const revalidate = 60;
 
