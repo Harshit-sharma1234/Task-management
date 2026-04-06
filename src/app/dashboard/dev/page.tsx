@@ -16,12 +16,6 @@ export const revalidate = 60;
 export default function DevDashboard() {
     return (
         <div className="flex flex-col h-full w-full">
-            <div className="px-8 pt-6 pb-0 flex items-center justify-end">
-                <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-500/15 text-emerald-500 border border-emerald-500/25 flex items-center shadow-sm">
-                    <Code size={12} className="mr-1" />
-                    Developer View
-                </span>
-            </div>
             <Suspense fallback={<OverviewSkeleton />}>
                 <DevContent />
             </Suspense>

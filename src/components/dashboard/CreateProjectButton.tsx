@@ -177,14 +177,22 @@ export function CreateProjectButton({ variant = 'header', users }: CreateProject
               <div className="mb-4 grid grid-cols-2 gap-4">
                 <div className="relative" ref={assigneeDropdownRef}>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Assignees
+                    Assignees *
                   </label>
                   
                   {/* Hidden inputs to capture selected assignees for FormData */}
                   {selectedAssignees.map(userId => (
                     <input key={userId} type="hidden" name="assigned_to" value={userId} />
                   ))}
-                  <input type="hidden" name="assigned_to" value="" /> {/* Fallback empty value if none selected so it's defined */}
+                  {/* Use a required hidden input to enforce assignee selection */}
+                  <input 
+                    type="text" 
+                    className="sr-only" 
+                    value={selectedAssignees.join(',')} 
+                    required 
+                    onChange={() => {}}
+                    title="Please select at least one assignee"
+                  />
                   
                   <div 
                     onClick={() => setIsAssigneeDropdownOpen(!isAssigneeDropdownOpen)}
@@ -241,12 +249,13 @@ export function CreateProjectButton({ variant = 'header', users }: CreateProject
                 </div>
                 <div>
                   <label htmlFor="start_date" className="block text-sm font-medium text-gray-700 mb-1">
-                    Start Date
+                    Start Date *
                   </label>
                   <input
                     type="date"
                     id="start_date"
                     name="start_date"
+                    required
                     className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white font-sans"
                   />
                 </div>
@@ -254,11 +263,12 @@ export function CreateProjectButton({ variant = 'header', users }: CreateProject
               
               <div className="mb-6">
                 <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-                  Description
+                  Description *
                 </label>
                 <textarea
                   id="description"
                   name="description"
+                  required
                   rows={3}
                   className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                   placeholder="What is this project about?"
