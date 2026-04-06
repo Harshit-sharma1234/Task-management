@@ -196,7 +196,7 @@ export async function addComment(ticketId: string, comment: string) {
       user_id: profile.id,
       comment: comment
     })
-    .select('*, users(id, name, email)')
+    .select('*, users(id, name, email, avatar_url)')
     .single()
 
   if (error) {
@@ -207,56 +207,59 @@ export async function addComment(ticketId: string, comment: string) {
     return { error: `Failed to add comment: ${error.message}` }
   }
 
-  // Log comment
-  await logActivity(supabase, profile.id, ticketId, 'commented', 'Added a comment')
+  // --- Fire-and-forget: logging, mentions, notifications ---
+  // These don't need to block the response to the user
+  ;(async () => {
+    try {
+      // Log comment
+      await logActivity(supabase, profile.id, ticketId, 'commented', 'Added a comment')
 
-  // --- Notification Triggers ---
-  // 1. Fetch ticket to get creator and assignee
-  const { data: ticket } = await supabase.from('tickets').select('title, created_by, assignee_id').eq('id', ticketId).single()
+      // Fetch ticket to get creator and assignee
+      const { data: ticket } = await supabase.from('tickets').select('title, created_by, assignee_id').eq('id', ticketId).single()
 
-  if (ticket) {
-    // 3. Notify Creator & Assignee (if not the commenter and not already mentioned)
-    const notifyIds = new Set<string>()
-    if (ticket.created_by && ticket.created_by !== profile.id) notifyIds.add(ticket.created_by)
-    if (ticket.assignee_id && ticket.assignee_id !== profile.id) notifyIds.add(ticket.assignee_id)
+      if (ticket) {
+        const notifyIds = new Set<string>()
+        if (ticket.created_by && ticket.created_by !== profile.id) notifyIds.add(ticket.created_by)
+        if (ticket.assignee_id && ticket.assignee_id !== profile.id) notifyIds.add(ticket.assignee_id)
 
-    const notificationPromises = []
-    
-    const mentionedNames = await parseMentions(comment)
-    // Add mention notification promises
-    if (mentionedNames && mentionedNames.length > 0) {
-      const { data: mentionedUsers } = await supabase.from('users').select('id, name').in('name', mentionedNames)
-      if (mentionedUsers) {
-        for (const mUser of mentionedUsers) {
-          if (mUser.id !== profile.id) {
-            notificationPromises.push(createNotification({
-              userId: mUser.id,
-              actorId: profile.id,
-              entityType: 'ticket',
-              entityId: ticketId,
-              type: 'mention',
-              message: `${profile.name} mentioned you in: ${ticket.title}`
-            }))
+        const notificationPromises = []
+        
+        const mentionedNames = await parseMentions(comment)
+        if (mentionedNames && mentionedNames.length > 0) {
+          const { data: mentionedUsers } = await supabase.from('users').select('id, name').in('name', mentionedNames)
+          if (mentionedUsers) {
+            for (const mUser of mentionedUsers) {
+              if (mUser.id !== profile.id) {
+                notificationPromises.push(createNotification({
+                  userId: mUser.id,
+                  actorId: profile.id,
+                  entityType: 'ticket',
+                  entityId: ticketId,
+                  type: 'mention',
+                  message: `${profile.name} mentioned you in: ${ticket.title}`
+                }))
+              }
+            }
           }
         }
-      }
-    }
 
-    // Add stakeholder notification promises
-    for (const rid of Array.from(notifyIds)) {
-      notificationPromises.push(createNotification({
-        userId: rid,
-        actorId: profile.id,
-        entityType: 'ticket',
-        entityId: ticketId,
-        type: 'comment',
-        message: `${profile.name} commented on: ${ticket.title}`
-      }))
+        for (const rid of Array.from(notifyIds)) {
+          notificationPromises.push(createNotification({
+            userId: rid,
+            actorId: profile.id,
+            entityType: 'ticket',
+            entityId: ticketId,
+            type: 'comment',
+            message: `${profile.name} commented on: ${ticket.title}`
+          }))
+        }
+        
+        await Promise.all(notificationPromises)
+      }
+    } catch (err) {
+      console.error('Post-comment side effects error:', err)
     }
-    
-    // Await all notification inserts concurrently
-    await Promise.all(notificationPromises)
-  }
+  })()
 
   revalidatePath(`/dashboard/issues/${ticketId}`)
   return { success: true, data }
