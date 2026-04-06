@@ -53,5 +53,40 @@ export async function updateSession(request: NextRequest) {
         return NextResponse.redirect(url)
     }
 
+    // Handle exact '/dashboard' routing (RBAC) to eliminate the Double Hop
+    if (user && pathname === '/dashboard') {
+        const { data } = await supabase
+            .from('users')
+            .select('roles(role_name)')
+            .eq('email', user.email)
+            .single()
+
+        const roles = data?.roles as any
+        const roleName = (Array.isArray(roles) ? roles[0]?.role_name : roles?.role_name) as string | undefined
+
+
+        let targetPath = '/dashboard'
+        if (roleName) {
+            switch (roleName) {
+                case 'Admin':
+                    targetPath = '/dashboard/admin'
+                    break
+                case 'Project Manager':
+                    targetPath = '/dashboard/pm'
+                    break
+                case 'Senior Developer':
+                case 'Junior Developer':
+                    targetPath = '/dashboard/dev'
+                    break
+            }
+        }
+
+        if (targetPath !== '/dashboard') {
+            const url = request.nextUrl.clone()
+            url.pathname = targetPath
+            return NextResponse.redirect(url)
+        }
+    }
+
     return supabaseResponse
 }

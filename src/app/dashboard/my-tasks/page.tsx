@@ -3,6 +3,12 @@ import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { MyTasksView } from '@/components/dashboard/MyTasksView';
 import { IssueListSkeleton } from '@/components/dashboard/issues/IssueListSkeleton';
+import { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'My Tasks',
+  description: 'View and manage tasks assigned to you.',
+};
 
 export const dynamic = 'force-dynamic';
 
