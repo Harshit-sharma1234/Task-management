@@ -428,17 +428,10 @@ export async function toggleProjectMember(projectId: string, userId: string) {
     ])
     if (!profile) return { error: 'User profile not found' }
 
-    if (projectError) {
-        console.error('ERROR FETCHING PROJECT:', projectError)
-        return { error: 'Project not found' }
-    }
-
-    const isAdmin = profile?.roles?.role_name === 'Admin'
-    const isLead = project?.lead_id === profile?.id || project?.created_by === profile?.id
-    // Use admin client to ensure everyone can manage members as per user request
+    // 1. Setup bypass — any logged in user can manage members as per user request
     const apiClient = createAdminClient()
 
-    console.log(`[toggleProjectMember] User: ${user.id}, Project: ${projectId}, Target: ${userId}, Admin: ${isAdmin}, Lead: ${isLead}`)
+    console.log(`[toggleProjectMember] User: ${user.id}, Project: ${projectId}, Target: ${userId}`)
 
     // 3. Perform check using chosen client
     const { data: existing, error: checkError } = await apiClient

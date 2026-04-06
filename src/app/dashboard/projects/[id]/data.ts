@@ -8,7 +8,7 @@ export const getProjectDetails = cache(async (id: string, sessionEmail: string, 
     const adminClient = createAdminClient();
 
     const [projectRes, usersRes, membersRes, profileRes] = await Promise.all([
-        supabase.from('projects').select('*').eq('id', id).single(),
+        adminClient.from('projects').select('*').eq('id', id).single(),
         supabase.from('users').select('id, name, email, avatar_url'),
         adminClient.from('project_members').select('user_id').eq('project_id', id),
         getUserProfile(supabase, sessionEmail, sessionUserId)
