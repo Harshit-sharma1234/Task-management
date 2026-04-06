@@ -14,7 +14,10 @@ export async function createIssue(formData: FormData) {
     return { error: 'You must be logged in to create an issue' }
   }
 
-  const profile = await getUserProfile(supabase, user.email!)
+  // Fetch profile — auth user already available
+  const [profile] = await Promise.all([
+    getUserProfile(supabase, user.email!)
+  ])
   if (!profile) {
     return { error: 'User profile not found in database.' }
   }
@@ -272,15 +275,16 @@ export async function updateIssue(ticketId: string, updates: {
     return { error: 'You must be logged in to update an issue' }
   }
 
-  const profile = await getUserProfile(supabase, user.email!)
+  // Fetch profile and current ticket state in parallel
+  const [profile, { data: ticket }] = await Promise.all([
+    getUserProfile(supabase, user.email!),
+    supabase
+      .from('tickets')
+      .select('*')
+      .eq('id', ticketId)
+      .single()
+  ])
   if (!profile) return { error: 'User profile not found' }
-
-  // Fetch current ticket state for constraints and logging
-  const { data: ticket } = await supabase
-    .from('tickets')
-    .select('*')
-    .eq('id', ticketId)
-    .single()
 
   if (!ticket) return { error: 'Ticket not found' }
 
