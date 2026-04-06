@@ -48,6 +48,7 @@ interface IssuePropertyControlsProps {
   projectName: string;
   dueDate: string | null;
   users: { id: string, name: string, avatar_url?: string | null }[];
+  currentUser?: any;
 }
 
 export function IssuePropertyControls({
@@ -59,7 +60,8 @@ export function IssuePropertyControls({
   currentUserId,
   projectName,
   dueDate,
-  users
+  users,
+  currentUser
 }: IssuePropertyControlsProps) {
   const [status, setStatus] = useState(initialStatus);
   const [priority, setPriority] = useState(initialPriority);
@@ -115,6 +117,9 @@ export function IssuePropertyControls({
                   <IssueStatusSelector 
                     issueId={ticketId}
                     currentStatus={status}
+                    currentUser={currentUser}
+                    assigneeId={assigneeId}
+                    reviewerId={reviewerId}
                   />
                 </div>
               </div>
@@ -128,6 +133,9 @@ export function IssuePropertyControls({
                   <IssuePrioritySelector 
                     issueId={ticketId}
                     currentPriority={priority}
+                    currentUser={currentUser}
+                    assigneeId={assigneeId}
+                    reviewerId={reviewerId}
                   />
                 </div>
               </div>
@@ -143,6 +151,7 @@ export function IssuePropertyControls({
                     currentAssigneeId={assigneeId}
                     currentAssignee={users.find(u => u.id === assigneeId) || null}
                     users={users as any}
+                    currentUser={currentUser}
                   />
                 </div>
               </div>
@@ -159,6 +168,7 @@ export function IssuePropertyControls({
                     assigneeId={assigneeId}
                     currentReviewer={users.find(u => u.id === reviewerId) || null}
                     users={users as any}
+                    currentUser={currentUser}
                   />
                 </div>
               </div>

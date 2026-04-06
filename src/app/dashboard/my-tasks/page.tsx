@@ -29,17 +29,23 @@ export default async function MyTasksPage() {
 
 async function MyTasksContent({ userId }: { userId: string }) {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const { getUserProfile } = await import('@/lib/roles');
+  const currentUser = user ? await getUserProfile(supabase, user.email!, user.id) : null;
 
-  // Fetch only assigned tickets (My Tasks)
-  const { data: ticketsRes } = await supabase
+  const { createAdminClient } = await import('@/lib/supabase/admin');
+  const adminClient = createAdminClient();
+
+  // Fetch only assigned tickets (My Tasks) with full details matching Issues page
+  const { data: ticketsRes } = await adminClient
     .from('tickets')
-    .select('id, title, status, priority, assignee_id, created_by, created_at, attachments, projects(id, project_name)')
+    .select('id, title, status, priority, assignee_id, reviewer_id, created_by, created_at, attachments, projects(id, project_name), assignees:users!assignee_id(id, name, avatar_url)')
     .eq('assignee_id', userId)
     .order('created_at', { ascending: false });
 
   const [projectsRes, usersRes] = await Promise.all([
-    supabase.from('projects').select('id, project_name'),
-    supabase.from('users').select('id, name')
+    adminClient.from('projects').select('id, project_name').order('project_name'),
+    adminClient.from('users').select('id, name, avatar_url, roles(role_name)').order('name')
   ]);
 
   const tickets = ticketsRes || [];
@@ -51,6 +57,7 @@ async function MyTasksContent({ userId }: { userId: string }) {
       initialTickets={tickets}
       projects={projects}
       users={users}
+      currentUser={currentUser}
     />
   );
 }
