@@ -13,14 +13,23 @@ export async function login(prevState: any, formData: FormData) {
     password: formData.get('password') as string,
   }
 
-  const { error } = await supabase.auth.signInWithPassword(credentials)
+  console.time('login-auth');
+  const authResponse = await Promise.race([
+    supabase.auth.signInWithPassword(credentials),
+    new Promise<any>((_, reject) => setTimeout(() => reject(new Error('Auth Timeout')), 15000))
+  ]).catch(err => ({ data: { user: null }, error: { message: 'Auth service timed out. Please check your connection or Supabase status.' } }));
+  
+  const { data: { user }, error } = authResponse;
+  console.timeEnd('login-auth');
 
   if (error) {
     return { error: 'Could not authenticate user: ' + error.message }
   }
 
   // Check if user exists in the users table with a role
-  const profile = await getUserProfile(supabase, credentials.email)
+  console.time('login-profile');
+  const profile = await getUserProfile(supabase, credentials.email, user?.id)
+  console.timeEnd('login-profile');
 
   if (!profile) {
     await supabase.auth.signOut()
