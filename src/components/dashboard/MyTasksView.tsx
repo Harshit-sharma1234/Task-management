@@ -36,6 +36,7 @@ export function MyTasksView({ initialTickets, projects, users, currentUser }: My
           users={users} 
           onOpenModal={() => setIsModalOpen(true)}
           currentUser={currentUser}
+          isMyTasks={true}
           emptyMessage="No tasks assigned to you"
         />
       </div>
