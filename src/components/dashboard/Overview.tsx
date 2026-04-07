@@ -16,7 +16,7 @@ import {
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { clsx } from 'clsx'
-import { getCachedStats, getCachedUsers, getCachedRecentTickets, getCachedProjects } from '@/lib/cache'
+import { getCachedStats, getCachedUsers, getCachedRecentTickets, getCachedProjects, getCachedUserTasks } from '@/lib/cache'
 
 // Lazy load the interactive project creation button to reduce initial JS weight
 const CreateProjectButton = dynamic(() => import('@/components/dashboard/CreateProjectButton').then(mod => mod.CreateProjectButton), { 
@@ -49,12 +49,13 @@ interface DashboardOverviewProps {
 }
 
 export default async function DashboardOverview({ userId, userName }: DashboardOverviewProps) {
-    // Fetch all cached data in parallel including the full projects list
-    const [users, stats, tickets, allProjects] = await Promise.all([
+    // Fetch all cached data in parallel including the full projects list and user's specific tasks
+    const [users, stats, recentTickets, allProjects, myTasks] = await Promise.all([
         getCachedUsers(),
         getCachedStats(),
         getCachedRecentTickets(10),
-        getCachedProjects()
+        getCachedProjects(),
+        getCachedUserTasks(userId)
     ]);
 
     const currentUserId = userId;
@@ -66,7 +67,7 @@ export default async function DashboardOverview({ userId, userName }: DashboardO
     const totalProjectsCount = stats.projectsCount
     const completedProjectsCount = stats.completedProjectsCount
     const inProgressProjectsCount = stats.inProgressProjectsCount
-    const myTasksCount = tickets.filter((t: any) => t.assignee_id === currentUserId || t.reviewer_id === currentUserId).length
+    const myTasksCount = myTasks.length;
 
     return (
         <div className="p-8 w-full">
@@ -200,7 +201,7 @@ export default async function DashboardOverview({ userId, userName }: DashboardO
                             </Link>
                         </div>
 
-                        {tickets.length === 0 ? (
+                        {recentTickets.length === 0 ? (
                             <div className="bg-white border border-gray-100 rounded-xl p-12 shadow-sm flex flex-col items-center justify-center min-h-[320px]">
                                 <div className="bg-gray-100 p-4 rounded-full text-gray-400 mb-4">
                                     <CircleDot size={32} />
@@ -210,7 +211,7 @@ export default async function DashboardOverview({ userId, userName }: DashboardO
                         ) : (
                             <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden flex flex-col min-h-[180px]">
                                 <div className="grid grid-cols-1 divide-y divide-gray-100 flex-1">
-                                    {tickets.slice(0, 3).map((ticket: any) => {
+                                    {recentTickets.slice(0, 3).map((ticket: any) => {
                                         const statusData = statusIcons[ticket.status] || statusIcons['to_do']
                                         const StatusIcon = statusData.icon
                                         const statusColor = statusData.color
@@ -257,10 +258,9 @@ export default async function DashboardOverview({ userId, userName }: DashboardO
                             </div>
                             <span className="bg-green-100 text-green-700 text-xs font-semibold px-2 py-0.5 rounded">{myTasksCount}</span>
                         </div>
-                        {myTasksCount > 0 ? (
+                        {myTasks.length > 0 ? (
                             <div className="flex flex-col gap-3">
-                                {tickets
-                                    .filter((t: any) => t.assignee_id === currentUserId || t.reviewer_id === currentUserId)
+                                {myTasks
                                     .slice(0, 3)
                                     .map((task: any) => (
                                         <div key={task.id} className="flex flex-col gap-1">
