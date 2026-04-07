@@ -45,14 +45,6 @@ async function IssueListContent({ filter }: { filter: string }) {
     .select('id, title, status, priority, assignee_id, reviewer_id, attachments, created_at, projects(id, project_name, status), assignees:users!assignee_id(id, name, avatar_url)')
     .order('created_at', { ascending: false });
 
-  if (filter === 'active') {
-    // Show only active tickets (In Progress and Todo)
-    query = query.in('status', ['in_progress', 'to_do']);
-  } else if (filter === 'backlog') {
-    // Show only backlog tickets
-    query = query.eq('status', 'backlog');
-  }
-
   // Fetch all required data in parallel using adminClient for global view
   const [ticketsRes, projectsRes, usersRes] = await Promise.all([
     query.limit(200),
