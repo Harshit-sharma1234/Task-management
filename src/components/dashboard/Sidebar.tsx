@@ -25,6 +25,14 @@ export function Sidebar() {
   const isHydrated = useNotificationStore((s) => s.isHydrated);
   const supabase = useMemo(() => createClient(), []);
   const didHydrate = useRef(false);
+  const prefetchedRoutes = useRef<Set<string>>(new Set());
+
+  const handlePrefetch = (route: string) => {
+    if (!prefetchedRoutes.current.has(route)) {
+      router.prefetch(route);
+      prefetchedRoutes.current.add(route);
+    }
+  };
 
   // Handle notification counts
   useEffect(() => {
@@ -94,7 +102,13 @@ export function Sidebar() {
   return (
     <aside className="w-64 shrink-0 border-r border-gray-200 bg-white flex flex-col h-full">
       {/* Workspace Selector */}
-      <Link href="/dashboard" className="h-16 flex items-center px-4 border-b border-gray-100 justify-between cursor-pointer hover:bg-gray-50 transition-colors">
+      <Link 
+        href="/dashboard" 
+        prefetch={false} 
+        onMouseEnter={() => handlePrefetch('/dashboard')}
+        onFocus={() => handlePrefetch('/dashboard')}
+        className="h-16 flex items-center px-4 border-b border-gray-100 justify-between cursor-pointer hover:bg-gray-50 transition-colors"
+      >
         <div className="flex items-center gap-3">
           <div className="flex items-center justify-center w-8 h-8 rounded bg-indigo-600 text-white">
             <Building2 size={16} />
@@ -109,6 +123,9 @@ export function Sidebar() {
       <nav className="flex-1 py-4 px-3 flex flex-col gap-1">
         <Link 
           href="/dashboard" 
+          prefetch={false}
+          onMouseEnter={() => handlePrefetch('/dashboard')}
+          onFocus={() => handlePrefetch('/dashboard')}
           className={`flex items-center gap-3 px-3 py-2 rounded-md group transition-colors ${
             pathname === '/dashboard' || pathname === '/dashboard/pm' || pathname === '/dashboard/dev' || pathname === '/dashboard/admin' 
               ? 'bg-gray-100 text-gray-900' 
@@ -122,6 +139,9 @@ export function Sidebar() {
         </Link>
         <Link 
           href="/dashboard/inbox" 
+          prefetch={false}
+          onMouseEnter={() => handlePrefetch('/dashboard/inbox')}
+          onFocus={() => handlePrefetch('/dashboard/inbox')}
           className={`flex items-center justify-between px-3 py-2 rounded-md group transition-colors ${
             pathname === '/dashboard/inbox' 
               ? 'bg-gray-100 text-indigo-600' 
@@ -142,6 +162,9 @@ export function Sidebar() {
         </Link>
         <Link 
           href="/dashboard/projects" 
+          prefetch={false}
+          onMouseEnter={() => handlePrefetch('/dashboard/projects')}
+          onFocus={() => handlePrefetch('/dashboard/projects')}
           className={`flex items-center gap-3 px-3 py-2 rounded-md group transition-colors ${
             pathname.startsWith('/dashboard/projects') 
               ? 'bg-gray-100 text-gray-900' 
@@ -155,6 +178,9 @@ export function Sidebar() {
         </Link>
         <Link 
           href="/dashboard/issues" 
+          prefetch={false}
+          onMouseEnter={() => handlePrefetch('/dashboard/issues')}
+          onFocus={() => handlePrefetch('/dashboard/issues')}
           className={`flex items-center gap-3 px-3 py-2 rounded-md group transition-colors ${
             pathname.startsWith('/dashboard/issues') 
               ? 'bg-gray-100 text-gray-900' 
@@ -168,6 +194,9 @@ export function Sidebar() {
         </Link>
         <Link 
           href="/dashboard/team" 
+          prefetch={false}
+          onMouseEnter={() => handlePrefetch('/dashboard/team')}
+          onFocus={() => handlePrefetch('/dashboard/team')}
           className={`flex items-center gap-3 px-3 py-2 rounded-md group transition-colors ${
             pathname.startsWith('/dashboard/team') 
               ? 'bg-gray-100 text-gray-900' 
@@ -181,6 +210,9 @@ export function Sidebar() {
         </Link>
         <Link 
           href="/dashboard/settings" 
+          prefetch={false}
+          onMouseEnter={() => handlePrefetch('/dashboard/settings')}
+          onFocus={() => handlePrefetch('/dashboard/settings')}
           className={`flex items-center gap-3 px-3 py-2 rounded-md group transition-colors ${
             pathname.startsWith('/dashboard/settings') 
               ? 'bg-gray-100 text-gray-900' 
@@ -197,6 +229,9 @@ export function Sidebar() {
         <div className="mt-6 flex flex-col gap-1">
           <Link 
             href="/dashboard/my-tasks"
+            prefetch={false}
+            onMouseEnter={() => handlePrefetch('/dashboard/my-tasks')}
+            onFocus={() => handlePrefetch('/dashboard/my-tasks')}
             className={`flex items-center justify-between px-3 py-2 rounded-md group transition-colors ${
               pathname === '/dashboard/my-tasks'
                 ? 'bg-gray-100 text-indigo-600' 
