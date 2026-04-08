@@ -5,23 +5,57 @@ import { ChevronDown } from 'lucide-react';
 import { clsx } from 'clsx';
 import { createClient } from '@/lib/supabase/client';
 import { UserAvatar } from '@/components/ui/UserAvatar';
+import { Shimmer } from '@/components/ui/Skeleton';
 
 interface ProjectProgressPanelProps {
   projectId: string;
 }
 
 export const ProjectProgressPanel = memo(({ projectId }: ProjectProgressPanelProps) => {
-  const [tickets, setTickets] = useState<any[]>([]);
+  const [tickets, setTickets] = useState<Array<{ status: string | null; assignee_id: string | null }>>([]);
+  const [assigneeUsers, setAssigneeUsers] = useState<Record<string, any>>({});
+  const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'Assignees' | 'Labels'>('Assignees');
   const supabase = useMemo(() => createClient(), []);
 
   const fetchTickets = async () => {
-    const { data } = await supabase
+    setIsLoading(true);
+
+    const { data: rows } = await supabase
       .from('tickets')
-      // Only fetch the fields needed for progress calculations.
-      .select('id, status, assignee_id, assignees:users!assignee_id(id, name, email, avatar_url)')
+      // Only fetch the minimal fields needed for counts.
+      .select('status, assignee_id')
       .eq('project_id', projectId);
-    setTickets(data || []);
+
+    const normalizedRows = (rows || []).map((r: any) => ({
+      status: r.status ?? null,
+      assignee_id: r.assignee_id ?? null,
+    }));
+
+    setTickets(normalizedRows);
+
+    const uniqueAssigneeIds = Array.from(
+      new Set(normalizedRows.map(r => r.assignee_id).filter(Boolean))
+    ) as string[];
+
+    if (uniqueAssigneeIds.length === 0) {
+      setAssigneeUsers({});
+      setIsLoading(false);
+      return;
+    }
+
+    const { data: usersData } = await supabase
+      .from('users')
+      .select('id, name, email, avatar_url')
+      .in('id', uniqueAssigneeIds);
+
+    const map = (usersData || []).reduce((acc: Record<string, any>, u: any) => {
+      acc[u.id] = u;
+      return acc;
+    }, {});
+
+    setAssigneeUsers(map);
+    setIsLoading(false);
   };
 
   useEffect(() => {
@@ -49,11 +83,12 @@ export const ProjectProgressPanel = memo(({ projectId }: ProjectProgressPanelPro
     const stats = tickets.reduce((acc: any, ticket: any) => {
       const assigneeId = ticket.assignee_id || 'unassigned';
       if (!acc[assigneeId]) {
+        const user = assigneeUsers[assigneeId];
         acc[assigneeId] = {
           id: assigneeId,
-          name: ticket.assignees?.name || 'Unassigned',
-          email: ticket.assignees?.email || 'unassigned@team.com',
-          avatar_url: ticket.assignees?.avatar_url,
+          name: assigneeId === 'unassigned' ? 'Unassigned' : (user?.name || 'Unassigned'),
+          email: assigneeId === 'unassigned' ? 'unassigned@team.com' : (user?.email || 'unassigned@team.com'),
+          avatar_url: assigneeId === 'unassigned' ? null : user?.avatar_url,
           count: 0
         };
       }
@@ -64,7 +99,7 @@ export const ProjectProgressPanel = memo(({ projectId }: ProjectProgressPanelPro
     const sorted = Object.values(stats).sort((a: any, b: any) => b.count - a.count);
 
     return { scopeCount: scope, doneCount: done, sortedAssignees: sorted };
-  }, [tickets]);
+  }, [tickets, assigneeUsers]);
 
   return (
     <div className="space-y-4 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
@@ -82,14 +117,22 @@ export const ProjectProgressPanel = memo(({ projectId }: ProjectProgressPanelPro
                <div className="w-1.5 h-1.5 bg-gray-300 rounded-sm"></div>
                <span>Scope</span>
              </div>
-             <span className="text-xl font-bold text-gray-900 tracking-tight">{scopeCount}</span>
+             {isLoading ? (
+               <Shimmer className="h-6 w-10 rounded-sm" />
+             ) : (
+               <span className="text-xl font-bold text-gray-900 tracking-tight">{scopeCount}</span>
+             )}
            </div>
            <div className="space-y-0.5">
              <div className="flex items-center gap-2 text-[10px] text-indigo-400 font-bold uppercase tracking-wider">
                <div className="w-1.5 h-1.5 bg-indigo-500 rounded-sm"></div>
                <span>Completed</span>
              </div>
-             <span className="text-xl font-bold text-gray-900 tracking-tight">{doneCount}</span>
+             {isLoading ? (
+               <Shimmer className="h-6 w-10 rounded-sm" />
+             ) : (
+               <span className="text-xl font-bold text-gray-900 tracking-tight">{doneCount}</span>
+             )}
            </div>
         </div>
 
@@ -116,7 +159,19 @@ export const ProjectProgressPanel = memo(({ projectId }: ProjectProgressPanelPro
 
         {activeTab === 'Assignees' && (
           <div className="space-y-4 pt-1">
-            {sortedAssignees.length === 0 ? (
+            {isLoading ? (
+              <div className="space-y-3">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <Shimmer className="w-6 h-6 rounded-full" />
+                      <Shimmer className="h-4 w-28 rounded-sm" />
+                    </div>
+                    <Shimmer className="h-3 w-8 rounded-sm" />
+                  </div>
+                ))}
+              </div>
+            ) : sortedAssignees.length === 0 ? (
               <p className="text-[11px] text-gray-400 text-center py-2">No assignees yet</p>
             ) : (
               <div className="space-y-3">

@@ -1,21 +1,19 @@
 import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { notFound, redirect } from 'next/navigation';
 import { ProjectOverview } from '@/components/dashboard/ProjectOverview';
-import { IssuesList } from '@/components/dashboard/issues/IssuesList';
-import { getProjectDetails } from './data';
+import { IssueListSkeleton } from '@/components/dashboard/issues/IssueListSkeleton';
+import { ProjectOverviewSkeleton } from '@/components/dashboard/ProjectOverviewSkeleton';
+import { ProjectIssuesRealtimeTab } from '@/components/dashboard/ProjectIssuesRealtimeTab';
+import { getProjectDetails, getProjectIssuesTickets, getProjectMetadata, getProjectResources } from './data';
 import { Metadata } from 'next';
+import { Suspense } from 'react';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
-  // We can't easily get the session here without duplicating more boilerplate, 
-  // but we can query the project name using the service or let getProjectDetails pull it.
-  // Actually, createAdminClient is easiest for metadata if we don't want to pass session.
-  const adminClient = createAdminClient();
-  const { data: project } = await adminClient.from('projects').select('project_name, description').eq('id', id).single();
+  const project = await getProjectMetadata(id);
   
   if (!project) return { title: 'Project Not Found' };
   
@@ -49,52 +47,78 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
 
   const currentMemberIds = (members as { user_id: string }[] | null)?.map(m => m.user_id) || [];
 
-  const adminClient = createAdminClient();
-
-  // Conditional Data Fetching: Tickets for this project
-  let projectTickets: any[] = [];
-  if (activeTab === 'issues') {
-    const { data: tickets } = await adminClient
-      .from('tickets')
-      // Keep payload minimal for Issues list.
-      .select('id, title, status, priority, assignee_id, reviewer_id, created_at, projects(id, project_name)')
-      .eq('project_id', id)
-      .order('created_at', { ascending: false });
-    
-    projectTickets = tickets || [];
-  }
-
-  // Only fetch resources when we are on the overview tab.
-  let resources: any[] = [];
-  if (activeTab !== 'issues') {
-    const { data } = await adminClient
-      .from('project_resources')
-      // Resources section only needs these fields for rendering.
-      .select('id, title, url')
-      .eq('project_id', id)
-      .order('created_at', { ascending: false });
-    resources = data || [];
-  }
-
   return (
     <>
       {activeTab === 'issues' ? (
-        <div className="p-8 bg-[#fbfbfb] min-h-full">
-          <IssuesList 
-            tickets={projectTickets} 
-            users={users || []}
-            emptyMessage={`No issues found for ${project.project_name}`} 
-          />
-        </div>
+        <Suspense
+          fallback={
+            <div className="p-8 bg-[#fbfbfb] min-h-full">
+              <IssueListSkeleton />
+            </div>
+          }
+        >
+          <ProjectIssuesTab projectId={id} users={users || []} projectName={project.project_name} />
+        </Suspense>
       ) : (
-        <ProjectOverview 
-          project={project} 
-          users={users || []} 
-          currentMemberIds={currentMemberIds} 
-          currentUser={session?.user}
-          resources={resources || []}
-        />
+        <Suspense fallback={<ProjectOverviewSkeleton />}>
+          <ProjectOverviewTab
+            projectId={id}
+            project={project}
+            users={users || []}
+            currentMemberIds={currentMemberIds}
+            currentUser={session?.user}
+          />
+        </Suspense>
       )}
     </>
+  );
+}
+
+async function ProjectIssuesTab({
+  projectId,
+  users,
+  projectName,
+}: {
+  projectId: string;
+  users: any[];
+  projectName: string;
+}) {
+  const tickets = await getProjectIssuesTickets(projectId);
+
+  return (
+    <ProjectIssuesRealtimeTab
+      key={projectId}
+      projectId={projectId}
+      projectName={projectName}
+      initialTickets={tickets}
+      users={users}
+    />
+  );
+}
+
+async function ProjectOverviewTab({
+  projectId,
+  project,
+  users,
+  currentMemberIds,
+  currentUser,
+}: {
+  projectId: string;
+  project: any;
+  users: any[];
+  currentMemberIds: string[];
+  currentUser: any;
+}) {
+  const resources = await getProjectResources(projectId);
+
+  return (
+    <ProjectOverview
+      key={projectId}
+      project={project}
+      users={users}
+      currentMemberIds={currentMemberIds}
+      currentUser={currentUser}
+      resources={resources}
+    />
   );
 }

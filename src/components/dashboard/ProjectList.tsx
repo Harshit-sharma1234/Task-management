@@ -4,6 +4,7 @@ import { useState, useMemo, memo } from 'react';
 import Link from 'next/link';
 import { Folder, Search } from 'lucide-react';
 import dynamic from 'next/dynamic';
+import { useRouter } from 'next/navigation';
 
 // Heavy components that contain modals/complex logic should be lazy loaded
 const PrioritySelector = dynamic(() => import('@/components/dashboard/PrioritySelector').then(mod => mod.PrioritySelector), { ssr: false });
@@ -46,6 +47,17 @@ const ProjectRow = memo(({
     users: User[]; 
     isLast: boolean;
 }) => {
+    const router = useRouter();
+
+    const prefetchProject = useMemo(() => {
+        const overviewHref = `/dashboard/projects/${project.id}`;
+        const issuesHref = `/dashboard/projects/${project.id}?tab=issues`;
+        return () => {
+            router.prefetch(overviewHref);
+            router.prefetch(issuesHref);
+        };
+    }, [project.id, router]);
+
     return (
         <div 
             className="grid grid-cols-[1fr_100px_140px_140px_140px] items-center py-3.5 hover:bg-gray-50/50 transition-colors group text-sm relative hover:z-20 focus-within:z-20 border-b border-gray-100"
@@ -55,6 +67,9 @@ const ProjectRow = memo(({
                 <Folder size={15} className="text-gray-400 group-hover:text-gray-600 shrink-0" />
                 <Link 
                     href={`/dashboard/projects/${project.id}`}
+                    prefetch={true}
+                    onMouseEnter={prefetchProject}
+                    onFocus={prefetchProject}
                     className="font-medium text-gray-900 truncate hover:text-indigo-600 transition-colors after:absolute after:inset-0 after:z-0"
                 >
                     {project.project_name}
