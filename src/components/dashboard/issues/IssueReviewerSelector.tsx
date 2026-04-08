@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, startTransition } from 'react';
 import { updateIssue } from '@/app/dashboard/issues/actions';
 import { toast } from 'sonner';
 import { UserAvatar } from '@/components/ui/UserAvatar';
@@ -63,7 +63,7 @@ export function IssueReviewerSelector({
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [isOpen]);
 
-    const handleSelect = async (e: React.MouseEvent, userId: string | null) => {
+    const handleSelect = (e: React.MouseEvent, userId: string | null) => {
         e.preventDefault();
         e.stopPropagation();
         
@@ -81,13 +81,16 @@ export function IssueReviewerSelector({
         setOptimisticReviewerId(userId);
         setIsOpen(false);
         setIsUpdating(true);
-        const res = await updateIssue(issueId, { reviewer_id: userId });
-        if (res.error) {
-            // Revert on failure
-            setOptimisticReviewerId(previousReviewerId);
-            toast.error(res.error);
-        }
-        setIsUpdating(false);
+
+        startTransition(async () => {
+            const res = await updateIssue(issueId, { reviewer_id: userId });
+            if (res.error) {
+                // Revert on failure
+                setOptimisticReviewerId(previousReviewerId);
+                toast.error(res.error);
+            }
+            setIsUpdating(false);
+        });
     };
 
     return (

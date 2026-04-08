@@ -66,7 +66,7 @@ export default async function DashboardOverview({ userId, userName }: DashboardO
     const totalProjectsCount = stats.projectsCount
     const completedProjectsCount = stats.completedProjectsCount
     const inProgressProjectsCount = stats.inProgressProjectsCount
-    const myTasksCount = tickets.filter((t: any) => t.assignee_id === currentUserId).length
+    const myTasksCount = tickets.filter((t: any) => t.assignee_id === currentUserId || t.reviewer_id === currentUserId).length
 
     return (
         <div className="p-8 w-full">
@@ -260,12 +260,19 @@ export default async function DashboardOverview({ userId, userName }: DashboardO
                         {myTasksCount > 0 ? (
                             <div className="flex flex-col gap-3">
                                 {tickets
-                                    .filter((t: any) => t.assignee_id === currentUserId)
+                                    .filter((t: any) => t.assignee_id === currentUserId || t.reviewer_id === currentUserId)
                                     .slice(0, 3)
                                     .map((task: any) => (
                                         <div key={task.id} className="flex flex-col gap-1">
                                             <div className="flex items-center justify-between">
-                                                <span className="text-xs font-medium text-gray-900 truncate pr-2">{task.title}</span>
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    {task.reviewer_id === currentUserId && task.assignee_id !== currentUserId && (
+                                                        <span className="shrink-0 px-1.5 py-0.5 bg-fuchsia-50 text-fuchsia-600 border border-fuchsia-100 rounded text-[8px] font-bold uppercase tracking-wider leading-none">
+                                                            Reviewer
+                                                        </span>
+                                                    )}
+                                                    <span className="text-xs font-medium text-gray-900 truncate pr-2">{task.title}</span>
+                                                </div>
                                                 <span className="text-[10px] text-gray-400 shrink-0">
                                                     {new Date(task.created_at).toLocaleDateString()}
                                                 </span>

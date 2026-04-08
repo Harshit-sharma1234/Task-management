@@ -37,6 +37,7 @@ export function IssuesView({ tickets, projects, users, activeFilter, currentUser
           users={users} 
           onOpenModal={() => setIsModalOpen(true)}
           currentUser={currentUser}
+          isMyTasks={false}
         />
       </div>
 
