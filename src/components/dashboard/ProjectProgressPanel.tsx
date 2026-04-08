@@ -18,7 +18,8 @@ export const ProjectProgressPanel = memo(({ projectId }: ProjectProgressPanelPro
   const fetchTickets = async () => {
     const { data } = await supabase
       .from('tickets')
-      .select('*, assignees:users!assignee_id(*)')
+      // Only fetch the fields needed for progress calculations.
+      .select('id, status, assignee_id, assignees:users!assignee_id(id, name, email, avatar_url)')
       .eq('project_id', projectId);
     setTickets(data || []);
   };
