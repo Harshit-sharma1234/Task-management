@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { IssuesHeader } from './issues/IssuesHeader';
 import { IssuesList } from './issues/IssuesList';
@@ -18,21 +18,33 @@ interface MyTasksViewProps {
 
 export function MyTasksView({ initialTickets, projects, users, currentUser }: MyTasksViewProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [activeFilter, setActiveFilter] = useState('all');
+
+  const filteredTickets = useMemo(() => {
+    if (activeFilter === 'active') {
+      return initialTickets.filter(t => t.status === 'in_progress' || t.status === 'to_do');
+    } else if (activeFilter === 'backlog') {
+      return initialTickets.filter(t => t.status === 'backlog');
+    }
+    return initialTickets;
+  }, [initialTickets, activeFilter]);
 
   return (
     <div className="flex flex-col h-full bg-[#fbfbfb]">
       {/* Header Section */}
       <IssuesHeader 
-        totalIssues={initialTickets.length} 
+        totalIssues={filteredTickets.length} 
         projects={projects}
         users={users}
+        activeFilter={activeFilter}
+        onFilterChange={setActiveFilter}
         onOpenModal={() => setIsModalOpen(true)}
       />
 
       {/* Content Area */}
       <div className="flex-1 overflow-y-auto pt-6 px-8 w-full">
         <IssuesList 
-          tickets={initialTickets} 
+          tickets={filteredTickets} 
           users={users} 
           onOpenModal={() => setIsModalOpen(true)}
           currentUser={currentUser}
