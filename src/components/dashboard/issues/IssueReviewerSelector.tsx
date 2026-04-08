@@ -5,7 +5,7 @@ import { updateIssue } from '@/app/dashboard/issues/actions';
 import { toast } from 'sonner';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { Search, Loader2, User } from 'lucide-react';
-import { clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 
 interface IssueReviewerSelectorProps {
     issueId: string;
@@ -103,7 +103,7 @@ export function IssueReviewerSelector({
                     setIsOpen(!isOpen);
                 }}
                 disabled={isUpdating || !canUpdate}
-                className={clsx(
+                className={twMerge(
                     "relative flex items-center gap-2 transition-all rounded-md px-1 py-1 w-full text-left",
                     canUpdate ? "hover:bg-gray-100" : "cursor-not-allowed opacity-50",
                     isUpdating && "opacity-50"
@@ -152,7 +152,7 @@ export function IssueReviewerSelector({
                         <div className="max-h-64 overflow-y-auto p-1 py-1.5 custom-scrollbar">
                             <button 
                                 onClick={(e) => handleSelect(e, null)}
-                                className={clsx(
+                                className={twMerge(
                                     "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-colors",
                                     !optimisticReviewerId ? "bg-gray-50" : "hover:bg-gray-50"
                                 )}
@@ -168,7 +168,7 @@ export function IssueReviewerSelector({
                                     key={u.id}
                                     onClick={(e) => handleSelect(e, u.id)}
                                     title={u.id === assigneeId ? "Reviewer cannot be the same as assignee" : ""}
-                                    className={clsx(
+                                    className={twMerge(
                                         "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-colors",
                                         optimisticReviewerId === u.id ? "bg-indigo-50" : "hover:bg-gray-50",
                                         u.id === assigneeId ? "opacity-50 cursor-not-allowed" : ""
@@ -176,7 +176,7 @@ export function IssueReviewerSelector({
                                 >
                                     <UserAvatar name={u.name} avatarUrl={u.avatar_url} size="xs" />
                                     <div className="flex flex-col min-w-0">
-                                        <span className={clsx(
+                                        <span className={twMerge(
                                             "text-xs font-semibold truncate",
                                             optimisticReviewerId === u.id ? "text-indigo-600" : "text-gray-700"
                                         )}>
