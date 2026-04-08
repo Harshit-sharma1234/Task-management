@@ -15,7 +15,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import { clsx } from 'clsx'
+import { twMerge } from 'tailwind-merge'
 import { getCachedStats, getCachedUsers, getCachedRecentTickets, getCachedProjects, getCachedUserTasks } from '@/lib/cache'
 
 // Lazy load the interactive project creation button to reduce initial JS weight
@@ -223,7 +223,7 @@ export default async function DashboardOverview({ userId, userName }: DashboardO
                                                 className="p-5 hover:bg-gray-50 transition-all flex items-center justify-between group/ticket border-b border-gray-50 last:border-0"
                                             >
                                                 <div className="flex items-center gap-4">
-                                                    <div className={clsx("p-2 rounded-lg transition-colors", statusColor.replace('text-', 'bg-') + "/10", statusColor, "group-hover/ticket:bg-opacity-20")}>
+                                                    <div className={twMerge("p-2 rounded-lg transition-colors", statusColor.replace('text-', 'bg-') + "/10", statusColor, "group-hover/ticket:bg-opacity-20")}>
                                                         <StatusIcon size={20} />
                                                     </div>
                                                     <div>
