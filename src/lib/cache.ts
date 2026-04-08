@@ -95,7 +95,7 @@ export const getCachedRecentTickets = (limit: number = 10) =>
       const supabase = createAdminClient();
       const { data, error } = await supabase
         .from('tickets')
-        .select('id, title, status, priority, created_at, assignee_id, projects(project_name)')
+        .select('id, title, status, priority, created_at, assignee_id, reviewer_id, projects(project_name)')
         .order('created_at', { ascending: false })
         .limit(limit);
       
@@ -163,3 +163,31 @@ export const getCachedProjects = unstable_cache(
     tags: ['projects'] 
   }
 );
+
+/**
+ * Cached fetch for tickets assigned to or reviewed by a specific user.
+ */
+export const getCachedUserTasks = (userId: string) =>
+  unstable_cache(
+    async () => {
+      console.log(`[Cache] Fetching fresh tasks for user: ${userId}`);
+      const supabase = createAdminClient();
+      const { data, error } = await supabase
+        .from('tickets')
+        .select('id, title, status, priority, created_at, assignee_id, reviewer_id, projects(project_name)')
+        .or(`assignee_id.eq.${userId},reviewer_id.eq.${userId}`)
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error(`[Cache] Error fetching user tasks for ${userId}:`, error);
+        return [];
+      }
+      return data || [];
+    },
+    [`user-tasks-${userId}`],
+    {
+      revalidate: 60,
+      tags: ['tickets', `user-tasks-${userId}`]
+    }
+  )();
+
