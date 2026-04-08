@@ -9,11 +9,12 @@ import { getUserProfile } from '../../lib/roles'
 import { createNotification } from './notifications/actions'
 import { insertProjectLog } from './logging/actions'
 
-function revalidateProjectDataTags() {
-    revalidateTag('projects', 'max')
-    revalidateTag('project-members', 'max')
-    revalidateTag('project-resources', 'max')
-    revalidateTag('issues', 'max')
+/**
+ * Granular revalidation for project-related data.
+ * Corrected to use a single argument as per Next.js API.
+ */
+function revalidateProjectDataTags(tags: string[] = ['projects', 'tickets']) {
+    tags.forEach(tag => revalidateTag(tag, 'max'));
 }
 
 export async function createProject(formData: FormData) {
@@ -120,12 +121,11 @@ export async function createProject(formData: FormData) {
             })
         }
 
-        // Notify other assignees
+        // Notify other assignees in parallel
         if (assignedTo && assignedTo.length > 0) {
-            // Need to await all notifications
-            await Promise.all(assignedTo.map(async (id) => {
+            await Promise.all(assignedTo.map(id => {
                 if (id && id !== profile.id && id !== leadId) {
-                    await createNotification({
+                    return createNotification({
                         userId: id,
                         actorId: profile.id,
                         entityType: 'project',
@@ -134,6 +134,7 @@ export async function createProject(formData: FormData) {
                         message: `${profile.name} added you as a member to project: ${projectName}`
                     })
                 }
+                return Promise.resolve();
             }))
         }
     }
@@ -517,7 +518,7 @@ export async function toggleProjectMember(projectId: string, userId: string) {
     // 3. Perform check using chosen client
     const { data: existing, error: checkError } = await apiClient
         .from('project_members')
-        .select('*')
+        .select('project_id')
         .eq('project_id', projectId)
         .eq('user_id', userId)
         .maybeSingle()

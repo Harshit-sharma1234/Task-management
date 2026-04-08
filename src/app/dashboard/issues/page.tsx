@@ -10,6 +10,8 @@ export const metadata: Metadata = {
   description: 'View and manage all issues.',
 };
 
+const INITIAL_ISSUES_LIMIT = 120;
+
 export default async function IssuesPage({ searchParams }: { searchParams: Promise<{ filter?: string }> }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -37,29 +39,18 @@ async function IssueListContent({ filter, userEmail, userId }: { filter: string;
   const { getUserProfile } = await import('@/lib/roles');
   const currentUser = await getUserProfile(supabase, userEmail, userId);
 
-  const { createAdminClient } = await import('@/lib/supabase/admin');
-  const adminClient = createAdminClient();
-  const { getCachedIssueProjects, getCachedIssueUsers } = await import('@/lib/cache');
+  const { getCachedIssueProjects, getCachedIssueUsers, getCachedIssuesList } = await import('@/lib/cache');
 
-  // We use adminClient to show ALL issues as requested for this global view
-  let query = adminClient
-    .from('tickets')
-    // List view only needs a small subset; keep payload minimal for faster loads.
-    .select('id, title, status, priority, assignee_id, reviewer_id, created_at, projects(id, project_name), assignees:users!assignee_id(id, name, avatar_url)')
-    .order('created_at', { ascending: false });
-
-  // Fetch all required data in parallel using adminClient for global view
+  // Fetch all required data in parallel; issues list itself is cached.
   const [ticketsRes, cachedProjects, cachedUsers] = await Promise.all([
-    query.limit(200),
+    getCachedIssuesList(INITIAL_ISSUES_LIMIT),
     getCachedIssueProjects(),
     getCachedIssueUsers(),
   ]);
 
-  const tickets = ticketsRes.data || [];
+  const tickets = ticketsRes || [];
   const projects = (cachedProjects || []).map((p: any) => ({ id: p.id, name: p.project_name }));
   const users = cachedUsers || [];
-
-  if (ticketsRes.error) console.error('Error fetching tickets:', ticketsRes.error);
 
   return (
     <IssuesView 

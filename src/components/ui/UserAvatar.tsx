@@ -26,7 +26,7 @@ const sizeMap: Record<AvatarSize, { px: number; text: string }> = {
  * Renders a Next.js <Image> when an avatar URL is available,
  * otherwise renders gradient-backed initials.
  */
-export function UserAvatar({ name, avatarUrl, size = 'md', className = '' }: UserAvatarProps) {
+export function UserAvatar({ name, avatarUrl, size = 'md', className = '', priority = false }: UserAvatarProps & { priority?: boolean }) {
     const [imageError, setImageError] = useState(false)
     const { px, text } = sizeMap[size]
     const initials = getInitials(name)
@@ -45,6 +45,7 @@ export function UserAvatar({ name, avatarUrl, size = 'md', className = '' }: Use
                     alt={name || 'User'}
                     fill
                     className="object-cover"
+                    priority={priority}
                     onError={() => setImageError(true)}
                 />
             </div>
