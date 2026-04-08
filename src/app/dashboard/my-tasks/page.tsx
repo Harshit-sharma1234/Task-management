@@ -36,11 +36,24 @@ async function MyTasksContent({ userId }: { userId: string }) {
   const { createAdminClient } = await import('@/lib/supabase/admin');
   const adminClient = createAdminClient();
 
-  // Fetch only assigned tickets (My Tasks) with full details matching Issues page
+  // Fetch assigned and review tickets (My Tasks) with full details
   const { data: ticketsRes, error: ticketsError } = await adminClient
     .from('tickets')
-    .select('id, title, status, priority, assignee_id, reviewer_id, created_by, created_at, attachments, projects(id, project_name), assignees:users!assignee_id(id, name, avatar_url)')
-    .or(`assignee_id.eq.${userId},reviewer_id.eq.${userId}`)
+    .select(`
+      id, 
+      title, 
+      status, 
+      priority, 
+      assignee_id, 
+      reviewer_id, 
+      created_by, 
+      created_at, 
+      attachments, 
+      projects(id, project_name), 
+      assignees:users!assignee_id(id, name, avatar_url),
+      reviewers:users!reviewer_id(id, name, avatar_url)
+    `)
+    .or(`assignee_id.eq.${currentUser?.id || userId},reviewer_id.eq.${currentUser?.id || userId}`)
     .order('created_at', { ascending: false });
 
   if (ticketsError) {
