@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useMemo, useCallback, memo } from 'react';
+import { useState, useMemo, useCallback, memo, useRef } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -44,9 +45,13 @@ interface IssueRowProps {
 
 const IssueRow = memo(({ ticket, users, isSelected, onToggleSelection, currentUser, isMyTasks = false }: IssueRowProps) => {
   const router = useRouter();
+  const issueHref = `/dashboard/issues/${ticket.id}`;
+  const prefetchIssue = useCallback(() => {
+    router.prefetch(issueHref);
+  }, [router, issueHref]);
 
   const handleRowClick = () => {
-    router.push(`/dashboard/issues/${ticket.id}`);
+    router.push(issueHref);
   };
 
   return (
@@ -86,7 +91,9 @@ const IssueRow = memo(({ ticket, users, isSelected, onToggleSelection, currentUs
         </div>
 
         <Link
-          href={`/dashboard/issues/${ticket.id}`}
+          href={issueHref}
+          onMouseEnter={prefetchIssue}
+          onFocus={prefetchIssue}
           className="text-[11px] font-bold text-gray-400 uppercase tracking-tighter shrink-0 w-14 hover:text-indigo-600 transition-colors"
         >
           {ticket.projects?.project_name?.substring(0, 3).toUpperCase() || 'KAP'}-{ticket.id.substring(0, 2).toUpperCase()}
@@ -113,7 +120,9 @@ const IssueRow = memo(({ ticket, users, isSelected, onToggleSelection, currentUs
             </span>
           )}
           <Link
-            href={`/dashboard/issues/${ticket.id}`}
+            href={issueHref}
+            onMouseEnter={prefetchIssue}
+            onFocus={prefetchIssue}
             className={twMerge(
               "text-sm font-semibold truncate transition-colors",
               isSelected ? "text-indigo-900" : "text-gray-700 group-hover:text-indigo-600"
@@ -171,19 +180,31 @@ interface IssuesListProps {
   isMyTasks?: boolean;
 }
 
-export function IssuesList({ tickets, users = [], emptyMessage = "No issues found", onOpenModal, currentUser, isMyTasks = false }: IssuesListProps) {
+export function IssuesList({ 
+  tickets, 
+  users = [], 
+  emptyMessage = "No issues found", 
+  onOpenModal, 
+  currentUser, 
+  isMyTasks = false 
+}: IssuesListProps) {
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const parentRef = useRef<HTMLDivElement>(null);
 
   // Group tickets by status (memoized)
-  const groupedTickets = useMemo(() => tickets.reduce((acc: any, ticket: any) => {
-    const status = ticket.status || 'to_do';
-    if (!acc[status]) {
-      acc[status] = [];
-    }
-    acc[status].push(ticket);
-    return acc;
-  }, {}), [tickets]);
+  const groupedTickets = useMemo(
+    () =>
+      tickets.reduce((acc: Record<string, any[]>, ticket: any) => {
+        const status = ticket.status || 'to_do';
+        if (!acc[status]) {
+          acc[status] = [];
+        }
+        acc[status].push(ticket);
+        return acc;
+      }, {}),
+    [tickets]
+  );
 
   const toggleSection = useCallback((status: string) => {
     setCollapsedSections(prev => ({
@@ -212,6 +233,44 @@ export function IssuesList({ tickets, users = [], emptyMessage = "No issues foun
   // Define status order
   const statusOrder = ['in_progress', 'review', 'in_review', 'to_do', 'backlog', 'done', 'cancelled'];
   const orderedStatuses = useMemo(() => statusOrder.filter(status => groupedTickets[status]), [groupedTickets]);
+  const sectionCounts = useMemo(() => {
+    return orderedStatuses.reduce((acc: Record<string, number>, status) => {
+      acc[status] = groupedTickets[status]?.length ?? 0;
+      return acc;
+    }, {});
+  }, [groupedTickets, orderedStatuses]);
+
+  // Flatten items for virtualization (Header + Tickets)
+  const flatItems = useMemo(() => {
+    const items: Array<{ type: 'header' | 'ticket'; data: any; sectionStatus?: string; isFirstInSection?: boolean; isLastInSection?: boolean }> = [];
+    
+    orderedStatuses.forEach((status) => {
+      items.push({ type: 'header', data: status });
+      if (!collapsedSections[status]) {
+        const sectionTickets = groupedTickets[status];
+        sectionTickets.forEach((ticket: any, idx: number) => {
+          items.push({ 
+            type: 'ticket', 
+            data: ticket, 
+            sectionStatus: status,
+            isFirstInSection: idx === 0,
+            isLastInSection: idx === sectionTickets.length - 1
+          });
+        });
+      }
+    });
+    return items;
+  }, [orderedStatuses, groupedTickets, collapsedSections]);
+
+  const virtualizer = useVirtualizer({
+    count: flatItems.length,
+    getScrollElement: () => parentRef.current?.parentElement || null,
+    estimateSize: (index) => {
+      const item = flatItems[index];
+      return item.type === 'header' ? 44 : 41;
+    },
+    overscan: tickets.length > 250 ? 8 : 12,
+  });
 
   if (tickets.length === 0) {
     return (
@@ -235,20 +294,28 @@ export function IssuesList({ tickets, users = [], emptyMessage = "No issues foun
   }
 
   return (
-    <div className="space-y-8 relative pb-20">
+    <div ref={parentRef} className="relative w-full" style={{ height: `${virtualizer.getTotalSize()}px` }}>
+      {virtualizer.getVirtualItems().map((virtualRow) => {
+        const item = flatItems[virtualRow.index];
+        if (!item) return null;
+        
+        if (item.type === 'header') {
+          const status = item.data;
+          const statusData = statusIcons[status] || statusIcons['to_do'];
+          const statusColor = statusData.color;
+          const statusLabel = statusData.label;
+          const isCollapsed = collapsedSections[status];
+          const sectionCount = sectionCounts[status] ?? 0;
 
-      {orderedStatuses.map((status) => {
-        const statusData = statusIcons[status] || statusIcons['to_do'];
-        const statusColor = statusData.color;
-        const statusLabel = statusData.label;
-        const isCollapsed = collapsedSections[status];
-        const sectionTickets = groupedTickets[status];
-
-        return (
-          <div key={status}>
+          return (
             <div
+              key={`header-${status}`}
               onClick={() => toggleSection(status)}
-              className="flex items-center gap-2 mb-3 cursor-pointer group select-none"
+              className="absolute top-0 left-0 w-full flex items-center gap-2 mb-3 cursor-pointer group select-none"
+              style={{
+                height: `${virtualRow.size}px`,
+                transform: `translateY(${virtualRow.start}px)`,
+              }}
             >
               <ChevronDown
                 size={14}
@@ -262,40 +329,54 @@ export function IssuesList({ tickets, users = [], emptyMessage = "No issues foun
                 {statusLabel}
               </h2>
               <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-bold">
-                {sectionTickets.length}
+                {sectionCount}
               </span>
             </div>
+          );
+        }
 
-            {!isCollapsed && (
-              <div className={twMerge(
-                "bg-white border rounded-xl shadow-sm transition-all duration-200",
-                selectedIds.size > 0 ? "border-indigo-100" : "border-gray-100"
-              )}>
-                <div className="divide-y divide-gray-50">
-                  {sectionTickets.map((ticket: any) => (
-                    <IssueRow
-                      key={ticket.id}
-                      ticket={ticket}
-                      users={users}
-                      isSelected={selectedIds.has(ticket.id)}
-                      onToggleSelection={toggleSelection}
-                      currentUser={currentUser}
-                      isMyTasks={isMyTasks}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
+        const ticket = item.data;
+        const isSelected = selectedIds.has(ticket.id);
+
+        return (
+          <div
+            key={ticket.id}
+            className="absolute top-0 left-0 w-full"
+            style={{
+              height: `${virtualRow.size}px`,
+              transform: `translateY(${virtualRow.start}px)`,
+            }}
+          >
+            <div className={twMerge(
+              "bg-white border-x transition-all duration-200",
+              item.isFirstInSection && "rounded-t-xl border-t",
+              item.isLastInSection && "rounded-b-xl border-b shadow-sm mb-8",
+              isSelected ? "border-indigo-200" : "border-gray-100",
+              !item.isLastInSection && "border-b border-gray-50"
+            )}>
+              <IssueRow
+                ticket={ticket}
+                users={users}
+                isSelected={isSelected}
+                onToggleSelection={toggleSelection}
+                currentUser={currentUser}
+                isMyTasks={isMyTasks}
+              />
+            </div>
           </div>
         );
       })}
 
-      <BulkActionToolbar
-        selectedIds={Array.from(selectedIds)}
-        onClear={clearSelection}
-        totalTickets={tickets.length}
-        currentUser={currentUser}
-      />
+      <div className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none">
+        <div className="max-w-5xl mx-auto px-6 pb-6 flex justify-center pointer-events-auto">
+          <BulkActionToolbar
+            selectedIds={Array.from(selectedIds)}
+            onClear={clearSelection}
+            totalTickets={tickets.length}
+            currentUser={currentUser}
+          />
+        </div>
+      </div>
     </div>
   );
 }
