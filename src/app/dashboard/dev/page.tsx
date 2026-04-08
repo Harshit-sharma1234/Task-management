@@ -3,8 +3,9 @@ import { createClient } from '@/lib/supabase/server'
 import { Code } from 'lucide-react'
 import DashboardOverview, { StatsCards } from '@/components/dashboard/Overview'
 import { StatsSkeleton } from '@/components/dashboard/OverviewSkeletons'
+import { getServerUser, getServerProfile } from '@/lib/auth-server'
 import { Suspense } from 'react'
-import { getCachedUserProfile, getCachedUsers } from '@/lib/cache'
+import { getCachedUsers } from '@/lib/cache'
 import { Metadata } from 'next'
 import dynamic from 'next/dynamic'
 
@@ -19,12 +20,10 @@ export const metadata: Metadata = {
 export const revalidate = 60;
 
 export default async function DevDashboard() {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-
+    const user = await getServerUser()
     if (!user) redirect('/login')
 
-    const profile = await getCachedUserProfile(user.email!)
+    const profile = await getServerProfile(user.email!)
     if (!profile || (profile.roles?.role_name !== 'Senior Developer' && profile.roles?.role_name !== 'Junior Developer')) {
         redirect('/dashboard')
     }
