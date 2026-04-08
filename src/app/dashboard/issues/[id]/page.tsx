@@ -31,11 +31,29 @@ async function IssueActivitySection({
       .order('created_at', { ascending: true }),
   ]);
 
+  // Supabase join shape can come back as `users: [...]` (array) depending on the relationship.
+  // `CommentSection` expects `users` to be a single object for `initialComments`/`initialLogs`.
+  const normalizedComments = (commentsResponse.data || []).map((c: any) => {
+    const users = Array.isArray(c.users) ? c.users[0] : c.users;
+    return {
+      ...c,
+      users: users || { id: c.user_id, name: 'User', email: '', avatar_url: null },
+    };
+  });
+
+  const normalizedLogs = (logsResponse.data || []).map((l: any) => {
+    const users = Array.isArray(l.users) ? l.users[0] : l.users;
+    return {
+      ...l,
+      users: users || { id: undefined, name: 'Unknown', avatar_url: null },
+    };
+  });
+
   return (
     <CommentSection
       ticketId={ticketId}
-      initialComments={commentsResponse.data || []}
-      initialLogs={logsResponse.data || []}
+      initialComments={normalizedComments as any}
+      initialLogs={normalizedLogs as any}
       currentUser={currentUser}
     />
   );
@@ -53,7 +71,7 @@ export default async function IssueDetailsPage({ params }: { params: { id: strin
 
   // Fetch above-the-fold data first.
   // Comments/logs are loaded inside Suspense to keep navigation snappy.
-  const [ticketResponse, profile, allUsersResponse] = await Promise.all([
+  const [ticketResponse, profile, allUsers] = await Promise.all([
     supabase
       .from('tickets')
       .select(`
@@ -76,12 +94,15 @@ export default async function IssueDetailsPage({ params }: { params: { id: strin
   ]);
 
   const { data: ticket, error: ticketError } = ticketResponse;
-  const { data: allUsers } = allUsersResponse;
 
   if (ticketError || !ticket) {
     console.error('Error fetching ticket:', ticketError);
     return notFound();
   }
+
+  const ticketProjectName = Array.isArray((ticket as any).projects)
+    ? (ticket as any).projects?.[0]?.project_name
+    : (ticket as any).projects?.project_name;
 
   // RBAC for deletion
   const canDelete = profile?.roles?.role_name === 'Admin' || profile?.roles?.role_name === 'Project Manager';
@@ -100,7 +121,9 @@ export default async function IssueDetailsPage({ params }: { params: { id: strin
         <div className="flex items-center gap-3 text-sm font-medium">
           <Link href="/dashboard/issues" className="text-gray-500 hover:text-gray-900 transition-colors">Issues</Link>
           <ChevronRight size={14} className="text-gray-300" />
-          <span className="text-gray-400 uppercase">{ticket.projects?.project_name.substring(0, 3)}-{ticket.id.substring(0, 4)}</span>
+          <span className="text-gray-400 uppercase">
+            {ticketProjectName ? ticketProjectName.substring(0, 3) : 'N/A'}-{ticket.id.substring(0, 4)}
+          </span>
         </div>
         <IssueHeaderActions ticketId={id} canDelete={canDelete} />
       </div>
@@ -170,7 +193,7 @@ export default async function IssueDetailsPage({ params }: { params: { id: strin
             initialReviewerId={ticket.reviewer_id}
             currentUserId={profile?.id || ''}
             currentUser={profile}
-            projectName={ticket.projects?.project_name || 'N/A'}
+            projectName={ticketProjectName || 'N/A'}
             dueDate={ticket.due_date || null}
             users={allUsers || []}
           />
