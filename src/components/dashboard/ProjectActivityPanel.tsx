@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, memo } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { getProjectLogs } from '@/app/dashboard/logging/actions';
+import { Shimmer } from '@/components/ui/Skeleton';
 
 interface ProjectActivityPanelProps {
   projectId: string;
@@ -12,14 +13,17 @@ interface ProjectActivityPanelProps {
 
 export const ProjectActivityPanel = memo(({ projectId, userRole }: ProjectActivityPanelProps) => {
   const [logs, setLogs] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
   const supabase = useMemo(() => createClient(), []);
 
   const fetchLogs = async () => {
+    setIsLoading(true);
     const res = await getProjectLogs(projectId);
     if (!res.error) {
       setLogs(res.data || []);
     }
+    setIsLoading(false);
   };
 
   useEffect(() => {
@@ -77,7 +81,19 @@ export const ProjectActivityPanel = memo(({ projectId, userRole }: ProjectActivi
       
       {isOpen && (
         <div className="space-y-3 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar animate-in fade-in slide-in-from-top-2 duration-200">
-          {logs.length === 0 ? (
+          {isLoading ? (
+            <div className="space-y-3">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="flex items-start gap-3">
+                  <Shimmer className="w-7 h-7 rounded-full" />
+                  <div className="flex-1 space-y-2">
+                    <Shimmer className="h-4 w-40 rounded-sm" />
+                    <Shimmer className="h-3 w-24 rounded-sm" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : logs.length === 0 ? (
             <div className="flex items-center gap-3 text-xs text-gray-400 border-l-2 border-gray-100 pl-4 ml-2">
               <span className="text-[11px] font-medium">No activity yet</span>
             </div>
