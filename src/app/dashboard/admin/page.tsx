@@ -1,14 +1,13 @@
 import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { Shield } from 'lucide-react'
 import DashboardOverview from '@/components/dashboard/Overview'
 import { OverviewSkeleton } from '@/components/dashboard/OverviewSkeleton'
 import { getCachedUserProfile } from '@/lib/cache'
 import { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Admin Dashboard',
+    title: 'Admin Dashboard',
 }
 
 export const revalidate = 60;
@@ -30,7 +29,7 @@ async function AdminContent() {
     if (!user) redirect('/login')
 
     const profile = await getCachedUserProfile(user.email!)
-    
+
     if (!profile || profile.roles?.role_name !== 'Admin') {
         redirect('/dashboard')
     }
