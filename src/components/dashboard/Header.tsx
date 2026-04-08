@@ -3,24 +3,45 @@
 import { LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { UserDropdown } from './UserDropdown';
 
-export function Header({ initialProfile }: { initialProfile?: any }) {
+interface HeaderProps {
+  userId: string;
+  email: string;
+}
+
+export function Header({ userId, email }: HeaderProps) {
   const router = useRouter();
+  const [profile, setProfile] = useState<any>(null);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
   const supabase = useMemo(() => createClient(), [])
 
-  // Derive the profile shape from server-provided data — no client-side fetch needed
-  const userProfile = initialProfile ? {
-    name: initialProfile.name,
-    email: initialProfile.email,
-    avatar_url: initialProfile.avatar_url,
-    role: Array.isArray(initialProfile.roles) 
-      ? initialProfile.roles[0]?.role_name 
-      : initialProfile.roles?.role_name
-  } : null;
+  // Fetch profile autonomously if not provided via props (Layout Slimming)
+  useEffect(() => {
+    async function fetchProfile() {
+      const { data } = await supabase
+        .from('users')
+        .select('*, roles(role_name)')
+        .eq('email', email)
+        .single();
+      if (data) setProfile(data);
+    }
+    fetchProfile();
+  }, [email, supabase]);
+
+  const userProfile = useMemo(() => {
+    if (!profile) return null;
+    return {
+      name: profile.name,
+      email: profile.email,
+      avatar_url: profile.avatar_url,
+      role: Array.isArray(profile.roles) 
+        ? profile.roles[0]?.role_name 
+        : profile.roles?.role_name
+    };
+  }, [profile]);
 
   const handleSignOut = useCallback(async () => {
     setShowSignOutConfirm(false);
