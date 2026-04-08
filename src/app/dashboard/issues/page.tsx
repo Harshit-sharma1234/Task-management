@@ -25,44 +25,42 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
 
   return (
     <Suspense fallback={<IssueListSkeleton />}>
-      <IssueListContent filter={filter} />
+      <IssueListContent
+        filter={filter}
+        userEmail={user.email!}
+        userId={user.id}
+      />
     </Suspense>
   );
 }
 
-async function IssueListContent({ filter }: { filter: string }) {
+async function IssueListContent({ filter, userEmail, userId }: { filter: string; userEmail: string; userId: string }) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
   const { getUserProfile } = await import('@/lib/roles');
-  const currentUser = user ? await getUserProfile(supabase, user.email!, user.id) : null;
+  const currentUser = await getUserProfile(supabase, userEmail, userId);
 
   const { createAdminClient } = await import('@/lib/supabase/admin');
   const adminClient = createAdminClient();
+  const { getCachedIssueProjects, getCachedIssueUsers } = await import('@/lib/cache');
 
   // We use adminClient to show ALL issues as requested for this global view
   let query = adminClient
     .from('tickets')
-    .select('id, title, status, priority, assignee_id, reviewer_id, attachments, created_at, projects(id, project_name, status), assignees:users!assignee_id(id, name, avatar_url)')
+    // List view only needs a small subset; keep payload minimal for faster loads.
+    .select('id, title, status, priority, assignee_id, reviewer_id, created_at, projects(id, project_name), assignees:users!assignee_id(id, name, avatar_url)')
     .order('created_at', { ascending: false });
 
   // Fetch all required data in parallel using adminClient for global view
-  const [ticketsRes, projectsRes, usersRes] = await Promise.all([
+  const [ticketsRes, cachedProjects, cachedUsers] = await Promise.all([
     query.limit(200),
-    adminClient
-      .from('projects')
-      .select('id, project_name')
-      .order('project_name'),
-    adminClient
-      .from('users')
-      .select('id, name, avatar_url, roles(role_name)')
-      .order('name')
+    getCachedIssueProjects(),
+    getCachedIssueUsers(),
   ]);
 
   const tickets = ticketsRes.data || [];
-  const projects = (projectsRes.data || []).map(p => ({ id: p.id, name: p.project_name }));
-  const users = usersRes.data || [];
+  const projects = (cachedProjects || []).map((p: any) => ({ id: p.id, name: p.project_name }));
+  const users = cachedUsers || [];
 
-  if (usersRes.error) console.error('Error fetching users:', usersRes.error);
   if (ticketsRes.error) console.error('Error fetching tickets:', ticketsRes.error);
 
   return (
