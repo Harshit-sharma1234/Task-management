@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { Plus, Filter, SlidersHorizontal } from 'lucide-react';
-import Link from 'next/link';
 import { clsx } from 'clsx';
 
 interface Project {
@@ -20,10 +19,11 @@ interface IssuesHeaderProps {
   projects: Project[];
   users: User[];
   activeFilter?: string;
+  onFilterChange: (filter: string) => void;
   onOpenModal: () => void;
 }
 
-export function IssuesHeader({ totalIssues, projects, users, activeFilter = 'all', onOpenModal }: IssuesHeaderProps) {
+export function IssuesHeader({ totalIssues, projects, users, activeFilter = 'all', onFilterChange, onOpenModal }: IssuesHeaderProps) {
 
   const filters = [
     { id: 'all', label: 'All issues' },
@@ -38,9 +38,9 @@ export function IssuesHeader({ totalIssues, projects, users, activeFilter = 'all
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               {filters.map((filter) => (
-                <Link
+                <button
                   key={filter.id}
-                  href={`/dashboard/issues?filter=${filter.id}`}
+                  onClick={() => onFilterChange(filter.id)}
                   className={clsx(
                     "text-xs font-semibold px-3 py-1.5 rounded-md transition-all duration-200",
                     activeFilter === filter.id 
@@ -49,7 +49,7 @@ export function IssuesHeader({ totalIssues, projects, users, activeFilter = 'all
                   )}
                 >
                   {filter.label}
-                </Link>
+                </button>
               ))}
             </div>
           </div>
