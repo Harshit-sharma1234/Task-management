@@ -12,6 +12,7 @@ import {
     deleteAllReadNotifications,
     deleteNotification
 } from '@/app/dashboard/notifications/actions';
+import { fetchEntityDetailAction } from './actions';
 import { cn, formatTime } from '@/lib/utils';
 import { STATUS_ICONS, PRIORITY_ICONS } from '@/lib/constants';
 import { 
@@ -75,14 +76,16 @@ export default function InboxClient({
     const detailCache = useRef<Map<string, { detail: any; activity: any[] }>>(new Map());
     const fetchPromises = useRef<Map<string, Promise<any>>>(new Map());
     const selectedIdRef = useRef(selectedId);
+    const hoverTimeoutRef = useRef<any>(null);
     
     useEffect(() => {
         selectedIdRef.current = selectedId;
     }, [selectedId]);
 
-    // Sync initial server data to cache (OR trigger fetch if deferred for static-first rendering)
+    // ── INITIAL PREFETCH (Top 3) ───────────────────
     useEffect(() => {
         if (initialNotifications.length > 0) {
+            // First item logic
             const firstNotif = initialNotifications.find(n => n.id === initialSelectedId);
             if (firstNotif?.entity_id) {
                 if (initialEntityDetail) {
@@ -91,10 +94,14 @@ export default function InboxClient({
                         activity: initialEntityActivity
                     });
                 } else {
-                    // Fetch silently on mount to populate the shared detail view
                     fetchEntityDetail(firstNotif);
                 }
             }
+
+            // Prefetch next 2 for instant feels
+            initialNotifications.slice(1, 3).forEach(n => {
+                fetchEntityDetail(n, true);
+            });
         }
     }, []);
 
@@ -132,26 +139,7 @@ export default function InboxClient({
         };
     }, [currentUser?.id]);
 
-    async function fetchNotifications(userId: string) {
-        const { data, error } = await supabase
-            .from('notifications')
-            .select(`
-                *,
-                actor:actor_id(id, name, email, avatar_url)
-            `)
-            .eq('user_id', userId)
-            .order('created_at', { ascending: false });
-
-        if (!error) {
-            setNotifications(data || []);
-            // Auto-select first notification if none selected
-            if (!selectedId && data && data.length > 0) {
-                setSelectedId(data[0].id);
-                fetchEntityDetail(data[0]);
-            }
-        }
-        setLoading(false);
-    }
+    // fetchNotifications removed in favor of Realtime updates (reduces redundant requests)
 
     async function fetchEntityDetail(notification: any, isPrefetch = false) {
         if (!notification?.entity_id) return;
@@ -184,13 +172,12 @@ export default function InboxClient({
         // 3. Start new fetch
         if (!isPrefetch) {
             setDetailLoading(true);
-            setEntityDetail(null);
-            setEntityActivity([]);
+            // STALE-WHILE-REVALIDATE: We NO LONGER call setEntityDetail(null) here.
+            // This ensures the previous item stays visible while the new one loads.
         }
 
         const fetchPromise = (async () => {
             try {
-                const { fetchEntityDetailAction } = await import('./actions');
                 const result = await fetchEntityDetailAction(entityId, entityType);
                 
                 if (result.detail) {
@@ -253,6 +240,7 @@ export default function InboxClient({
     const selectedNotification = useMemo(() => notifications.find(n => n.id === selectedId), [notifications, selectedId]);
 
     function handleSelect(notification: any) {
+        if (selectedId === notification.id) return;
         setSelectedId(notification.id);
         fetchEntityDetail(notification);
         // Auto-mark as read
@@ -265,14 +253,12 @@ export default function InboxClient({
     const handleMarkAllRead = async () => {
         await markAllAsRead();
         setGlobalUnreadCount(0);
-        if (currentUser) fetchNotifications(currentUser.id);
         setShowActions(false);
     };
 
     const handleDeleteAll = async () => {
         if (confirm('Are you sure you want to delete ALL notifications?')) {
             await deleteAllNotifications();
-            if (currentUser) fetchNotifications(currentUser.id);
             setSelectedId(null);
             setEntityDetail(null);
             setShowActions(false);
@@ -281,7 +267,6 @@ export default function InboxClient({
 
     const handleDeleteRead = async () => {
         await deleteAllReadNotifications();
-        if (currentUser) fetchNotifications(currentUser.id);
         setShowActions(false);
     };
 
@@ -480,7 +465,12 @@ export default function InboxClient({
                                             selected={selectedId === notification.id}
                                             onSelect={() => handleSelect(notification)}
                                             onDelete={(e: React.MouseEvent) => handleDeleteNotification(e, notification.id)}
-                                            onMouseEnter={() => fetchEntityDetail(notification, true)}
+                                            onMouseEnter={() => {
+                                                clearTimeout(hoverTimeoutRef.current);
+                                                hoverTimeoutRef.current = setTimeout(() => {
+                                                    fetchEntityDetail(notification, true);
+                                                }, 200);
+                                            }}
                                         />
                                     </div>
                                 );
@@ -537,11 +527,21 @@ export default function InboxClient({
                             </div>
                         </div>
 
-                        {/* Detail Content */}
-                        <div className="flex-1 overflow-y-auto">
-                            {detailLoading ? (
-                                <div className="flex items-center justify-center h-64">
+                        <div className={cn(
+                            "flex-1 overflow-y-auto relative transition-opacity duration-200",
+                            detailLoading ? "opacity-40" : "opacity-100"
+                        )}>
+                            {detailLoading && !entityDetail && (
+                                <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/50">
                                     <Loader2 className="animate-spin text-indigo-500" size={24} />
+                                </div>
+                            )}
+
+                            {!entityDetail && !detailLoading ? (
+                                <div className="flex flex-col items-center justify-center h-full text-gray-400 py-20">
+                                    <BellOff className="mb-3 text-gray-200" size={40} />
+                                    <p className="text-sm font-semibold text-gray-600">This item is no longer available</p>
+                                    <p className="text-xs text-gray-400 mt-1">It may have been deleted or moved</p>
                                 </div>
                             ) : entityDetail?.type === 'ticket' ? (
                                 <div className="max-w-3xl mx-auto px-8 py-8">
@@ -615,11 +615,7 @@ export default function InboxClient({
                                         </div>
                                     )}
                                 </div>
-                            ) : (
-                                <div className="flex items-center justify-center h-64 text-gray-400">
-                                    <p className="text-sm">Could not load details for this notification.</p>
-                                </div>
-                            )}
+                            ) : null}
                         </div>
                     </>
                 )}
