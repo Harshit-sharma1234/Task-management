@@ -9,6 +9,13 @@ import { getUserProfile } from '../../lib/roles'
 import { createNotification } from './notifications/actions'
 import { insertProjectLog } from './logging/actions'
 
+function revalidateProjectDataTags() {
+    revalidateTag('projects', 'max')
+    revalidateTag('project-members', 'max')
+    revalidateTag('project-resources', 'max')
+    revalidateTag('issues', 'max')
+}
+
 export async function createProject(formData: FormData) {
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -131,6 +138,66 @@ export async function createProject(formData: FormData) {
         }
     }
 
+    // Handle attachments (store as project resources so they show up in ProjectOverview)
+    const files = formData.getAll('attachments')
+    if (files && files.length > 0) {
+        const attachmentsToInsert: Array<{ project_id: string; title: string; url: string; created_by: string }> = []
+
+        // Ensure bucket exists (first-time setup safety)
+        try {
+            const { data: buckets } = await adminClient.storage.listBuckets()
+            const bucketExists = buckets?.some((b: any) => b.name === 'project-attachments')
+            if (!bucketExists) {
+                await adminClient.storage.createBucket('project-attachments', { public: true })
+            }
+        } catch (err) {
+            console.error('[createProject] Error checking/creating bucket:', err)
+        }
+
+        for (const fileObj of files) {
+            const file = fileObj as File
+            if (!file || !file.name || file.size === 0) continue
+
+            const fileExt = file.name.split('.').pop()
+            const safeExt = fileExt ? fileExt.replace(/[^a-zA-Z0-9]/g, '') : 'bin'
+            const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${safeExt}`
+            const filePath = `${newProject.id}/${fileName}`
+
+            const { error: uploadError } = await adminClient.storage
+                .from('project-attachments')
+                .upload(filePath, file, { contentType: file.type, upsert: true })
+
+            if (uploadError) {
+                console.error('[createProject] Error uploading attachment:', uploadError)
+                continue
+            }
+
+            const { data: { publicUrl } } = adminClient.storage
+                .from('project-attachments')
+                .getPublicUrl(filePath)
+
+            if (publicUrl) {
+                attachmentsToInsert.push({
+                    project_id: newProject.id,
+                    title: file.name,
+                    url: publicUrl,
+                    created_by: user.id
+                })
+            }
+        }
+
+        if (attachmentsToInsert.length > 0) {
+            const { error: resErr } = await adminClient
+                .from('project_resources')
+                .insert(attachmentsToInsert)
+
+            if (resErr) {
+                console.error('[createProject] Error inserting attachment resources:', resErr)
+            }
+        }
+    }
+
+    revalidateProjectDataTags()
     revalidatePath('/dashboard/projects', 'page')
     revalidatePath('/dashboard', 'page')
 
@@ -177,6 +244,7 @@ export async function updateProjectPriority(projectId: string, priority: string 
         newValue: { priority }
     }).catch(() => {})
 
+    revalidateProjectDataTags()
     revalidatePath('/dashboard/projects', 'page')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
     return { success: true }
@@ -231,6 +299,7 @@ export async function updateProjectLead(projectId: string, leadId: string | null
         newValue: { lead_id: leadId }
     }).catch(() => {})
 
+    revalidateProjectDataTags()
     revalidatePath('/dashboard/projects', 'page')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
     return { success: true }
@@ -277,6 +346,7 @@ export async function updateProjectTargetDate(projectId: string, startDate: stri
         newValue: { start_date: startDate }
     }).catch(() => {})
 
+    revalidateProjectDataTags()
     revalidatePath('/dashboard/projects', 'page')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
     return { success: true }
@@ -324,6 +394,7 @@ export async function updateProjectDueDate(projectId: string, dueDate: string | 
         newValue: { target_date: dueDate }
     }).catch(() => {})
 
+    revalidateProjectDataTags()
     revalidatePath('/dashboard/projects', 'page')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
     return { success: true }
@@ -368,6 +439,7 @@ export async function updateProjectStatus(projectId: string, status: string | nu
         newValue: { status }
     }).catch(() => {})
 
+    revalidateProjectDataTags()
     revalidatePath('/dashboard/projects', 'page')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
     return { success: true }
@@ -411,6 +483,7 @@ export async function updateProjectDescription(projectId: string, description: s
         newValue: null
     }).catch(() => {})
 
+    revalidateProjectDataTags()
     revalidatePath('/dashboard/projects', 'page')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
     return { success: true }
@@ -429,11 +502,12 @@ export async function toggleProjectMember(projectId: string, userId: string) {
         getUserProfile(supabase, user.email!, user.id),
         supabase
             .from('projects')
-            .select('lead_id, created_by')
+            .select('project_name')
             .eq('id', projectId)
             .single()
     ])
     if (!profile) return { error: 'User profile not found' }
+    if (projectError || !project) return { error: 'Project not found' }
 
     // 1. Setup bypass — any logged in user can manage members as per user request
     const apiClient = createAdminClient()
@@ -477,11 +551,12 @@ export async function toggleProjectMember(projectId: string, userId: string) {
         }
 
         // --- Notification & Log Trigger ---
-        // Fetch project name and target user in parallel
-        const [{ data: project }, { data: targetUser }] = await Promise.all([
-            supabase.from('projects').select('project_name').eq('id', projectId).single(),
-            supabase.from('users').select('name').eq('id', userId).single()
-        ])
+        // Fetch only the target user's name (project_name is already validated above).
+        const { data: targetUser } = await supabase
+            .from('users')
+            .select('name')
+            .eq('id', userId)
+            .single()
 
         await createNotification({
             userId: userId,
@@ -489,7 +564,7 @@ export async function toggleProjectMember(projectId: string, userId: string) {
             entityType: 'project',
             entityId: projectId,
             type: 'assignment',
-            message: `${user.user_metadata?.full_name || 'Someone'} added you to project: ${project?.project_name || 'New Project'}`
+            message: `${user.user_metadata?.full_name || 'Someone'} added you to project: ${project?.project_name || 'Project'}`
         })
 
         try {
@@ -505,7 +580,9 @@ export async function toggleProjectMember(projectId: string, userId: string) {
         }
     }
 
+    revalidateProjectDataTags()
     revalidatePath('/dashboard/projects', 'page')
+    revalidateProjectDataTags()
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
     return { success: true }
 }
@@ -578,8 +655,8 @@ export async function updateUserAvatar(userId: string, avatarUrl: string) {
     }
 
     // Invalidate profile caches (and team list avatars if shown there)
-    revalidateTag(`user-profile-${user.email}`)
-    revalidateTag('team-members')
+    revalidateTag(`user-profile-${user.email}`, 'max')
+    revalidateTag('team-members', 'max')
     return { success: true }
 }
 
@@ -643,7 +720,7 @@ export async function provisionEmployee(formData: FormData) {
     }
 
     // Only invalidate cached team members list; no need to re-fetch on every navigation.
-    revalidateTag('team-members')
+    revalidateTag('team-members', 'max')
     revalidatePath('/dashboard/admin', 'page')
     return { success: true, message: `Account created for ${name}. Temporary password: ${tempPassword}` }
 }
@@ -694,6 +771,7 @@ export async function deleteProjectResource(resourceId: string, projectId: strin
         return { error: `Failed to delete resource: ${error.message}` }
     }
 
+    revalidateProjectDataTags()
     revalidatePath(`/dashboard/projects/${projectId}`)
     return { success: true }
 }
