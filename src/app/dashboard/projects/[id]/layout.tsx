@@ -5,9 +5,6 @@ import { ProjectDetailHeader } from '@/components/dashboard/ProjectDetailHeader'
 import { ProjectSidebar } from '@/components/dashboard/ProjectSidebar';
 import { getProjectDetails } from './data';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
 interface LayoutProps {
   children: React.ReactNode;
   params: Promise<{ id: string }>;

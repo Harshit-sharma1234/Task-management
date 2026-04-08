@@ -11,7 +11,7 @@ import {
     Minus,
     Loader2
 } from 'lucide-react';
-import { clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 
 interface IssuePrioritySelectorProps {
     issueId: string;
@@ -136,7 +136,7 @@ export const IssuePrioritySelector = memo(({
                     setIsOpen(!isOpen);
                 }}
                 disabled={isUpdating || !canUpdate}
-                className={clsx(
+                className={twMerge(
                     "flex items-center justify-center w-8 h-8 rounded-md transition-all",
                     canUpdate ? "hover:bg-gray-100" : "cursor-not-allowed opacity-50",
                     isOpen && "bg-gray-100"
@@ -158,7 +158,7 @@ export const IssuePrioritySelector = memo(({
                             <button
                                 key={opt.value}
                                 onClick={(e) => handleSelect(e, opt.value)}
-                                className={clsx(
+                                className={twMerge(
                                     "w-full flex items-center gap-2.5 px-3 py-1.5 text-left transition-colors hover:bg-gray-50",
                                     optimisticPriority === opt.value ? "bg-gray-50 text-indigo-600" : "text-gray-500"
                                 )}
