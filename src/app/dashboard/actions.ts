@@ -9,6 +9,13 @@ import { getUserProfile } from '../../lib/roles'
 import { createNotification } from './notifications/actions'
 import { insertProjectLog } from './logging/actions'
 
+function revalidateProjectDataTags() {
+    revalidateTag('projects', 'max')
+    revalidateTag('project-members', 'max')
+    revalidateTag('project-resources', 'max')
+    revalidateTag('issues', 'max')
+}
+
 export async function createProject(formData: FormData) {
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -190,6 +197,7 @@ export async function createProject(formData: FormData) {
         }
     }
 
+    revalidateProjectDataTags()
     revalidatePath('/dashboard/projects', 'page')
     revalidatePath('/dashboard', 'page')
 
@@ -236,6 +244,7 @@ export async function updateProjectPriority(projectId: string, priority: string 
         newValue: { priority }
     }).catch(() => {})
 
+    revalidateProjectDataTags()
     revalidatePath('/dashboard/projects', 'page')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
     return { success: true }
@@ -290,6 +299,7 @@ export async function updateProjectLead(projectId: string, leadId: string | null
         newValue: { lead_id: leadId }
     }).catch(() => {})
 
+    revalidateProjectDataTags()
     revalidatePath('/dashboard/projects', 'page')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
     return { success: true }
@@ -336,6 +346,7 @@ export async function updateProjectTargetDate(projectId: string, startDate: stri
         newValue: { start_date: startDate }
     }).catch(() => {})
 
+    revalidateProjectDataTags()
     revalidatePath('/dashboard/projects', 'page')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
     return { success: true }
@@ -383,6 +394,7 @@ export async function updateProjectDueDate(projectId: string, dueDate: string | 
         newValue: { target_date: dueDate }
     }).catch(() => {})
 
+    revalidateProjectDataTags()
     revalidatePath('/dashboard/projects', 'page')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
     return { success: true }
@@ -427,6 +439,7 @@ export async function updateProjectStatus(projectId: string, status: string | nu
         newValue: { status }
     }).catch(() => {})
 
+    revalidateProjectDataTags()
     revalidatePath('/dashboard/projects', 'page')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
     return { success: true }
@@ -470,6 +483,7 @@ export async function updateProjectDescription(projectId: string, description: s
         newValue: null
     }).catch(() => {})
 
+    revalidateProjectDataTags()
     revalidatePath('/dashboard/projects', 'page')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
     return { success: true }
@@ -566,7 +580,9 @@ export async function toggleProjectMember(projectId: string, userId: string) {
         }
     }
 
+    revalidateProjectDataTags()
     revalidatePath('/dashboard/projects', 'page')
+    revalidateProjectDataTags()
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
     return { success: true }
 }
@@ -755,6 +771,7 @@ export async function deleteProjectResource(resourceId: string, projectId: strin
         return { error: `Failed to delete resource: ${error.message}` }
     }
 
+    revalidateProjectDataTags()
     revalidatePath(`/dashboard/projects/${projectId}`)
     return { success: true }
 }
