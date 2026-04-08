@@ -39,9 +39,10 @@ interface IssueRowProps {
   isSelected: boolean;
   onToggleSelection: (e: React.MouseEvent, id: string) => void;
   currentUser: any;
+  isMyTasks?: boolean;
 }
 
-const IssueRow = memo(({ ticket, users, isSelected, onToggleSelection, currentUser }: IssueRowProps) => {
+const IssueRow = memo(({ ticket, users, isSelected, onToggleSelection, currentUser, isMyTasks = false }: IssueRowProps) => {
   const router = useRouter();
 
   const handleRowClick = () => {
@@ -105,14 +106,21 @@ const IssueRow = memo(({ ticket, users, isSelected, onToggleSelection, currentUs
           />
         </div>
 
-        <Link
-          href={`/dashboard/issues/${ticket.id}`}
-          className={clsx(
-            "text-sm font-semibold truncate transition-colors",
-            isSelected ? "text-indigo-900" : "text-gray-700 group-hover:text-indigo-600"
-          )}>
-          {ticket.title}
-        </Link>
+        <div className="flex items-center gap-2 min-w-0">
+          {isMyTasks === true && ticket.reviewer_id === currentUser?.id && ticket.assignee_id !== currentUser?.id && (
+            <span className="shrink-0 px-1.5 py-0.5 bg-fuchsia-50 text-fuchsia-600 border border-fuchsia-100 rounded text-[9px] font-bold uppercase tracking-wider">
+              Reviewer
+            </span>
+          )}
+          <Link
+            href={`/dashboard/issues/${ticket.id}`}
+            className={clsx(
+              "text-sm font-semibold truncate transition-colors",
+              isSelected ? "text-indigo-900" : "text-gray-700 group-hover:text-indigo-600"
+            )}>
+            {ticket.title}
+          </Link>
+        </div>
       </div>
 
       <div 
@@ -160,9 +168,10 @@ interface IssuesListProps {
   emptyMessage?: string;
   onOpenModal?: () => void;
   currentUser?: any;
+  isMyTasks?: boolean;
 }
 
-export function IssuesList({ tickets, users = [], emptyMessage = "No issues found", onOpenModal, currentUser }: IssuesListProps) {
+export function IssuesList({ tickets, users = [], emptyMessage = "No issues found", onOpenModal, currentUser, isMyTasks = false }: IssuesListProps) {
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -271,6 +280,7 @@ export function IssuesList({ tickets, users = [], emptyMessage = "No issues foun
                       isSelected={selectedIds.has(ticket.id)}
                       onToggleSelection={toggleSelection}
                       currentUser={currentUser}
+                      isMyTasks={isMyTasks}
                     />
                   ))}
                 </div>
