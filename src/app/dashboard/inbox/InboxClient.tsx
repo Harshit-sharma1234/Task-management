@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useOptimistic, useRef, memo } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { createClient } from '@/lib/supabase/client';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { getInitials, getBadgeColor } from '@/lib/avatar';
@@ -13,28 +14,9 @@ import {
 } from '@/app/dashboard/notifications/actions';
 import { formatDistanceToNow } from 'date-fns';
 import { 
-    Loader2, 
-    BellOff, 
-    MoreHorizontal, 
-    Filter, 
-    Settings2, 
-    Check, 
-    Trash2, 
-    CheckCircle2, 
-    X,
-    ChevronRight,
-    MessageSquare,
-    UserPlus,
-    Zap,
-    FileText,
-    Circle,
-    CircleEllipsis,
-    SignalHigh,
-    SignalMedium,
-    SignalLow,
-    FolderKanban, 
-    Clock, 
-    ArrowLeft
+    Loader2, BellOff, MoreHorizontal, Filter, Settings2, Check, Trash2, CheckCircle2, X,
+    ChevronRight, MessageSquare, UserPlus, Zap, FileText, Circle, CircleEllipsis,
+    SignalHigh, SignalMedium, SignalLow, FolderKanban, Clock, ArrowLeft
 } from 'lucide-react';
 import { PropertyInlineRow } from '@/components/dashboard/issues/PropertyInlineRow';
 import { useNotificationStore } from '@/lib/store/notifications';
@@ -85,6 +67,11 @@ export default function InboxClient({
 }: InboxClientProps) {
     // ── State: initialized from server-fetched props (no loading spinner) ──
     const [notifications, setNotifications] = useState<any[]>(initialNotifications);
+    const [optimisticNotifications, addOptimisticState] = useOptimistic(
+        notifications,
+        (state: any[], { id, isRead }: { id: string; isRead: boolean }) => 
+            state.map(n => n.id === id ? { ...n, is_read: isRead } : n)
+    );
     const [loading, setLoading] = useState(false);
     const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
     const [entityDetail, setEntityDetail] = useState<any>(initialEntityDetail);
@@ -100,6 +87,7 @@ export default function InboxClient({
     const [showViewOptions, setShowViewOptions] = useState(false);
     const [typeFilter, setTypeFilter] = useState<string[]>([]);
     const setGlobalUnreadCount = useNotificationStore((s) => s.setUnreadCount);
+    const parentRef = useRef<HTMLDivElement>(null);
 
     const supabase = useMemo(() => createClient(), []);
 
@@ -112,7 +100,21 @@ export default function InboxClient({
             .on(
                 'postgres_changes',
                 { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${currentUser.id}` },
-                () => fetchNotifications(currentUser.id)
+                async (payload) => {
+                    if (payload.eventType === 'INSERT') {
+                        // Targeted fetch for the single new notification to include joined actor data
+                        const { data } = await supabase
+                            .from('notifications')
+                            .select('*, actor:actor_id(id, name, email, avatar_url)')
+                            .eq('id', payload.new.id)
+                            .single();
+                        if (data) setNotifications(prev => [data, ...prev]);
+                    } else if (payload.eventType === 'UPDATE') {
+                        setNotifications(prev => prev.map(n => n.id === payload.new.id ? { ...n, ...payload.new } : n));
+                    } else if (payload.eventType === 'DELETE') {
+                        setNotifications(prev => prev.filter(n => n.id === payload.old.id));
+                    }
+                }
             )
             .subscribe();
 
@@ -150,76 +152,19 @@ export default function InboxClient({
         setEntityActivity([]);
 
         try {
-            if (notification.entity_type === 'ticket') {
-                const [ticketRes, commentsRes, logsRes] = await Promise.all([
-                    supabase
-                        .from('tickets')
-                        .select(`
-                            *,
-                            projects (id, project_name),
-                            created_by_user: users!created_by(id, name, email, avatar_url),
-                            assigned_to_user: users!assignee_id(id, name, email, avatar_url)
-                        `)
-                        .eq('id', notification.entity_id)
-                        .maybeSingle(),
-                    supabase
-                        .from('comments')
-                        .select('*, users(id, name, email, avatar_url)')
-                        .eq('ticket_id', notification.entity_id)
-                        .order('created_at', { ascending: true }),
-                    supabase
-                        .from('logs')
-                        .select('*, users(id, name)')
-                        .eq('ticket_id', notification.entity_id)
-                        .order('created_at', { ascending: true })
-                ]);
+            const { fetchEntityDetailAction } = await import('./actions');
+            const { detail, activity, error } = await fetchEntityDetailAction(
+                notification.entity_id,
+                notification.entity_type
+            );
 
-                if (ticketRes.error) {
-                    console.error('[Inbox] Ticket fetch error:', ticketRes.error);
-                    // Fallback to simpler fetch if join failed
-                    const fallback = await supabase
-                        .from('tickets')
-                        .select('*, projects(id, project_name)')
-                        .eq('id', notification.entity_id)
-                        .maybeSingle();
-                    
-                    if (fallback.data) {
-                        setEntityDetail({ type: 'ticket', data: fallback.data });
-                    }
-                } else if (ticketRes.data) {
-                    setEntityDetail({ type: 'ticket', data: ticketRes.data });
-                }
-
-                const activity = [
-                    ...(commentsRes.data || []).map(c => ({ ...c, activityType: 'comment' })),
-                    ...(logsRes.data || []).map(l => ({ ...l, activityType: 'log' })),
-                ].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-                setEntityActivity(activity);
-
-            } else if (notification.entity_type === 'project') {
-                const { data, error } = await supabase
-                    .from('projects')
-                    .select('*, lead:users!lead_id(id, name, email, avatar_url)')
-                    .eq('id', notification.entity_id)
-                    .maybeSingle();
-
-                if (error) {
-                    console.error('[Inbox] Project fetch error:', error);
-                    // Fallback to simple fetch
-                    const fallback = await supabase
-                        .from('projects')
-                        .select('*')
-                        .eq('id', notification.entity_id)
-                        .maybeSingle();
-                    
-                    if (fallback.data) {
-                        setEntityDetail({ type: 'project', data: fallback.data });
-                    }
-                } else if (data) {
-                    setEntityDetail({ type: 'project', data });
-                }
+            if (error) {
+                console.error('[Inbox] Unexpected error in fetchEntityDetail:', error);
             } else {
-                console.warn('[Inbox] Unhandled entity type:', notification.entity_type);
+                if (detail) {
+                    setEntityDetail({ type: notification.entity_type, data: detail });
+                }
+                setEntityActivity(activity);
             }
         } catch (err) {
             console.error('[Inbox] Unexpected error in fetchEntityDetail:', err);
@@ -229,7 +174,7 @@ export default function InboxClient({
     }
 
     const filteredAndSorted = useMemo(() => {
-        let result = [...notifications];
+        let result = [...optimisticNotifications];
 
         if (!viewOptions.showRead) {
             result = result.filter(n => !n.is_read);
@@ -250,6 +195,13 @@ export default function InboxClient({
         return result;
     }, [notifications, viewOptions, typeFilter]);
 
+    const virtualizer = useVirtualizer({
+        count: filteredAndSorted.length,
+        getScrollElement: () => parentRef.current,
+        estimateSize: () => 74, // Approximate height of a NotificationRow
+        overscan: 10,
+    });
+
     const selectedNotification = useMemo(() => notifications.find(n => n.id === selectedId), [notifications, selectedId]);
 
     function handleSelect(notification: any) {
@@ -257,8 +209,8 @@ export default function InboxClient({
         fetchEntityDetail(notification);
         // Auto-mark as read
         if (!notification.is_read) {
+            addOptimisticState({ id: notification.id, isRead: true });
             markAsRead(notification.id);
-            setNotifications(prev => prev.map(n => n.id === notification.id ? { ...n, is_read: true } : n));
         }
     }
 
@@ -285,15 +237,26 @@ export default function InboxClient({
         setShowActions(false);
     };
 
-    const handleDeleteNotification = async (e: React.MouseEvent, id: string) => {
+    const handleDeleteNotification = useCallback(async (e: React.MouseEvent, id: string) => {
         e.stopPropagation();
-        await deleteNotification(id);
+        
+        // Optimistic update
+        const previousNotifications = [...notifications];
         setNotifications(prev => prev.filter(n => n.id !== id));
+        
         if (selectedId === id) {
             setSelectedId(null);
             setEntityDetail(null);
         }
-    };
+
+        try {
+            await deleteNotification(id);
+        } catch (err) {
+            console.error('[Inbox] Failed to delete notification:', err);
+            // Rollback on error
+            setNotifications(previousNotifications);
+        }
+    }, [notifications, selectedId, deleteNotification]);
 
     const clearFilters = () => setTypeFilter([]);
 
@@ -434,22 +397,47 @@ export default function InboxClient({
                 </header>
 
                 {/* Notification List */}
-                <div className="flex-1 overflow-y-auto">
+                <div ref={parentRef} className="flex-1 overflow-y-auto">
                     {loading ? (
                         <div className="flex flex-col items-center justify-center h-64 text-gray-400 gap-3">
                             <Loader2 className="animate-spin text-indigo-600" size={24} />
                             <p className="text-xs font-medium">Loading inbox...</p>
                         </div>
                     ) : filteredAndSorted.length > 0 ? (
-                        filteredAndSorted.map((notification) => (
-                            <NotificationRow 
-                                key={notification.id} 
-                                notification={notification} 
-                                selected={selectedId === notification.id}
-                                onSelect={() => handleSelect(notification)}
-                                onDelete={(e: React.MouseEvent) => handleDeleteNotification(e, notification.id)}
-                            />
-                        ))
+                        <div 
+                            style={{ 
+                                height: `${virtualizer.getTotalSize()}px`,
+                                width: '100%',
+                                position: 'relative'
+                            }}
+                        >
+                            {virtualizer.getVirtualItems().map((virtualRow) => {
+                                const notification = filteredAndSorted[virtualRow.index];
+                                if (!notification) return null;
+
+                                return (
+                                    <div
+                                        key={notification.id}
+                                        style={{
+                                            position: 'absolute',
+                                            top: 0,
+                                            left: 0,
+                                            width: '100%',
+                                            height: `${virtualRow.size}px`,
+                                            transform: `translateY(${virtualRow.start}px)`,
+                                        }}
+                                    >
+                                        <NotificationRow 
+                                            notification={notification} 
+                                            selected={selectedId === notification.id}
+                                            onSelect={() => handleSelect(notification)}
+                                            onDelete={(e: React.MouseEvent) => handleDeleteNotification(e, notification.id)}
+                                            onMouseEnter={() => fetchEntityDetail(notification)}
+                                        />
+                                    </div>
+                                );
+                            })}
+                        </div>
                     ) : (
                         <div className="flex flex-col items-center justify-center h-full text-center px-6 py-20">
                             <div className="w-14 h-14 bg-gray-50 rounded-full flex items-center justify-center mb-4 border border-gray-100">
@@ -592,12 +580,13 @@ export default function InboxClient({
     );
 }
 
-function NotificationRow({ notification, selected, onSelect, onDelete }: any) {
+const NotificationRow = memo(({ notification, selected, onSelect, onDelete, onMouseEnter }: any) => {
     const actor = notification.actor
     
     return (
         <button
             onClick={onSelect}
+            onMouseEnter={onMouseEnter}
             className={`w-full text-left px-4 py-3 border-b border-gray-50 transition-colors flex items-start gap-3 group ${
                 selected ? 'bg-indigo-50/60' : 'hover:bg-gray-50/50'
             }`}
@@ -646,7 +635,9 @@ function NotificationRow({ notification, selected, onSelect, onDelete }: any) {
             </div>
         </button>
     )
-}
+});
+
+NotificationRow.displayName = 'NotificationRow';
 
 function ActivityItem({ item }: any) {
     const user = item.users

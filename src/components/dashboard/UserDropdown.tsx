@@ -75,6 +75,7 @@ export function UserDropdown({ profile, onSignOut }: UserDropdownProps) {
                     avatarUrl={profile.avatar_url}
                     size="md"
                     className="shadow-sm ring-2 ring-white"
+                    priority={true}
                 />
                 <div className="hidden sm:flex flex-col items-start mr-1">
                     <span className="text-xs font-bold text-gray-900 leading-tight truncate max-w-[100px]">
