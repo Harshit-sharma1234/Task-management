@@ -3,7 +3,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
-import { getUserProfile } from '@/lib/roles'
 
 export interface LogEntry {
   projectId: string;
@@ -39,25 +38,21 @@ export async function insertProjectLog(entry: LogEntry) {
 
 export async function getProjectLogs(projectId: string) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  
-  if (user) {
-    // Proactive sync check even on fetch
-    await getUserProfile(supabase, user.email!, user.id)
-  }
 
+  // Sidebar shows only the latest items; keep payload minimal for fast loads.
   const { data, error } = await supabase
     .from('project_logs')
     .select(`
-      *,
+      id,
+      description,
+      created_at,
       users:user_id (
-        name,
-        email,
-        avatar_url
+        email
       )
     `)
     .eq('project_id', projectId)
     .order('created_at', { ascending: false })
+    .limit(10)
 
   if (error) {
     console.error('ERROR FETCHING PROJECT LOGS:', error)
