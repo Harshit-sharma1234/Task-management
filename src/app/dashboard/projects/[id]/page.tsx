@@ -3,7 +3,6 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { notFound, redirect } from 'next/navigation';
 import { ProjectOverview } from '@/components/dashboard/ProjectOverview';
 import { IssuesList } from '@/components/dashboard/issues/IssuesList';
-import { getUserProfile } from '@/lib/roles';
 import { getProjectDetails } from './data';
 import { Metadata } from 'next';
 
@@ -52,28 +51,30 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
 
   const adminClient = createAdminClient();
 
-  // Fetch user role for visibility control
-  const profile = await getUserProfile(supabase, session.user.email!, session.user.id);
-  const userRole = profile?.roles?.role_name || null;
-
   // Conditional Data Fetching: Tickets for this project
   let projectTickets: any[] = [];
   if (activeTab === 'issues') {
     const { data: tickets } = await adminClient
       .from('tickets')
-      .select('id, title, status, priority, assignee_id, created_at, projects(id, project_name, status), assignees:users!assignee_id(id, name, avatar_url)')
+      // Keep payload minimal for Issues list.
+      .select('id, title, status, priority, assignee_id, reviewer_id, created_at, projects(id, project_name)')
       .eq('project_id', id)
       .order('created_at', { ascending: false });
     
     projectTickets = tickets || [];
   }
 
-  // Fetch project resources
-  const { data: resources } = await adminClient
-    .from('project_resources')
-    .select('*')
-    .eq('project_id', id)
-    .order('created_at', { ascending: false });
+  // Only fetch resources when we are on the overview tab.
+  let resources: any[] = [];
+  if (activeTab !== 'issues') {
+    const { data } = await adminClient
+      .from('project_resources')
+      // Resources section only needs these fields for rendering.
+      .select('id, title, url')
+      .eq('project_id', id)
+      .order('created_at', { ascending: false });
+    resources = data || [];
+  }
 
   return (
     <>

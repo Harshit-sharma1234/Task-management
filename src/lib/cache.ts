@@ -165,6 +165,54 @@ export const getCachedProjects = unstable_cache(
 );
 
 /**
+ * Cached fetch for Issue page project dropdown (lightweight).
+ */
+export const getCachedIssueProjects = unstable_cache(
+  async () => {
+    const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from('projects')
+      .select('id, project_name')
+      .order('project_name');
+
+    if (error) {
+      console.error('[Cache] Error fetching issue projects:', error);
+      return [];
+    }
+    return data || [];
+  },
+  ['issue-projects-list'],
+  {
+    revalidate: 300, // 5 min
+    tags: ['projects'],
+  }
+);
+
+/**
+ * Cached fetch for Issue page user dropdown (lightweight).
+ */
+export const getCachedIssueUsers = unstable_cache(
+  async () => {
+    const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, name, avatar_url, roles(role_name)')
+      .order('name');
+
+    if (error) {
+      console.error('[Cache] Error fetching issue users:', error);
+      return [];
+    }
+    return data || [];
+  },
+  ['issue-users-list'],
+  {
+    revalidate: 300, // 5 min
+    tags: ['team-members'],
+  }
+);
+
+/**
  * Cached fetch for tickets assigned to or reviewed by a specific user.
  */
 export const getCachedUserTasks = (userId: string) =>
