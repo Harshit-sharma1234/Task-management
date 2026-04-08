@@ -8,9 +8,6 @@ import { getProjectDetails, getProjectIssuesTickets, getProjectMetadata, getProj
 import { Metadata } from 'next';
 import { Suspense } from 'react';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
   const project = await getProjectMetadata(id);
