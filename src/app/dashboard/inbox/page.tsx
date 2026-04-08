@@ -1,13 +1,14 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import InboxClient from './InboxClient';
+import { getServerUser } from '@/lib/auth-server';
 
 export default async function InboxPage() {
-    const supabase = await createClient();
-
-    // 1. Get current user
-    const { data: { user } } = await supabase.auth.getUser();
+    // 1. Get current user (Deduplicated with Layout)
+    const user = await getServerUser();
     if (!user) redirect('/login');
+
+    const supabase = await createClient();
 
     // 2. Fetch notifications + users in parallel (kills 2 sequential round-trips)
     const [notificationsRes, usersRes] = await Promise.all([

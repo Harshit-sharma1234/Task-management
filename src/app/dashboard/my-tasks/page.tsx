@@ -10,16 +10,16 @@ export const metadata: Metadata = {
   description: 'View and manage tasks assigned to you.',
 };
 
+import { getServerUser, getServerProfile } from '@/lib/auth-server';
+
 export default async function MyTasksPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getServerUser();
 
   if (!user) {
     redirect('/login');
   }
 
-  const { getUserProfile } = await import('@/lib/roles');
-  const currentUser = await getUserProfile(supabase, user.email!, user.id);
+  const currentUser = await getServerProfile(user.email!);
   const targetUserId = currentUser?.id || user.id;
 
   return (
