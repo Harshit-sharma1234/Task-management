@@ -103,7 +103,7 @@ async function StatsCards() {
             <StatCard label="Total Projects" value={stats.projectsCount} icon={Folder} color="text-indigo-600" bg="bg-indigo-50" delay="delay-0" />
             <StatCard label="Completed" value={stats.completedProjectsCount} icon={CheckCircle2} color="text-green-500" bg="bg-green-50" delay="delay-75" />
             <StatCard label="In Progress" value={stats.inProgressProjectsCount} icon={Clock} color="text-indigo-600" bg="bg-indigo-50" delay="delay-150" />
-            <StatCard label="Recent Issues" value={stats.ticketsCount || 0} icon={CircleDot} color="text-purple-600" bg="bg-purple-50" delay="delay-300" />
+            <StatCard label="Recent Issues" value={stats.tasksCount || 0} icon={CircleDot} color="text-purple-600" bg="bg-purple-50" delay="delay-300" />
         </div>
     )
 }
