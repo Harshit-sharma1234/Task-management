@@ -12,9 +12,10 @@ export const metadata: Metadata = {
 
 const INITIAL_ISSUES_LIMIT = 120;
 
+import { getServerUser } from '@/lib/auth-server';
+
 export default async function IssuesPage({ searchParams }: { searchParams: Promise<{ filter?: string }> }) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getServerUser();
 
   if (!user) {
     redirect('/login');
