@@ -93,7 +93,7 @@ export default async function InboxPage() {
             if (error) {
                 const fallback = await supabase
                     .from('projects')
-                    .select('*')
+                    .select('id, project_name')
                     .eq('id', firstNotification.entity_id)
                     .maybeSingle();
 

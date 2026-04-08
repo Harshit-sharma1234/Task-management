@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
 interface PageTransitionProps {
@@ -15,15 +15,10 @@ interface PageTransitionProps {
  */
 export function PageTransition({ children, className }: PageTransitionProps) {
   const pathname = usePathname();
-  const [animationKey, setAnimationKey] = useState(pathname);
-
-  useEffect(() => {
-    setAnimationKey(pathname);
-  }, [pathname]);
 
   return (
     <div
-      key={animationKey}
+      key={pathname}
       className={cn("animate-slide-up h-full w-full", className)}
     >
       {children}
