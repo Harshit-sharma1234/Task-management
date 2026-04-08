@@ -1,7 +1,7 @@
 import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getUserProfile } from '@/lib/roles';
+import { getCachedUserProfile } from '@/lib/cache';
 
 export const getProjectDetails = cache(async (id: string, sessionEmail: string, sessionUserId: string) => {
     const supabase = await createClient();
@@ -16,7 +16,8 @@ export const getProjectDetails = cache(async (id: string, sessionEmail: string, 
         // Keep the user payload minimal (used for lead/member selectors)
         supabase.from('users').select('id, name, email, avatar_url'),
         adminClient.from('project_members').select('user_id').eq('project_id', id),
-        getUserProfile(supabase, sessionEmail, sessionUserId)
+        // Sidebar permissions: cached profile lookup to avoid repeated DB hits.
+        getCachedUserProfile(sessionEmail)
     ]);
 
     return {
