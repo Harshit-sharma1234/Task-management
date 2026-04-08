@@ -1,42 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { updateIssue } from '@/app/dashboard/issues/actions';
 import {
-  CircleDot,
-  Circle,
-  CheckCircle2,
-  CircleEllipsis,
-  SignalHigh,
-  SignalMedium,
-  SignalLow,
-  MoreHorizontal,
-  User,
   ChevronDown,
   FolderKanban
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { toast } from 'sonner';
 import { IssueStatusSelector } from './IssueStatusSelector';
 import { IssuePrioritySelector } from './IssuePrioritySelector';
 import { IssueAssigneeSelector } from './IssueAssigneeSelector';
 import { IssueReviewerSelector } from './IssueReviewerSelector';
 
-const statusOptions = [
-  { value: 'backlog', label: 'Backlog', icon: CircleDot, color: 'text-gray-400' },
-  { value: 'to_do', label: 'Todo', icon: Circle, color: 'text-gray-400' },
-  { value: 'in_progress', label: 'In Progress', icon: CircleEllipsis, color: 'text-yellow-500' },
-  { value: 'done', label: 'Done', icon: CheckCircle2, color: 'text-indigo-500' },
-  { value: 'cancelled', label: 'Cancelled', icon: Circle, color: 'text-red-400' },
-];
 
-const priorityOptions = [
-  { value: 'no_priority', label: 'No priority', icon: MoreHorizontal, color: 'text-gray-400' },
-  { value: 'low', label: 'Low', icon: SignalLow, color: 'text-indigo-500' },
-  { value: 'medium', label: 'Medium', icon: SignalMedium, color: 'text-yellow-500' },
-  { value: 'high', label: 'High', icon: SignalHigh, color: 'text-red-500' },
-  { value: 'urgent', label: 'Urgent', icon: SignalHigh, color: 'text-red-600' },
-];
 
 interface IssuePropertyControlsProps {
   ticketId: string;
@@ -67,7 +41,6 @@ export function IssuePropertyControls({
   const [priority, setPriority] = useState(initialPriority);
   const [assigneeId, setAssigneeId] = useState(initialAssigneeId || '');
   const [reviewerId, setReviewerId] = useState(initialReviewerId || '');
-  const [isUpdating, setIsUpdating] = useState(false);
   
   useEffect(() => {
     setStatus(initialStatus);
@@ -78,19 +51,6 @@ export function IssuePropertyControls({
 
   const [isPropertiesOpen, setIsPropertiesOpen] = useState(true);
   const [isProjectOpen, setIsProjectOpen] = useState(true);
-  
-  const router = useRouter();
-
-  const handleUpdate = async (updates: any) => {
-    setIsUpdating(true);
-    const result = await updateIssue(ticketId, updates);
-    if (result.success) {
-      router.refresh();
-    } else {
-      toast.error(result.error || 'Failed to update issue');
-    }
-    setIsUpdating(false);
-  };
 
   return (
     <div className="space-y-4">
