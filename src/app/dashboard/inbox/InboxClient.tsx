@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, useOptimistic, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, useOptimistic, useRef, memo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { createClient } from '@/lib/supabase/client';
 import { UserAvatar } from '@/components/ui/UserAvatar';
