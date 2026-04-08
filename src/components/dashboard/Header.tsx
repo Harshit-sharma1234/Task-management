@@ -1,97 +1,29 @@
 'use client';
 
-import { Search, LogOut, Settings, User as UserIcon, Shield } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
-import { UserAvatar } from '@/components/ui/UserAvatar';
+import { useState, useMemo, useCallback } from 'react';
 import { UserDropdown } from './UserDropdown';
 
 export function Header({ initialProfile }: { initialProfile?: any }) {
   const router = useRouter();
-  const [userProfile, setUserProfile] = useState<{ 
-    name: string, 
-    email: string,
-    avatar_url: string | null,
-    role?: string
-  } | null>(initialProfile ? {
+  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
+  const supabase = useMemo(() => createClient(), [])
+
+  // Derive the profile shape from server-provided data — no client-side fetch needed
+  const userProfile = initialProfile ? {
     name: initialProfile.name,
     email: initialProfile.email,
     avatar_url: initialProfile.avatar_url,
-    role: initialProfile.roles?.role_name
-  } : null)
-  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false)
-  const [isPopupOpen, setIsPopupOpen] = useState(false)
-  const [signingOut, setSigningOut] = useState(false)
-  const supabase = useMemo(() => createClient(), [])
-  const popupRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    async function syncHeaderProfile(userOverride?: any) {
-      try {
-        let user = userOverride;
-        if (!user) {
-          const { data: { session } } = await supabase.auth.getSession();
-          user = session?.user;
-        }
-        
-        if (user) {
-          const { data } = await supabase
-              .from('users')
-              .select('name, email, avatar_url, roles(role_name)')
-              .eq('email', user.email)
-          
-          if (data && data.length > 0) {
-            const profile = data[0];
-            const roles: any = profile.roles;
-            const roleName = Array.isArray(roles) ? roles[0]?.role_name : roles?.role_name;
-            
-            setUserProfile({ 
-              name: profile.name, 
-              email: profile.email,
-              avatar_url: profile.avatar_url,
-              role: roleName
-            })
-          } else {
-            setUserProfile({ 
-              name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User', 
-              email: user.email || '',
-              avatar_url: null,
-              role: 'Member'
-            })
-          }
-        }
-      } catch (err: any) {
-        if (err?.message?.includes('Lock broken')) return;
-        console.error('Header auth error:', err);
-      }
-    }
-
-    syncHeaderProfile()
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        syncHeaderProfile(session?.user)
-      }
-    })
-
-    const handleClickOutside = (event: MouseEvent) => {
-      if (popupRef.current && !popupRef.current.contains(event.target as Node)) {
-        setIsPopupOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-
-    return () => {
-      subscription.unsubscribe();
-      document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [supabase])
+    role: Array.isArray(initialProfile.roles) 
+      ? initialProfile.roles[0]?.role_name 
+      : initialProfile.roles?.role_name
+  } : null;
 
   const handleSignOut = useCallback(async () => {
     setShowSignOutConfirm(false);
-    setIsPopupOpen(false);
     setSigningOut(true);
     try {
       await supabase.auth.signOut();

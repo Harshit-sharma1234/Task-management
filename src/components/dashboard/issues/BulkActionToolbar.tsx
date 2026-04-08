@@ -14,7 +14,6 @@ import {
 import { useState } from 'react';
 import { bulkUpdateIssues, bulkDeleteIssues } from '@/app/dashboard/issues/actions';
 import { toast } from 'sonner';
-import { clsx } from 'clsx';
 
 interface BulkActionToolbarProps {
     selectedIds: string[];
