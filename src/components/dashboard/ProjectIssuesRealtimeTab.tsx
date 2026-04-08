@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { IssuesList } from './issues/IssuesList';
 
@@ -17,6 +17,53 @@ export function ProjectIssuesRealtimeTab({
 }) {
   const [tickets, setTickets] = useState<any[]>(initialTickets || []);
   const supabase = useMemo(() => createClient(), []);
+  const pendingEventsRef = useRef<any[]>([]);
+  const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const flushPendingEvents = () => {
+    if (flushTimerRef.current) {
+      clearTimeout(flushTimerRef.current);
+      flushTimerRef.current = null;
+    }
+
+    const pendingEvents = pendingEventsRef.current;
+    if (pendingEvents.length === 0) return;
+    pendingEventsRef.current = [];
+
+    setTickets((prev) => {
+      let nextTickets = prev;
+
+      for (const payload of pendingEvents) {
+        const eventType = payload.eventType as 'INSERT' | 'UPDATE' | 'DELETE' | string;
+        const nextRow = payload.new as any;
+        const oldRow = payload.old as any;
+
+        if (!nextRow && !oldRow) continue;
+
+        if (eventType === 'INSERT') {
+          const inserted = {
+            ...nextRow,
+            projects: { id: projectId, project_name: projectName },
+          };
+          if (!nextTickets.some((t) => t.id === inserted.id)) {
+            nextTickets = [inserted, ...nextTickets];
+          }
+          continue;
+        }
+
+        if (eventType === 'UPDATE' && nextRow?.id) {
+          nextTickets = nextTickets.map((t) => (t.id === nextRow.id ? { ...t, ...nextRow } : t));
+          continue;
+        }
+
+        if (eventType === 'DELETE' && oldRow?.id) {
+          nextTickets = nextTickets.filter((t) => t.id !== oldRow.id);
+        }
+      }
+
+      return nextTickets;
+    });
+  };
 
   useEffect(() => {
     if (!projectId) return;
@@ -32,44 +79,19 @@ export function ProjectIssuesRealtimeTab({
           filter: `project_id=eq.${projectId}`,
         },
         (payload) => {
-          const eventType = payload.eventType as 'INSERT' | 'UPDATE' | 'DELETE' | string;
-          const nextRow = payload.new as any;
-          const oldRow = payload.old as any;
-
-          if (!nextRow && !oldRow) return;
-
-          if (eventType === 'INSERT') {
-            const inserted = {
-              ...nextRow,
-              // Realtime payload won't include the join; preserve UI expectations.
-              projects: { id: projectId, project_name: projectName },
-            };
-
-            setTickets((prev) => {
-              if (prev.some((t) => t.id === inserted.id)) return prev;
-              return [inserted, ...prev];
-            });
-            return;
-          }
-
-          if (eventType === 'UPDATE') {
-            if (!nextRow?.id) return;
-            setTickets((prev) =>
-              prev.map((t) => (t.id === nextRow.id ? { ...t, ...nextRow } : t))
-            );
-            return;
-          }
-
-          if (eventType === 'DELETE') {
-            if (!oldRow?.id) return;
-            setTickets((prev) => prev.filter((t) => t.id !== oldRow.id));
-            return;
-          }
+          pendingEventsRef.current.push(payload);
+          if (flushTimerRef.current) return;
+          flushTimerRef.current = setTimeout(flushPendingEvents, 16);
         }
       )
       .subscribe();
 
     return () => {
+      if (flushTimerRef.current) {
+        clearTimeout(flushTimerRef.current);
+        flushTimerRef.current = null;
+      }
+      flushPendingEvents();
       // Properly stop listening and clean up the subscription.
       channel.unsubscribe();
       supabase.removeChannel(channel);
