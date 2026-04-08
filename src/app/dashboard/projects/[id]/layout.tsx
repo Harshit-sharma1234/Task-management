@@ -17,7 +17,7 @@ export default async function ProjectDetailLayout({ children, params }: LayoutPr
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  const { project, projectError, users, members, profile } = await getProjectDetails(id, user.email!, user.id);
+  const { project, projectError, users, members, profile } = await getProjectDetails(id, user.email!);
 
   if (projectError || !project) {
     console.error('Project fetch error:', projectError);
