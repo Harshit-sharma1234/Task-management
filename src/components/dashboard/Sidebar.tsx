@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 
 interface SidebarProps {
-  initialUnreadCount: number;
+  initialUnreadCount?: number;
   userId: string;
 }
 
@@ -39,13 +39,27 @@ export function Sidebar({ initialUnreadCount, userId }: SidebarProps) {
     }
   };
 
-  // Hydrate Zustand store from server-fetched initial data (once)
+  // Hydrate Zustand store autonomously (Layout Slimming)
   useEffect(() => {
-    if (!didHydrate.current) {
+    if (didHydrate.current) return;
+
+    if (initialUnreadCount !== undefined) {
       setUnreadCount(initialUnreadCount);
       didHydrate.current = true;
+    } else {
+      // Fetch initial count if not provided by parent
+      const fetchInitialCount = async () => {
+        const { count } = await supabase
+          .from('notifications')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', userId)
+          .eq('is_read', false);
+        setUnreadCount(count || 0);
+        didHydrate.current = true;
+      };
+      fetchInitialCount();
     }
-  }, [initialUnreadCount, setUnreadCount]);
+  }, [initialUnreadCount, setUnreadCount, userId, supabase]);
 
   // Realtime subscription only — no initial fetch needed (data comes from server)
   useEffect(() => {

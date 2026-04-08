@@ -3,7 +3,8 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import DashboardOverview, { StatsCards } from '@/components/dashboard/Overview'
 import { StatsSkeleton } from '@/components/dashboard/OverviewSkeletons'
-import { getCachedUserProfile, getCachedUsers } from '@/lib/cache'
+import { getServerUser, getServerProfile } from '@/lib/auth-server'
+import { getCachedUsers } from '@/lib/cache'
 import { Metadata } from 'next'
 import dynamic from 'next/dynamic'
 
@@ -18,12 +19,10 @@ export const metadata: Metadata = {
 export const revalidate = 60;
 
 export default async function AdminDashboard() {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-
+    const user = await getServerUser()
     if (!user) redirect('/login')
 
-    const profile = await getCachedUserProfile(user.email!)
+    const profile = await getServerProfile(user.email!)
     if (!profile || profile.roles?.role_name !== 'Admin') {
         redirect('/dashboard')
     }
