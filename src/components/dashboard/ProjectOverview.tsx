@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import { Building2, Plus, Check, X } from 'lucide-react';
 import { PrioritySelector } from './PrioritySelector';
 import { LeadSelector } from './LeadSelector';
@@ -10,6 +10,7 @@ import { MemberSelector } from './MemberSelector';
 import { updateProjectDescription, addProjectResource, deleteProjectResource } from '@/app/dashboard/actions';
 import { toast } from 'sonner';
 import { ExternalLink, Trash2 } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 
 
 interface ProjectOverviewProps {
@@ -27,6 +28,81 @@ export function ProjectOverview({ project, users, currentMemberIds, currentUser,
   const [resourceTitle, setResourceTitle] = useState('');
   const [resourceUrl, setResourceUrl] = useState('');
   const [isPending, startTransition] = useTransition();
+  const supabase = useMemo(() => createClient(), []);
+
+  const [currentResources, setCurrentResources] = useState<any[]>(resources || []);
+
+  // Realtime: project description updates (other users) -> update local description instantly.
+  useEffect(() => {
+    if (!project?.id) return;
+    const channel = supabase
+      .channel(`project_description_${project.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'projects', filter: `id=eq.${project.id}` },
+        (payload) => {
+          if (isEditingDescription) return;
+          const next = payload?.new as any;
+          if (next && typeof next.description !== 'undefined') {
+            setDescriptionValue(next.description || '');
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      channel.unsubscribe();
+      supabase.removeChannel(channel);
+    };
+  }, [project?.id, supabase, isEditingDescription]);
+
+  // Realtime: resources updates -> update list immediately.
+  useEffect(() => {
+    if (!project?.id) return;
+    const channel = supabase
+      .channel(`project_resources_${project.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'project_resources',
+          filter: `project_id=eq.${project.id}`,
+        },
+        (payload) => {
+          const ev = payload?.eventType;
+          const newRow = payload?.new as any;
+          const oldRow = payload?.old as any;
+
+          if (ev === 'INSERT' && newRow?.id) {
+            setCurrentResources((prev) => {
+              if (prev.some((r) => r.id === newRow.id)) return prev;
+              return [{ id: newRow.id, title: newRow.title, url: newRow.url }, ...prev];
+            });
+            return;
+          }
+
+          if (ev === 'UPDATE' && newRow?.id) {
+            setCurrentResources((prev) =>
+              prev.map((r) =>
+                r.id === newRow.id ? { ...r, title: newRow.title, url: newRow.url } : r
+              )
+            );
+            return;
+          }
+
+          if (ev === 'DELETE' && oldRow?.id) {
+            setCurrentResources((prev) => prev.filter((r) => r.id !== oldRow.id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      channel.unsubscribe();
+      supabase.removeChannel(channel);
+    };
+  }, [project?.id, supabase]);
 
   const handleSaveDescription = () => {
     if (descriptionValue === project.description) {
@@ -78,7 +154,7 @@ export function ProjectOverview({ project, users, currentMemberIds, currentUser,
         
         {/* Resource List */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {resources.map((resource) => (
+          {currentResources.map((resource) => (
             <div 
               key={resource.id}
               className="flex items-center justify-between p-3 rounded-lg border border-gray-100 bg-gray-50/30 hover:bg-gray-50 transition-all group/res"
@@ -100,8 +176,16 @@ export function ProjectOverview({ project, users, currentMemberIds, currentUser,
               <button 
                 onClick={() => {
                   if (confirm('Delete this resource?')) {
+                    const removed = resource;
+                    // Optimistic removal for instant UX.
+                    setCurrentResources((prev) => prev.filter((r) => r.id !== removed.id));
                     startTransition(async () => {
-                      await deleteProjectResource(resource.id, project.id);
+                      const res = await deleteProjectResource(removed.id, project.id);
+                      if (res?.error) {
+                        toast.error(res.error);
+                        // Revert if server failed.
+                        setCurrentResources((prev) => [removed, ...prev]);
+                      }
                     });
                   }
                 }}
@@ -141,13 +225,31 @@ export function ProjectOverview({ project, users, currentMemberIds, currentUser,
               <button 
                 onClick={() => {
                   if (!resourceTitle || !resourceUrl) return;
+                  const tempId = `temp-${Date.now()}`;
+                  const optimistic = {
+                    id: tempId,
+                    title: resourceTitle,
+                    url: resourceUrl,
+                  };
+                  // Optimistic insert so it feels instant.
+                  setCurrentResources((prev) => [optimistic, ...prev]);
+                  setIsAddingResource(false);
+                  setResourceTitle('');
+                  setResourceUrl('');
+
                   startTransition(async () => {
-                    const res = await addProjectResource(project.id, resourceTitle, resourceUrl);
-                    if (res?.error) toast.error(res.error);
-                    else {
-                      setIsAddingResource(false);
-                      setResourceTitle('');
-                      setResourceUrl('');
+                    const res = await addProjectResource(project.id, optimistic.title, optimistic.url);
+                    if (res?.error) {
+                      toast.error(res.error);
+                      setCurrentResources((prev) => prev.filter((r) => r.id !== tempId));
+                      return;
+                    }
+
+                    const real = res?.data;
+                    if (real?.id) {
+                      setCurrentResources((prev) =>
+                        prev.map((r) => (r.id === tempId ? { ...r, id: real.id, ...real } : r))
+                      );
                     }
                   });
                 }}
@@ -211,8 +313,8 @@ export function ProjectOverview({ project, users, currentMemberIds, currentUser,
             onClick={() => setIsEditingDescription(true)}
             className="group cursor-text"
           >
-            <p className={`text-gray-600 text-sm leading-relaxed ${!project.description ? 'text-gray-400 italic' : ''}`}>
-              {project.description || "Add description..."}
+            <p className={`text-gray-600 text-sm leading-relaxed ${!descriptionValue ? 'text-gray-400 italic' : ''}`}>
+              {descriptionValue || "Add description..."}
             </p>
           </div>
         )}
