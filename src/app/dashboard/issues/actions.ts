@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import { getUserProfile } from '@/lib/roles'
 import { createNotification, parseMentions } from '@/app/dashboard/notifications/actions'
 
@@ -397,7 +397,7 @@ export async function updateIssue(ticketId: string, updates: {
   Promise.all(postUpdatePromises).catch(err => console.error('Post-update side effects error:', err))
 
   revalidatePath(`/dashboard/issues/${ticketId}`, 'page')
-  revalidatePath('/dashboard/issues', 'page')
+  revalidateTag('issues', 'max')
   return { success: true, data }
 }
 
@@ -432,8 +432,8 @@ export async function deleteIssue(ticketId: string) {
     return { error: `Failed to delete issue: ${error.message}` }
   }
 
-  revalidatePath('/dashboard/issues', 'page')
-  revalidatePath('/dashboard', 'page')
+  revalidateTag('issues', 'max')
+  revalidateTag('dashboard-stats', 'max')
   return { success: true }
 }
 
@@ -471,7 +471,7 @@ export async function bulkUpdateIssues(
     return { error: `Failed to bulk update: ${error.message}` }
   }
 
-  revalidatePath('/dashboard/issues', 'page')
+  revalidateTag('issues', 'max')
   return { success: true, updatedCount: data?.length || 0 }
 }
 
@@ -501,7 +501,7 @@ export async function bulkDeleteIssues(ticketIds: string[]) {
     return { error: `Failed to bulk delete: ${error.message}` }
   }
 
-  revalidatePath('/dashboard/issues', 'page')
-  revalidatePath('/dashboard', 'page')
+  revalidateTag('issues', 'max')
+  revalidateTag('dashboard-stats', 'max')
   return { success: true, deletedCount: ticketIds.length }
 }
