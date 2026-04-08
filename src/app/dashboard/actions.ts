@@ -4,7 +4,7 @@
 
 import { createClient } from '../../lib/supabase/server'
 import { createAdminClient } from '../../lib/supabase/admin'
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import { getUserProfile } from '../../lib/roles'
 import { createNotification } from './notifications/actions'
 import { insertProjectLog } from './logging/actions'
@@ -577,8 +577,9 @@ export async function updateUserAvatar(userId: string, avatarUrl: string) {
         return { error: error.message }
     }
 
-    // Invalidate profile caches
-    revalidatePath('/dashboard/settings', 'page')
+    // Invalidate profile caches (and team list avatars if shown there)
+    revalidateTag(`user-profile-${user.email}`)
+    revalidateTag('team-members')
     return { success: true }
 }
 
@@ -641,7 +642,8 @@ export async function provisionEmployee(formData: FormData) {
         return { error: `Database Error: ${dbError.message}` }
     }
 
-    revalidatePath('/dashboard/team', 'page')
+    // Only invalidate cached team members list; no need to re-fetch on every navigation.
+    revalidateTag('team-members')
     revalidatePath('/dashboard/admin', 'page')
     return { success: true, message: `Account created for ${name}. Temporary password: ${tempPassword}` }
 }
