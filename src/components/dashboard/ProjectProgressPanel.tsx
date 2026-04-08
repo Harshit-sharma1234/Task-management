@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, memo } from 'react';
 import { ChevronDown } from 'lucide-react';
-import { clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 import { createClient } from '@/lib/supabase/client';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { Shimmer } from '@/components/ui/Skeleton';
@@ -139,7 +139,7 @@ export const ProjectProgressPanel = memo(({ projectId }: ProjectProgressPanelPro
         <div className="flex p-0.5 bg-gray-50 rounded-lg border border-gray-100">
           <button 
             onClick={() => setActiveTab('Assignees')}
-            className={clsx(
+            className={twMerge(
               "flex-1 py-1.5 text-[11px] font-bold rounded transition-all",
               activeTab === 'Assignees' ? "bg-white text-gray-900 shadow-sm" : "text-gray-400 hover:text-gray-600"
             )}
@@ -148,7 +148,7 @@ export const ProjectProgressPanel = memo(({ projectId }: ProjectProgressPanelPro
           </button>
           <button 
             onClick={() => setActiveTab('Labels')}
-            className={clsx(
+            className={twMerge(
               "flex-1 py-1.5 text-[11px] font-bold rounded transition-all",
               activeTab === 'Labels' ? "bg-white text-gray-900 shadow-sm" : "text-gray-400 hover:text-gray-600"
             )}

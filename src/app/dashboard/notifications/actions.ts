@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 
 /**
  * Internal helper to create notifications using the Admin Client 
@@ -50,6 +50,9 @@ export async function markAsRead(notificationId: string) {
     }
 
     revalidatePath('/dashboard/inbox')
+    // Invalidate cached unread count used by the layout/sidebar
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) revalidateTag(`notifications-${user.id}`, 'max')
     return { success: true }
 }
 
@@ -72,6 +75,7 @@ export async function markAllAsRead() {
     }
 
     revalidatePath('/dashboard/inbox')
+    revalidateTag(`notifications-${user.id}`, 'max')
     return { success: true }
 }
 
@@ -106,6 +110,7 @@ export async function deleteAllNotifications() {
     }
 
     revalidatePath('/dashboard/inbox')
+    revalidateTag(`notifications-${user.id}`, 'max')
     return { success: true }
 }
 
@@ -129,6 +134,7 @@ export async function deleteAllReadNotifications() {
     }
 
     revalidatePath('/dashboard/inbox')
+    revalidateTag(`notifications-${user.id}`, 'max')
     return { success: true }
 }
 
@@ -148,5 +154,8 @@ export async function deleteNotification(notificationId: string) {
     }
 
     revalidatePath('/dashboard/inbox')
+    // Invalidate cached unread count — we don't know the user_id here so invalidate via auth
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) revalidateTag(`notifications-${user.id}`, 'max')
     return { success: true }
 }

@@ -10,8 +10,6 @@ export const metadata: Metadata = {
   description: 'View and manage all issues.',
 };
 
-export const dynamic = 'force-dynamic';
-
 export default async function IssuesPage({ searchParams }: { searchParams: Promise<{ filter?: string }> }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
