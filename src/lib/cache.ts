@@ -129,7 +129,7 @@ export const getCachedUnreadCount = (userId: string) =>
     },
     [`unread-notifications-${userId}`],
     { 
-      revalidate: 60, 
+      revalidate: 600, 
       tags: [`notifications-${userId}`] 
     }
   )();
