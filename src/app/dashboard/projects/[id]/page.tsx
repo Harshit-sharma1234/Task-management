@@ -1,11 +1,10 @@
 import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { notFound, redirect } from 'next/navigation';
 import { ProjectOverview } from '@/components/dashboard/ProjectOverview';
 import { IssueListSkeleton } from '@/components/dashboard/issues/IssueListSkeleton';
 import { ProjectOverviewSkeleton } from '@/components/dashboard/ProjectOverviewSkeleton';
 import { ProjectIssuesRealtimeTab } from '@/components/dashboard/ProjectIssuesRealtimeTab';
-import { getProjectDetails, getProjectIssuesTickets, getProjectResources } from './data';
+import { getProjectDetails, getProjectIssuesTickets, getProjectMetadata, getProjectResources } from './data';
 import { Metadata } from 'next';
 import { Suspense } from 'react';
 
@@ -14,11 +13,7 @@ export const revalidate = 0;
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
-  // We can't easily get the session here without duplicating more boilerplate, 
-  // but we can query the project name using the service or let getProjectDetails pull it.
-  // Actually, createAdminClient is easiest for metadata if we don't want to pass session.
-  const adminClient = createAdminClient();
-  const { data: project } = await adminClient.from('projects').select('project_name, description').eq('id', id).single();
+  const project = await getProjectMetadata(id);
   
   if (!project) return { title: 'Project Not Found' };
   
