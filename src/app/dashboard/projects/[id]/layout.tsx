@@ -14,10 +14,10 @@ export default async function ProjectDetailLayout({ children, params }: LayoutPr
   const { id } = await params;
   const supabase = await createClient();
 
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) redirect('/login');
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect('/login');
 
-  const { project, projectError, users, members, profile } = await getProjectDetails(id, session.user.email!, session.user.id);
+  const { project, projectError, users, members, profile } = await getProjectDetails(id, user.email!, user.id);
 
   if (projectError || !project) {
     console.error('Project fetch error:', projectError);
