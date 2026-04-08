@@ -6,8 +6,10 @@ import { updateUserPassword, updateUserAvatar } from '@/app/dashboard/actions'
 import { createClient } from '@/lib/supabase/client'
 import Image from 'next/image'
 import { UserAvatar } from '@/components/ui/UserAvatar'
+import { useSettingsStore } from '@/lib/store/settings'
 
 export function SettingsTabs({ user }: { user: { id: string, name: string, email: string, avatar_url: string | null } }) {
+    const setUserData = useSettingsStore((s) => s.setUserData)
     const [activeTab, setActiveTab] = useState<'profile' | 'security'>('profile')
     const fileInputRef = useRef<HTMLInputElement>(null)
     const [previewUrl, setPreviewUrl] = useState<string | null>(user.avatar_url)
@@ -66,7 +68,8 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
 
         setIsUploading(false)
         setSelectedFile(null)
-        window.location.reload()
+        setPreviewUrl(publicUrl)
+        setUserData({ ...user, avatar_url: publicUrl })
     }
 
     const handlePasswordSubmit = async () => {

@@ -1,55 +1,45 @@
+import { Suspense } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import { notFound, redirect } from 'next/navigation';
-import {
-  CircleDot,
-  Circle,
-  CheckCircle2,
-  CircleEllipsis,
-  SignalHigh,
-  SignalMedium,
-  SignalLow,
-  MoreHorizontal,
-  ChevronRight,
-  Share2,
-  Copy,
-  Link as LinkIcon,
-  MessageSquare,
-  Clock,
-  User,
-  Tags,
-  FolderKanban,
-  Paperclip,
-  FileIcon
-} from 'lucide-react';
-import { clsx } from 'clsx';
+import { ChevronRight, Paperclip, FileIcon } from 'lucide-react';
 import Link from 'next/link';
-import { UserAvatar } from '@/components/ui/UserAvatar';
 import { CommentSection } from '@/components/dashboard/issues/CommentSection';
 import { IssuePropertyControls } from '@/components/dashboard/issues/IssuePropertyControls';
-import { PropertyInlineRow } from '@/components/dashboard/issues/PropertyInlineRow';
 import { IssueHeaderActions } from '@/components/dashboard/issues/IssueHeaderActions';
-import { getUserProfile } from '@/lib/roles';
-import { HumanDate } from '@/components/ui/HumanDate';
+import { getCachedUserProfile, getCachedUsers } from '@/lib/cache';
+import { IssueActivitySkeleton } from '@/components/dashboard/issues/IssueActivitySkeleton';
 
-// Status Icon Mapping
-const statusIcons: Record<string, any> = {
-  'to_do': { label: 'Todo', icon: Circle, color: 'text-gray-400' },
-  'in_progress': { label: 'In Progress', icon: CircleEllipsis, color: 'text-yellow-500' },
-  'done': { label: 'Done', icon: CheckCircle2, color: 'text-indigo-500' },
-  'backlog': { label: 'Backlog', icon: CircleDot, color: 'text-gray-400' },
-  'review': { label: 'Review', icon: CircleEllipsis, color: 'text-orange-500' },
-  'in_review': { label: 'In Review', icon: CircleEllipsis, color: 'text-orange-600' },
-  'cancelled': { label: 'Cancelled', icon: Circle, color: 'text-red-400' },
-};
+async function IssueActivitySection({
+  ticketId,
+  currentUser,
+}: {
+  ticketId: string;
+  currentUser: { id: string; name: string; email: string; avatar_url: string | null };
+}) {
+  const supabase = await createClient();
 
-// Priority Icon Mapping
-const priorityIcons: Record<string, any> = {
-  'urgent': { label: 'Urgent', icon: SignalHigh, color: 'text-red-600' },
-  'high': { label: 'High', icon: SignalHigh, color: 'text-red-500' },
-  'medium': { label: 'Medium', icon: SignalMedium, color: 'text-yellow-500' },
-  'low': { label: 'Low', icon: SignalLow, color: 'text-indigo-500' },
-  'no_priority': { label: 'No priority', icon: MoreHorizontal, color: 'text-gray-400' },
-};
+  const [commentsResponse, logsResponse] = await Promise.all([
+    supabase
+      .from('comments')
+      .select('id, comment, created_at, user_id, users(id, name, email, avatar_url)')
+      .eq('ticket_id', ticketId)
+      .order('created_at', { ascending: true }),
+    supabase
+      .from('logs')
+      .select('id, action_type, message, created_at, users(id, name, avatar_url)')
+      .eq('ticket_id', ticketId)
+      .order('created_at', { ascending: true }),
+  ]);
+
+  return (
+    <CommentSection
+      ticketId={ticketId}
+      initialComments={commentsResponse.data || []}
+      initialLogs={logsResponse.data || []}
+      currentUser={currentUser}
+    />
+  );
+}
 
 export default async function IssueDetailsPage({ params }: { params: { id: string } }) {
   const { id } = await params;
@@ -61,38 +51,31 @@ export default async function IssueDetailsPage({ params }: { params: { id: strin
     redirect('/login');
   }
 
-  // Fetch all data in parallel to avoid waterfalls
-  const [ticketResponse, commentsResponse, logsResponse, profile, allUsersResponse] = await Promise.all([
+  // Fetch above-the-fold data first.
+  // Comments/logs are loaded inside Suspense to keep navigation snappy.
+  const [ticketResponse, profile, allUsersResponse] = await Promise.all([
     supabase
       .from('tickets')
       .select(`
-        *,
-        projects (id, project_name),
-        created_by_user: users!tickets_created_by_fkey (id, name, email),
-        assigned_to_user: users!tickets_assignee_id_fkey (id, name, email)
+        id,
+        title,
+        description,
+        status,
+        priority,
+        assignee_id,
+        reviewer_id,
+        created_at,
+        due_date,
+        attachments,
+        projects (id, project_name)
       `)
       .eq('id', id)
       .single(),
-    supabase
-      .from('comments')
-      .select('*, users(id, name, email, avatar_url)')
-      .eq('ticket_id', id)
-      .order('created_at', { ascending: true }),
-    supabase
-      .from('logs')
-      .select('*, users(id, name, avatar_url)')
-      .eq('ticket_id', id)
-      .order('created_at', { ascending: true }),
-    getUserProfile(supabase, user.email!),
-    supabase
-      .from('users')
-      .select('id, name, email, avatar_url, roles(role_name)')
-      .order('name')
+    getCachedUserProfile(user.email!),
+    getCachedUsers()
   ]);
 
   const { data: ticket, error: ticketError } = ticketResponse;
-  const { data: comments } = commentsResponse;
-  const { data: logs } = logsResponse;
   const { data: allUsers } = allUsersResponse;
 
   if (ticketError || !ticket) {
@@ -103,20 +86,12 @@ export default async function IssueDetailsPage({ params }: { params: { id: strin
   // RBAC for deletion
   const canDelete = profile?.roles?.role_name === 'Admin' || profile?.roles?.role_name === 'Project Manager';
 
-  // Merge comments and logs into a single activity feed
-  // Filter out 'commented' logs since the comment itself already appears in the feed
-  const filteredLogs = (logs || []).filter(l => l.action_type !== 'commented');
-  const activity = [
-    ...(comments || []).map(c => ({ ...c, type: 'comment' })),
-    ...filteredLogs.map(l => ({ ...l, type: 'log' }))
-  ].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-
-  const statusData = statusIcons[ticket.status] || statusIcons['to_do'];
-  const StatusIcon = statusData.icon;
-  const statusColor = statusData.color;
-  const priorityData = priorityIcons[ticket.priority] || priorityIcons['no_priority'];
-  const PriorityIcon = priorityData.icon;
-  const priorityColor = priorityData.color;
+  const currentUserForActivity = {
+    id: profile?.id || '',
+    name: profile?.name || 'Anonymous',
+    email: user.email || '',
+    avatar_url: profile?.avatar_url || null,
+  };
 
   return (
     <div className="flex flex-col h-full bg-white">
@@ -180,18 +155,9 @@ export default async function IssueDetailsPage({ params }: { params: { id: strin
               <h3 className="text-sm font-bold text-gray-900">Activity</h3>
             </div>
 
-            {/* Reply Section */}
-            <CommentSection
-              ticketId={id}
-              initialComments={comments || []}
-              initialLogs={logs || []}
-              currentUser={{
-                id: profile?.id || '',
-                name: profile?.name || 'Anonymous',
-                email: user.email || '',
-                avatar_url: profile?.avatar_url || null
-              }}
-            />
+            <Suspense fallback={<IssueActivitySkeleton />}>
+              <IssueActivitySection ticketId={id} currentUser={currentUserForActivity} />
+            </Suspense>
           </div>
         </div>
 
