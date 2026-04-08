@@ -12,11 +12,28 @@ interface ProjectProgressPanelProps {
 }
 
 export const ProjectProgressPanel = memo(({ projectId }: ProjectProgressPanelProps) => {
-  const [tickets, setTickets] = useState<Array<{ status: string | null; assignee_id: string | null }>>([]);
+  const [tickets, setTickets] = useState<Array<{ id: string; status: string | null; assignee_id: string | null }>>([]);
   const [assigneeUsers, setAssigneeUsers] = useState<Record<string, any>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'Assignees' | 'Labels'>('Assignees');
   const supabase = useMemo(() => createClient(), []);
+
+  const fetchMissingAssigneeUsers = async (assigneeIds: string[]) => {
+    const missingIds = assigneeIds.filter((id) => !assigneeUsers[id]);
+    if (missingIds.length === 0) return;
+
+    const { data: usersData } = await supabase
+      .from('users')
+      .select('id, name, email, avatar_url')
+      .in('id', missingIds);
+
+    const map = (usersData || []).reduce((acc: Record<string, any>, u: any) => {
+      acc[u.id] = u;
+      return acc;
+    }, {});
+
+    setAssigneeUsers((prev) => ({ ...prev, ...map }));
+  };
 
   const fetchTickets = async () => {
     setIsLoading(true);
@@ -24,10 +41,11 @@ export const ProjectProgressPanel = memo(({ projectId }: ProjectProgressPanelPro
     const { data: rows } = await supabase
       .from('tickets')
       // Only fetch the minimal fields needed for counts.
-      .select('status, assignee_id')
+      .select('id, status, assignee_id')
       .eq('project_id', projectId);
 
     const normalizedRows = (rows || []).map((r: any) => ({
+      id: r.id,
       status: r.status ?? null,
       assignee_id: r.assignee_id ?? null,
     }));
@@ -66,14 +84,41 @@ export const ProjectProgressPanel = memo(({ projectId }: ProjectProgressPanelPro
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'tickets', filter: `project_id=eq.${projectId}` },
-        () => fetchTickets()
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            if (!payload.new?.id) return;
+            const newTicket = {
+              id: payload.new.id,
+              status: payload.new.status ?? null,
+              assignee_id: payload.new.assignee_id ?? null,
+            };
+            setTickets(prev => [...prev, newTicket]);
+            if (newTicket.assignee_id) {
+              void fetchMissingAssigneeUsers([newTicket.assignee_id]);
+            }
+          } else if (payload.eventType === 'UPDATE') {
+            if (!payload.new?.id) return;
+            const nextAssigneeId = payload.new.assignee_id ?? null;
+            setTickets(prev => prev.map(t => 
+              t.id === payload.new.id
+                ? { ...t, status: payload.new.status ?? null, assignee_id: nextAssigneeId }
+                : t
+            ));
+            if (nextAssigneeId) {
+              void fetchMissingAssigneeUsers([nextAssigneeId]);
+            }
+          } else if (payload.eventType === 'DELETE') {
+            if (!payload.old?.id) return;
+            setTickets((prev) => prev.filter((t) => t.id !== payload.old.id));
+          }
+        }
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [projectId]);
+  }, [projectId, supabase]);
 
   // Progress Calculations
   const { scopeCount, doneCount, sortedAssignees } = useMemo(() => {

@@ -32,10 +32,10 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
   
   const supabase = await createClient();
 
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) redirect('/login');
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect('/login');
 
-  const { project, projectError, users, members } = await getProjectDetails(id, session.user.email!, session.user.id);
+  const { project, projectError, users, members } = await getProjectDetails(id, user.email!);
 
   if (projectError || !project) {
     console.error('Project fetch error:', projectError);
@@ -63,7 +63,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
             project={project}
             users={users || []}
             currentMemberIds={currentMemberIds}
-            currentUser={session?.user}
+            currentUser={user}
           />
         </Suspense>
       )}
