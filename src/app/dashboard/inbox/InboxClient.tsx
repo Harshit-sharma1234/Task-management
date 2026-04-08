@@ -12,7 +12,8 @@ import {
     deleteAllReadNotifications,
     deleteNotification
 } from '@/app/dashboard/notifications/actions';
-import { formatDistanceToNow } from 'date-fns';
+import { cn, formatTime } from '@/lib/utils';
+import { STATUS_ICONS, PRIORITY_ICONS } from '@/lib/constants';
 import { 
     Loader2, BellOff, MoreHorizontal, Filter, Settings2, Check, Trash2, CheckCircle2, X,
     ChevronRight, MessageSquare, UserPlus, Zap, FileText, Circle, CircleEllipsis,
@@ -23,24 +24,7 @@ import { useNotificationStore } from '@/lib/store/notifications';
 
 
 
-// Status icons for tickets
-const statusIcons: Record<string, any> = {
-    'to_do': { label: 'Todo', icon: Circle, color: 'text-gray-400' },
-    'in_progress': { label: 'In Progress', icon: CircleEllipsis, color: 'text-yellow-500' },
-    'done': { label: 'Done', icon: CheckCircle2, color: 'text-indigo-500' },
-    'backlog': { label: 'Backlog', icon: Circle, color: 'text-gray-300' },
-    'review': { label: 'Review', icon: CircleEllipsis, color: 'text-orange-500' },
-    'in_review': { label: 'In Review', icon: CircleEllipsis, color: 'text-orange-600' },
-    'cancelled': { label: 'Cancelled', icon: X, color: 'text-red-400' },
-};
-
-const priorityIcons: Record<string, any> = {
-    'urgent': { label: 'Urgent', icon: SignalHigh, color: 'text-red-600' },
-    'high': { label: 'High', icon: SignalHigh, color: 'text-red-500' },
-    'medium': { label: 'Medium', icon: SignalMedium, color: 'text-yellow-500' },
-    'low': { label: 'Low', icon: SignalLow, color: 'text-indigo-500' },
-    'no_priority': { label: 'No priority', icon: MoreHorizontal, color: 'text-gray-400' },
-};
+// Constants are now imported from '@/lib/constants'
 
 type ViewOptions = {
     ordering: 'newest' | 'oldest';
@@ -96,15 +80,20 @@ export default function InboxClient({
         selectedIdRef.current = selectedId;
     }, [selectedId]);
 
-    // Sync initial server data to cache
+    // Sync initial server data to cache (OR trigger fetch if deferred for static-first rendering)
     useEffect(() => {
-        if (initialEntityDetail && initialNotifications.length > 0) {
+        if (initialNotifications.length > 0) {
             const firstNotif = initialNotifications.find(n => n.id === initialSelectedId);
             if (firstNotif?.entity_id) {
-                detailCache.current.set(firstNotif.entity_id, {
-                    detail: initialEntityDetail,
-                    activity: initialEntityActivity
-                });
+                if (initialEntityDetail) {
+                    detailCache.current.set(firstNotif.entity_id, {
+                        detail: initialEntityDetail,
+                        activity: initialEntityActivity
+                    });
+                } else {
+                    // Fetch silently on mount to populate the shared detail view
+                    fetchEntityDetail(firstNotif);
+                }
             }
         }
     }, []);
@@ -689,7 +678,7 @@ const NotificationRow = memo(({ notification, selected, onSelect, onDelete, onMo
                 <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
                     <span className="text-gray-500">{actor?.name || actor?.email}</span>
                     <span>·</span>
-                    <span>{formatDistanceToNow(new Date(notification.created_at), { addSuffix: false })}</span>
+                    <span>{formatTime(notification.created_at)}</span>
                 </div>
             </div>
         </button>
@@ -717,7 +706,7 @@ function ActivityItem({ item }: any) {
                         {user?.email || user?.name}
                     </span>
                     <span className="text-[11px] text-gray-400">
-                        {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
+                        {formatTime(item.created_at)}
                     </span>
                 </div>
 
