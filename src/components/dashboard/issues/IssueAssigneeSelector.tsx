@@ -5,7 +5,7 @@ import { updateIssue } from '@/app/dashboard/issues/actions';
 import { toast } from 'sonner';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { Search, Loader2, User } from 'lucide-react';
-import { clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 
 interface IssueAssigneeSelectorProps {
     issueId: string;
@@ -93,7 +93,7 @@ export const IssueAssigneeSelector = memo(({
                     setIsOpen(!isOpen);
                 }}
                 disabled={isUpdating || !canUpdate}
-                className={clsx(
+                className={twMerge(
                     "relative flex items-center transition-all",
                     canUpdate ? "hover:scale-110" : "cursor-not-allowed",
                     isUpdating && "opacity-50"
@@ -133,7 +133,7 @@ export const IssueAssigneeSelector = memo(({
                         <div className="max-h-64 overflow-y-auto p-1 py-1.5 custom-scrollbar">
                             <button 
                                 onClick={(e) => handleSelect(e, null)}
-                                className={clsx(
+                                className={twMerge(
                                     "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-colors",
                                     !optimisticAssigneeId ? "bg-gray-50" : "hover:bg-gray-50"
                                 )}
@@ -148,14 +148,14 @@ export const IssueAssigneeSelector = memo(({
                                 <button
                                     key={u.id}
                                     onClick={(e) => handleSelect(e, u.id)}
-                                    className={clsx(
+                                    className={twMerge(
                                         "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-colors",
                                         optimisticAssigneeId === u.id ? "bg-indigo-50" : "hover:bg-gray-50"
                                     )}
                                 >
                                     <UserAvatar name={u.name} avatarUrl={u.avatar_url} size="xs" />
                                     <div className="flex flex-col min-w-0">
-                                        <span className={clsx(
+                                        <span className={twMerge(
                                             "text-xs font-semibold truncate",
                                             optimisticAssigneeId === u.id ? "text-indigo-600" : "text-gray-700"
                                         )}>

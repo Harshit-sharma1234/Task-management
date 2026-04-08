@@ -11,7 +11,7 @@ import {
     ChevronDown,
     Loader2
 } from 'lucide-react';
-import { clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 
 interface IssueStatusSelectorProps {
     issueId: string;
@@ -106,7 +106,7 @@ export const IssueStatusSelector = memo(({
                     setIsOpen(!isOpen);
                 }}
                 disabled={isUpdating || !canUpdate}
-                className={clsx(
+                className={twMerge(
                     "flex items-center gap-1.5 px-2 py-1 rounded-md transition-all min-w-[100px]",
                     canUpdate ? "hover:bg-gray-100 group/status" : "cursor-not-allowed opacity-70",
                     isOpen && "bg-gray-100"
@@ -115,12 +115,12 @@ export const IssueStatusSelector = memo(({
                 {isUpdating ? (
                     <Loader2 size={10} className="animate-spin text-gray-400" />
                 ) : (
-                    <div className={clsx("w-2 h-2 rounded-full shrink-0", activeStatus.dot)}></div>
+                    <div className={twMerge("w-2 h-2 rounded-full shrink-0", activeStatus.dot)}></div>
                 )}
                 <span className="text-[10px] font-bold uppercase text-gray-400 tracking-tight truncate group-hover/status:text-gray-600 transition-colors">
                     {activeStatus.label}
                 </span>
-                <ChevronDown size={10} className={clsx(
+                <ChevronDown size={10} className={twMerge(
                     "text-gray-300 group-hover/status:text-gray-500 transition-transform duration-200",
                     isOpen && "rotate-180"
                 )} />
@@ -140,14 +140,14 @@ export const IssueStatusSelector = memo(({
                                     }
                                     handleSelect(e, opt.value);
                                 }}
-                                className={clsx(
+                                className={twMerge(
                                     "w-full flex items-center gap-2.5 px-3 py-1.5 text-left transition-colors",
                                     currentStatus === opt.value ? "bg-gray-50" : "hover:bg-gray-50",
                                     isRestrictedAssignee && restrictedStatuses.includes(opt.value) && "opacity-40 cursor-not-allowed grayscale"
                                 )}
                             >
-                                <div className={clsx("w-2 h-2 rounded-full", opt.dot)}></div>
-                                <span className={clsx(
+                                <div className={twMerge("w-2 h-2 rounded-full", opt.dot)}></div>
+                                <span className={twMerge(
                                     "text-[11px] font-semibold",
                                     currentStatus === opt.value ? "text-gray-900" : "text-gray-500"
                                 )}>

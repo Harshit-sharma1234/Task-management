@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Plus, Filter, SlidersHorizontal } from 'lucide-react';
-import { clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 
 interface Project {
   id: string;
@@ -41,7 +41,7 @@ export function IssuesHeader({ totalIssues, projects, users, activeFilter = 'all
                 <button
                   key={filter.id}
                   onClick={() => onFilterChange(filter.id)}
-                  className={clsx(
+                  className={twMerge(
                     "text-xs font-semibold px-3 py-1.5 rounded-md transition-all duration-200",
                     activeFilter === filter.id 
                       ? "bg-gray-100 text-gray-900 shadow-sm" 

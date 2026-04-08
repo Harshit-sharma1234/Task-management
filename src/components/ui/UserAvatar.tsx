@@ -46,11 +46,6 @@ export function UserAvatar({ name, avatarUrl, size = 'md', className = '' }: Use
                     fill
                     className="object-cover"
                     onError={() => setImageError(true)}
-                    unoptimized={
-                        avatarUrl.includes('supabase.co') ||
-                        avatarUrl.includes('googleusercontent.com') ||
-                        avatarUrl.includes('githubusercontent.com')
-                    }
                 />
             </div>
         )
