@@ -131,7 +131,8 @@ export async function createProject(formData: FormData) {
         }
     }
 
-    revalidatePath('/dashboard', 'layout')
+    revalidatePath('/dashboard/projects', 'page')
+    revalidatePath('/dashboard', 'page')
 
     return { success: true }
 }
@@ -176,7 +177,8 @@ export async function updateProjectPriority(projectId: string, priority: string 
         newValue: { priority }
     }).catch(() => {})
 
-    revalidatePath('/dashboard', 'layout')
+    revalidatePath('/dashboard/projects', 'page')
+    revalidatePath(`/dashboard/projects/${projectId}`, 'page')
     return { success: true }
 }
 
@@ -229,7 +231,8 @@ export async function updateProjectLead(projectId: string, leadId: string | null
         newValue: { lead_id: leadId }
     }).catch(() => {})
 
-    revalidatePath('/dashboard', 'layout')
+    revalidatePath('/dashboard/projects', 'page')
+    revalidatePath(`/dashboard/projects/${projectId}`, 'page')
     return { success: true }
 }
 
@@ -274,7 +277,8 @@ export async function updateProjectTargetDate(projectId: string, startDate: stri
         newValue: { start_date: startDate }
     }).catch(() => {})
 
-    revalidatePath('/dashboard', 'layout')
+    revalidatePath('/dashboard/projects', 'page')
+    revalidatePath(`/dashboard/projects/${projectId}`, 'page')
     return { success: true }
 }
 
@@ -320,7 +324,8 @@ export async function updateProjectDueDate(projectId: string, dueDate: string | 
         newValue: { target_date: dueDate }
     }).catch(() => {})
 
-    revalidatePath('/dashboard', 'layout')
+    revalidatePath('/dashboard/projects', 'page')
+    revalidatePath(`/dashboard/projects/${projectId}`, 'page')
     return { success: true }
 }
 
@@ -363,7 +368,8 @@ export async function updateProjectStatus(projectId: string, status: string | nu
         newValue: { status }
     }).catch(() => {})
 
-    revalidatePath('/dashboard', 'layout')
+    revalidatePath('/dashboard/projects', 'page')
+    revalidatePath(`/dashboard/projects/${projectId}`, 'page')
     return { success: true }
 }
 
@@ -405,7 +411,8 @@ export async function updateProjectDescription(projectId: string, description: s
         newValue: null
     }).catch(() => {})
 
-    revalidatePath('/dashboard', 'layout')
+    revalidatePath('/dashboard/projects', 'page')
+    revalidatePath(`/dashboard/projects/${projectId}`, 'page')
     return { success: true }
 }
 
@@ -498,7 +505,8 @@ export async function toggleProjectMember(projectId: string, userId: string) {
         }
     }
 
-    revalidatePath('/dashboard', 'layout')
+    revalidatePath('/dashboard/projects', 'page')
+    revalidatePath(`/dashboard/projects/${projectId}`, 'page')
     return { success: true }
 }
 
@@ -570,7 +578,7 @@ export async function updateUserAvatar(userId: string, avatarUrl: string) {
     }
 
     // Invalidate profile caches
-    revalidatePath('/dashboard', 'layout')
+    revalidatePath('/dashboard/settings', 'page')
     return { success: true }
 }
 
@@ -633,7 +641,8 @@ export async function provisionEmployee(formData: FormData) {
         return { error: `Database Error: ${dbError.message}` }
     }
 
-    revalidatePath('/dashboard', 'layout')
+    revalidatePath('/dashboard/team', 'page')
+    revalidatePath('/dashboard/admin', 'page')
     return { success: true, message: `Account created for ${name}. Temporary password: ${tempPassword}` }
 }
 
@@ -661,7 +670,7 @@ export async function addProjectResource(projectId: string, title: string, url: 
         return { error: `Failed to add resource: ${error.message}` }
     }
 
-    revalidatePath('/dashboard', 'layout')
+    revalidatePath(`/dashboard/projects/${projectId}`, 'page')
     return { success: true, data }
 }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { memo } from 'react';
+import React, { memo } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { StatusSelector } from './StatusSelector';
 import { PrioritySelector } from './PrioritySelector';
