@@ -19,7 +19,6 @@ import {
   FileIcon,
   Trash2
 } from 'lucide-react';
-import { clsx } from 'clsx';
 import { createIssue } from '@/app/dashboard/issues/actions';
 import { useRouter } from 'next/navigation';
 

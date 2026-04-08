@@ -17,7 +17,12 @@ import {
   Bell
 } from 'lucide-react';
 
-export function Sidebar() {
+interface SidebarProps {
+  initialUnreadCount: number;
+  userId: string;
+}
+
+export function Sidebar({ initialUnreadCount, userId }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const unreadCount = useNotificationStore((s) => s.unreadCount);
@@ -34,70 +39,43 @@ export function Sidebar() {
     }
   };
 
-  // Handle notification counts
+  // Hydrate Zustand store from server-fetched initial data (once)
   useEffect(() => {
-    // Notification Badge Logic
-    let channel: ReturnType<typeof supabase.channel> | null = null;
-
-    async function loadSidebarData(userOverride?: any) {
-      try {
-        let user = userOverride;
-        if (!user) {
-          const { data: { session } } = await supabase.auth.getSession();
-          user = session?.user;
-        }
-        
-        if (!user) return;
-
-        const { count } = await supabase
-          .from('notifications')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id)
-          .eq('is_read', false);
-        
-        setUnreadCount(count || 0);
-
-        if (channel) supabase.removeChannel(channel);
-
-        channel = supabase
-          .channel('sidebar-notifications')
-          .on(
-            'postgres_changes',
-            {
-              event: '*',
-              schema: 'public',
-              table: 'notifications',
-              filter: `user_id=eq.${user.id}`,
-            },
-            async () => {
-              const { count: newCount } = await supabase
-                .from('notifications')
-                .select('*', { count: 'exact', head: true })
-                .eq('user_id', user.id)
-                .eq('is_read', false);
-              setUnreadCount(newCount || 0);
-            }
-          )
-          .subscribe();
-      } catch (err: any) {
-        if (err?.message?.includes('Lock broken')) return;
-        console.error('Sidebar auth error:', err);
-      }
+    if (!didHydrate.current) {
+      setUnreadCount(initialUnreadCount);
+      didHydrate.current = true;
     }
+  }, [initialUnreadCount, setUnreadCount]);
 
-    loadSidebarData();
+  // Realtime subscription only — no initial fetch needed (data comes from server)
+  useEffect(() => {
+    if (!userId) return;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        loadSidebarData(session?.user);
-      }
-    });
+    const channel = supabase
+      .channel('sidebar-notifications')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${userId}`,
+        },
+        async () => {
+          const { count: newCount } = await supabase
+            .from('notifications')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', userId)
+            .eq('is_read', false);
+          setUnreadCount(newCount || 0);
+        }
+      )
+      .subscribe();
 
     return () => {
-      if (channel) supabase.removeChannel(channel);
-      subscription.unsubscribe();
+      supabase.removeChannel(channel);
     };
-  }, [supabase, setUnreadCount]);
+  }, [userId, supabase, setUnreadCount]);
 
   return (
     <aside className="w-64 shrink-0 border-r border-gray-200 bg-white flex flex-col h-full">

@@ -83,6 +83,6 @@ export const getProjectMetadata = unstable_cache(
   ['project-metadata'],
   {
     tags: ['projects'],
-    revalidate: false,
+    revalidate: 3600, // 1 hour safety-net; also invalidated via 'projects' tag on mutation
   }
 );

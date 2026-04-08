@@ -7,7 +7,6 @@ import { ProjectProperties } from './ProjectProperties';
 import { ProjectProgressPanel } from './ProjectProgressPanel';
 import { ProjectActivityPanel } from './ProjectActivityPanel';
 import { useState } from 'react';
-import { clsx } from 'clsx';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 
 interface ProjectSidebarProps {
