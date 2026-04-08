@@ -88,6 +88,26 @@ export default function InboxClient({
     const [typeFilter, setTypeFilter] = useState<string[]>([]);
     const setGlobalUnreadCount = useNotificationStore((s) => s.setUnreadCount);
     const parentRef = useRef<HTMLDivElement>(null);
+    const detailCache = useRef<Map<string, { detail: any; activity: any[] }>>(new Map());
+    const fetchPromises = useRef<Map<string, Promise<any>>>(new Map());
+    const selectedIdRef = useRef(selectedId);
+    
+    useEffect(() => {
+        selectedIdRef.current = selectedId;
+    }, [selectedId]);
+
+    // Sync initial server data to cache
+    useEffect(() => {
+        if (initialEntityDetail && initialNotifications.length > 0) {
+            const firstNotif = initialNotifications.find(n => n.id === initialSelectedId);
+            if (firstNotif?.entity_id) {
+                detailCache.current.set(firstNotif.entity_id, {
+                    detail: initialEntityDetail,
+                    activity: initialEntityActivity
+                });
+            }
+        }
+    }, []);
 
     const supabase = useMemo(() => createClient(), []);
 
@@ -144,31 +164,70 @@ export default function InboxClient({
         setLoading(false);
     }
 
-    async function fetchEntityDetail(notification: any) {
+    async function fetchEntityDetail(notification: any, isPrefetch = false) {
         if (!notification?.entity_id) return;
-        
-        setDetailLoading(true);
-        setEntityDetail(null);
-        setEntityActivity([]);
+        const entityId = notification.entity_id;
+        const entityType = notification.entity_type;
 
-        try {
-            const { fetchEntityDetailAction } = await import('./actions');
-            const { detail, activity, error } = await fetchEntityDetailAction(
-                notification.entity_id,
-                notification.entity_type
-            );
-
-            if (error) {
-                console.error('[Inbox] Unexpected error in fetchEntityDetail:', error);
-            } else {
-                if (detail) {
-                    setEntityDetail({ type: notification.entity_type, data: detail });
-                }
-                setEntityActivity(activity);
+        // 1. If we have it in cache, update state immediately (even if prefetching, to keep sync)
+        if (detailCache.current.has(entityId)) {
+            const cached = detailCache.current.get(entityId);
+            if (!isPrefetch || selectedId === notification.id) {
+                setEntityDetail(cached?.detail);
+                setEntityActivity(cached?.activity || []);
+                setDetailLoading(false);
             }
-        } catch (err) {
-            console.error('[Inbox] Unexpected error in fetchEntityDetail:', err);
-        } finally {
+            return;
+        }
+
+        // 2. If already fetching this ID, wait for it
+        if (fetchPromises.current.has(entityId)) {
+            if (!isPrefetch) setDetailLoading(true);
+            const result = await fetchPromises.current.get(entityId);
+            if (selectedId === notification.id) {
+                setEntityDetail(result.detail);
+                setEntityActivity(result.activity);
+                setDetailLoading(false);
+            }
+            return;
+        }
+
+        // 3. Start new fetch
+        if (!isPrefetch) {
+            setDetailLoading(true);
+            setEntityDetail(null);
+            setEntityActivity([]);
+        }
+
+        const fetchPromise = (async () => {
+            try {
+                const { fetchEntityDetailAction } = await import('./actions');
+                const result = await fetchEntityDetailAction(entityId, entityType);
+                
+                if (result.detail) {
+                    const formattedDetail = { type: entityType, data: result.detail };
+                    detailCache.current.set(entityId, { 
+                        detail: formattedDetail, 
+                        activity: result.activity 
+                    });
+                    return { detail: formattedDetail, activity: result.activity };
+                }
+                return { detail: null, activity: [] };
+            } catch (err) {
+                console.error('[Inbox] Fetch error:', err);
+                return { detail: null, activity: [] };
+            } finally {
+                fetchPromises.current.delete(entityId);
+            }
+        })();
+
+        fetchPromises.current.set(entityId, fetchPromise);
+        const finalResult = await fetchPromise;
+
+        // 4. Final UI update ONLY if this is still the selected notification
+        if (selectedIdRef.current === notification.id) {
+            setEntityDetail(finalResult.detail);
+            setEntityActivity(finalResult.activity);
             setDetailLoading(false);
         }
     }
@@ -432,7 +491,7 @@ export default function InboxClient({
                                             selected={selectedId === notification.id}
                                             onSelect={() => handleSelect(notification)}
                                             onDelete={(e: React.MouseEvent) => handleDeleteNotification(e, notification.id)}
-                                            onMouseEnter={() => fetchEntityDetail(notification)}
+                                            onMouseEnter={() => fetchEntityDetail(notification, true)}
                                         />
                                     </div>
                                 );
