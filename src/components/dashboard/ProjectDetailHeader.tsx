@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useState, useTransition } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { ChevronRight, Layout, Info, Link as LinkIcon, Check, Plus } from 'lucide-react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
+import { useProjectTransition } from '@/lib/contexts/ProjectTransitionContext';
 
 const AddIssueModal = dynamic(() => import('./issues/AddIssueModal').then(mod => mod.AddIssueModal), {
   ssr: false,
@@ -18,6 +19,7 @@ interface ProjectDetailHeaderProps {
 
 export function ProjectDetailHeader({ projectName, projectId, users }: ProjectDetailHeaderProps) {
   const searchParams = useSearchParams();
+  const { isPending, startTabTransition, pendingTab } = useProjectTransition();
   const activeTab = (searchParams.get('tab') || 'overview').toLowerCase();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -32,6 +34,11 @@ export function ProjectDetailHeader({ projectName, projectId, users }: ProjectDe
     { name: 'Overview', icon: Layout, id: 'overview' },
     { name: 'Issues', icon: Info, id: 'issues' },
   ];
+
+  const handleTabClick = (tabId: string) => {
+    if (tabId === activeTab) return;
+    startTabTransition(`/dashboard/projects/${projectId}?tab=${tabId}`);
+  };
 
   return (
     <div className="border-b border-gray-100 bg-white pl-8 pr-4 pt-4 pb-0 flex flex-col gap-4">
@@ -81,22 +88,34 @@ export function ProjectDetailHeader({ projectName, projectId, users }: ProjectDe
         />
       )}
 
-      {/* Tabs */}
       <div className="flex items-center gap-6 text-[#1A1F2C]">
-        {tabs.map((tab) => (
-          <Link
-            key={tab.id}
-            href={`/dashboard/projects/${projectId}?tab=${tab.id}`}
-            className={`flex items-center gap-2 pb-3 text-sm font-medium border-b-2 transition-all ${
-              activeTab === tab.id
-                ? 'border-indigo-600 text-indigo-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <tab.icon size={16} />
-            {tab.name}
-          </Link>
-        ))}
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab.id;
+          const isActuallyPending = isPending && pendingTab === tab.id;
+          
+          return (
+            <button
+              key={tab.id}
+              onClick={() => handleTabClick(tab.id)}
+              disabled={isPending}
+              className={`flex items-center gap-2 pb-3 text-sm font-medium border-b-2 transition-all relative group ${
+                isActive
+                  ? 'border-indigo-600 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              } ${isActuallyPending ? 'animate-pulse opacity-70' : ''}`}
+            >
+              <tab.icon size={16} />
+              {tab.name}
+              
+              {/* Shimmer line for pending state */}
+              {isActuallyPending && (
+                <div className="absolute bottom-[-2px] left-0 right-0 h-0.5 bg-indigo-400 overflow-hidden rounded-full">
+                  <div className="h-full w-full bg-linear-to-r from-transparent via-white/50 to-transparent animate-[shimmer_1.5s_infinite] -translate-x-full" />
+                </div>
+              )}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
