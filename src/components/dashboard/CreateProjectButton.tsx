@@ -12,10 +12,9 @@ interface User {
 
 interface CreateProjectButtonProps {
   variant?: 'header' | 'empty-state'
-  users: User[]
 }
 
-export function CreateProjectButton({ variant = 'header', users }: CreateProjectButtonProps) {
+export function CreateProjectButton({ variant = 'header' }: CreateProjectButtonProps) {
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -36,6 +35,17 @@ export function CreateProjectButton({ variant = 'header', users }: CreateProject
 
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const [users, setUsers] = useState<User[]>([])
+  
+  // Lazy fetch users when modal is opened to avoid blocking main page render
+  useEffect(() => {
+    if (isOpen && users.length === 0) {
+      import('@/app/dashboard/actions').then(mod => {
+        mod.fetchUsersForProject().then(setUsers)
+      })
+    }
+  }, [isOpen, users.length])
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
