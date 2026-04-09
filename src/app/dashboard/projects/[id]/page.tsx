@@ -7,6 +7,7 @@ import { ProjectIssuesRealtimeTab } from '@/components/dashboard/ProjectIssuesRe
 import { getProjectDetails, getProjectIssuesTickets, getProjectMetadata, getProjectResources } from './data';
 import { Metadata } from 'next';
 import { Suspense } from 'react';
+import { ProjectTabContentShimmer } from '@/components/dashboard/ProjectTabContentShimmer';
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
@@ -45,7 +46,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
   const currentMemberIds = (members as { user_id: string }[] | null)?.map(m => m.user_id) || [];
 
   return (
-    <>
+    <ProjectTabContentShimmer>
       {activeTab === 'issues' ? (
         <Suspense
           fallback={
@@ -67,7 +68,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
           />
         </Suspense>
       )}
-    </>
+    </ProjectTabContentShimmer>
   );
 }
 

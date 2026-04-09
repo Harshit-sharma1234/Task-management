@@ -1,17 +1,39 @@
 'use client'
 
 import { useState, useMemo, memo } from 'react'
-import { Search } from 'lucide-react'
+import { Search, Trash2, Loader2 } from 'lucide-react'
 import { UserAvatar } from '@/components/ui/UserAvatar'
+import { deleteMember } from '@/app/dashboard/team/actions'
 
 /**
  * Memoized row component to prevent unnecessary re-renders when 
  * searching or switching filters if the user data hasn't changed.
  */
-const TeamMemberRow = memo(({ user }: { user: any }) => {
+const TeamMemberRow = memo(({ user, isAdmin }: { user: any, isAdmin: boolean }) => {
+    const [isDeleting, setIsDeleting] = useState(false);
     const rawRole = user.roles?.role_name || 'User'
     const displayRole = rawRole === 'Admin' ? 'Workspace admin' : rawRole
-    
+
+    const handleDelete = async () => {
+        if (!confirm(`Are you sure you want to delete ${user.name || user.email}? This will remove them from the system permanently.`)) {
+            return;
+        }
+
+        setIsDeleting(true);
+        try {
+            const result = await deleteMember(user.id);
+            if (result.error) {
+                alert(result.error);
+            }
+        } catch (err) {
+            console.error('Delete error:', err);
+            alert('Failed to delete member');
+        } finally {
+            setIsDeleting(true); // Should probably be false, but wait, the row will disappear anyway if successful
+            setIsDeleting(false);
+        }
+    };
+
     return (
         <tr className="group hover:bg-gray-50/40 transition-all border-b border-gray-50/10">
             <td className="px-2 py-3 whitespace-nowrap">
@@ -39,13 +61,29 @@ const TeamMemberRow = memo(({ user }: { user: any }) => {
                     {displayRole}
                 </span>
             </td>
+            <td className="px-2 py-3 whitespace-nowrap text-right">
+                {isAdmin && (
+                    <button
+                        onClick={handleDelete}
+                        disabled={isDeleting}
+                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all duration-200 opacity-0 group-hover:opacity-100 disabled:opacity-50"
+                        title="Delete member"
+                    >
+                        {isDeleting ? (
+                            <Loader2 size={13} className="animate-spin text-red-500" />
+                        ) : (
+                            <Trash2 size={13} />
+                        )}
+                    </button>
+                )}
+            </td>
         </tr>
     )
 })
 
 TeamMemberRow.displayName = 'TeamMemberRow'
 
-export function TeamList({ initialUsers }: { initialUsers: any[] }) {
+export function TeamList({ initialUsers, isAdmin }: { initialUsers: any[], isAdmin: boolean }) {
     const [searchTerm, setSearchTerm] = useState('')
     const [roleFilter, setRoleFilter] = useState('All')
 
@@ -105,18 +143,19 @@ export function TeamList({ initialUsers }: { initialUsers: any[] }) {
                             <th scope="col" className="px-2 py-2.5 text-left">Name <span className="ml-1 text-[10px]">↓</span></th>
                             <th scope="col" className="px-2 py-2.5 text-left">Email</th>
                             <th scope="col" className="px-2 py-2.5 text-left">Role</th>
+                            <th scope="col" className="px-2 py-2.5 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50/80">
                         {filteredUsers.length === 0 ? (
                             <tr>
-                                <td colSpan={3} className="px-2 py-12 text-center text-sm text-gray-400 italic font-medium">
+                                <td colSpan={4} className="px-2 py-12 text-center text-sm text-gray-400 italic font-medium">
                                     No team members found matching your criteria.
                                 </td>
                             </tr>
                         ) : (
                             filteredUsers.map((user) => (
-                                <TeamMemberRow key={user.id} user={user} />
+                                <TeamMemberRow key={user.id} user={user} isAdmin={isAdmin} />
                             ))
                         )}
                     </tbody>
