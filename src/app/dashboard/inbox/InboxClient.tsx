@@ -13,6 +13,12 @@ import {
     deleteNotification
 } from '@/app/dashboard/notifications/actions';
 import { fetchEntityDetailAction } from './actions';
+
+const getNormalizedType = (type: string) => {
+    if (['assignment', 'status_change', 'comment', 'ticket', 'issue'].includes(type)) return 'ticket';
+    if (['project', 'member_add'].includes(type)) return 'project';
+    return type;
+};
 import { cn, formatTime } from '@/lib/utils';
 import { STATUS_ICONS, PRIORITY_ICONS } from '@/lib/constants';
 import { 
@@ -121,10 +127,13 @@ export default function InboxClient({
                         // Targeted fetch for the single new notification to include joined actor data
                         const { data } = await supabase
                             .from('notifications')
-                            .select('*, actor:actor_id(id, name, email, avatar_url)')
+                            .select('*, actor:users!actor_id(id, name, email, avatar_url)')
                             .eq('id', payload.new.id)
                             .single();
-                        if (data) setNotifications(prev => [data, ...prev]);
+                        if (data) {
+                            const actor = Array.isArray(data.actor) ? data.actor[0] : data.actor;
+                            setNotifications(prev => [{ ...data, actor }, ...prev]);
+                        }
                     } else if (payload.eventType === 'UPDATE') {
                         setNotifications(prev => prev.map(n => n.id === payload.new.id ? { ...n, ...payload.new } : n));
                     } else if (payload.eventType === 'DELETE') {
@@ -181,7 +190,8 @@ export default function InboxClient({
                 const result = await fetchEntityDetailAction(entityId, entityType);
                 
                 if (result.detail) {
-                    const formattedDetail = { type: entityType, data: result.detail };
+                    const modelType = getNormalizedType(entityType);
+                    const formattedDetail = { type: modelType, data: result.detail };
                     detailCache.current.set(entityId, { 
                         detail: formattedDetail, 
                         activity: result.activity 
@@ -308,6 +318,8 @@ export default function InboxClient({
             default: return <FileText size={13} />;
         }
     };
+
+    const normalizedType = selectedNotification ? getNormalizedType(selectedNotification.entity_type) : null;
 
     return (
         <div className="flex h-full bg-white">
@@ -517,7 +529,7 @@ export default function InboxClient({
                                     </>
                                 )}
                                 <span className="text-gray-500 uppercase">
-                                    {selectedNotification.entity_type === 'ticket' ? 'KAP-' : 'PRJ-'}
+                                    {normalizedType === 'ticket' ? 'KAP-' : 'PRJ-'}
                                     {selectedNotification.entity_id?.slice(0, 4)}
                                 </span>
                                 <ChevronRight size={12} className="text-gray-300" />
@@ -638,7 +650,7 @@ const NotificationRow = memo(({ notification, selected, onSelect, onDelete, onMo
             {/* Avatar */}
             <div className="mt-0.5">
                 <UserAvatar
-                    name={actor?.name || 'User'}
+                    name={actor?.name || actor?.email || 'User'}
                     avatarUrl={actor?.avatar_url}
                     size="md"
                 />
@@ -672,7 +684,7 @@ const NotificationRow = memo(({ notification, selected, onSelect, onDelete, onMo
                 </div>
                 {/* Subtitle row */}
                 <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-                    <span className="text-gray-500">{actor?.name || actor?.email}</span>
+                    <span className="text-gray-500">{actor?.name || actor?.email || 'User'}</span>
                     <span>·</span>
                     <span>{formatTime(notification.created_at)}</span>
                 </div>
@@ -690,7 +702,7 @@ function ActivityItem({ item }: any) {
         <div className="flex gap-3">
             {/* Avatar */}
             <UserAvatar
-                name={user?.name || 'User'}
+                name={user?.name || user?.email || 'User'}
                 avatarUrl={user?.avatar_url}
                 size="sm"
             />
@@ -699,7 +711,7 @@ function ActivityItem({ item }: any) {
                 {/* Name + time */}
                 <div className="flex items-center gap-2 mb-1">
                     <span className="text-[13px] font-semibold text-gray-900">
-                        {user?.email || user?.name}
+                        {user?.name || user?.email || 'User'}
                     </span>
                     <span className="text-[11px] text-gray-400">
                         {formatTime(item.created_at)}

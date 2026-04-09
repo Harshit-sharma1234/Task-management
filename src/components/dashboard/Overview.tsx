@@ -132,7 +132,7 @@ function StatCard({ label, value, icon: Icon, color, bg, delay }: any) {
  * ── WIDGET: PROJECT LIST ──
  */
 async function ProjectOverviewList() {
-    const [stats, users] = await Promise.all([getCachedStats(), getCachedUsers()]);
+    const stats = await getCachedStats();
     const recentProjects = stats.recentProjects || [];
 
     return (
@@ -143,7 +143,7 @@ async function ProjectOverviewList() {
                         <Folder size={32} />
                     </div>
                     <h3 className="text-gray-900 font-medium mb-4">Ready to start?</h3>
-                    <CreateProjectButton variant="empty-state" users={users} />
+                    <CreateProjectButton variant="empty-state" />
                 </div>
             ) : (
                 <div className="divide-y divide-gray-50 -mx-5 -mb-5">
