@@ -4,6 +4,7 @@ import { notFound, redirect } from 'next/navigation';
 import { ProjectDetailHeader } from '@/components/dashboard/ProjectDetailHeader';
 import { ProjectSidebar } from '@/components/dashboard/ProjectSidebar';
 import { getProjectDetails } from './data';
+import { ProjectTransitionProvider } from '@/lib/contexts/ProjectTransitionContext';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -28,27 +29,29 @@ export default async function ProjectDetailLayout({ children, params }: LayoutPr
   const userRole = profile?.roles?.role_name || null;
 
   return (
-    <div className="flex flex-col h-full bg-white text-gray-900 overflow-hidden">
-      {/* Project Header (Breadcrumbs & Tabs) - Stable in Layout */}
-      <ProjectDetailHeader projectName={project.project_name} projectId={id} users={users || []} />
+    <ProjectTransitionProvider>
+      <div className="flex flex-col h-full bg-white text-gray-900 overflow-hidden">
+        {/* Project Header (Breadcrumbs & Tabs) - Stable in Layout */}
+        <ProjectDetailHeader projectName={project.project_name} projectId={id} users={users || []} />
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Scrollable Center Content (Where page.tsx will be) */}
-        <div className="flex-1 overflow-y-auto border-r border-gray-100">
-          {children}
-        </div>
+        {/* Main Content Area */}
+        <div className="flex-1 flex overflow-hidden">
+          {/* Scrollable Center Content (Where page.tsx will be) */}
+          <div className="flex-1 overflow-y-auto border-r border-gray-100">
+            {children}
+          </div>
 
-        {/* Fixed Right Sidebar - Stable in Layout */}
-        <div className="w-80 hidden xl:block overflow-y-auto bg-[#fbfbfb]">
-          <ProjectSidebar 
-            project={project} 
-            users={users || []} 
-            currentMemberIds={currentMemberIds} 
-            userRole={userRole}
-          />
+          {/* Fixed Right Sidebar - Stable in Layout */}
+          <div className="w-80 hidden xl:block overflow-y-auto bg-[#fbfbfb]">
+            <ProjectSidebar 
+              project={project} 
+              users={users || []} 
+              currentMemberIds={currentMemberIds} 
+              userRole={userRole}
+            />
+          </div>
         </div>
       </div>
-    </div>
+    </ProjectTransitionProvider>
   );
 }
