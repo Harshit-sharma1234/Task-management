@@ -640,10 +640,13 @@ const NotificationRow = memo(({ notification, selected, onSelect, onDelete, onMo
     const actor = notification.actor
     
     return (
-        <button
+        <div
+            role="button"
+            tabIndex={0}
             onClick={onSelect}
+            onKeyDown={(e) => { if(e.key === 'Enter' || e.key === ' ') onSelect(e); }}
             onMouseEnter={onMouseEnter}
-            className={`w-full text-left px-4 py-3 border-b border-gray-50 transition-colors flex items-start gap-3 group ${
+            className={`w-full text-left px-4 py-3 border-b border-gray-50 transition-colors flex items-start gap-3 group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
                 selected ? 'bg-indigo-50/60' : 'hover:bg-gray-50/50'
             }`}
         >
@@ -689,7 +692,7 @@ const NotificationRow = memo(({ notification, selected, onSelect, onDelete, onMo
                     <span>{formatTime(notification.created_at)}</span>
                 </div>
             </div>
-        </button>
+        </div>
     )
 });
 
