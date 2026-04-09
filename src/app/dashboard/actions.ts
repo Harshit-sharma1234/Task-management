@@ -782,3 +782,83 @@ export async function deleteProjectResource(resourceId: string, projectId: strin
     revalidatePath(`/dashboard/projects/${projectId}`)
     return { success: true }
 }
+
+/**
+ * Deletes a project and all its associated data (members, resources, tickets, logs).
+ * Restricted to Admin and Project Manager roles.
+ */
+export async function deleteProject(projectId: string) {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+        return { error: 'You must be logged in' }
+    }
+
+    // 1. Verify caller has permission (Admin or Project Manager)
+    const profile = await getUserProfile(supabase, user.email!)
+    if (!profile || !['Admin', 'Project Manager'].includes(profile.roles?.role_name || '')) {
+        return { error: 'Unauthorized: Only Admins and Project Managers can delete projects' }
+    }
+
+    const adminClient = createAdminClient()
+
+    // 2. Perform cleanup of related data
+    // Delete tickets associated with the project
+    const { error: ticketsError } = await adminClient
+        .from('tickets')
+        .delete()
+        .eq('project_id', projectId)
+    
+    if (ticketsError) {
+        console.error('[deleteProject] Error deleting tickets:', ticketsError)
+    }
+
+    // Delete project members
+    const { error: membersError } = await adminClient
+        .from('project_members')
+        .delete()
+        .eq('project_id', projectId)
+
+    if (membersError) {
+        console.error('[deleteProject] Error deleting members:', membersError)
+    }
+
+    // Delete project resources/attachments
+    const { error: resourcesError } = await adminClient
+        .from('project_resources')
+        .delete()
+        .eq('project_id', projectId)
+
+    if (resourcesError) {
+        console.error('[deleteProject] Error deleting resources:', resourcesError)
+    }
+
+    // Delete project logs
+    const { error: logsError } = await adminClient
+        .from('project_logs')
+        .delete()
+        .eq('project_id', projectId)
+    
+    if (logsError) {
+        console.error('[deleteProject] Error deleting logs:', logsError)
+    }
+
+    // 3. Finally delete the project itself
+    const { error: projectError } = await adminClient
+        .from('projects')
+        .delete()
+        .eq('id', projectId)
+
+    if (projectError) {
+        console.error('[deleteProject] Error deleting project:', projectError)
+        return { error: `Failed to delete project: ${projectError.message}` }
+    }
+
+    // Handle cascading revalidation
+    revalidateProjectDataTags()
+    revalidatePath('/dashboard/projects', 'page')
+    revalidatePath('/dashboard', 'page')
+
+    return { success: true }
+}
