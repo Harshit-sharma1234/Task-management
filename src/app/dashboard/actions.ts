@@ -17,6 +17,12 @@ function revalidateProjectDataTags(tags: string[] = ['projects', 'tickets']) {
     tags.forEach(tag => revalidateTag(tag, 'max'));
 }
 
+import { getCachedUsers } from '../../lib/cache'
+
+export async function fetchUsersForProject() {
+    return await getCachedUsers()
+}
+
 export async function createProject(formData: FormData) {
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()

@@ -29,7 +29,6 @@ export default async function DevDashboard() {
     }
 
     const userName = user.user_metadata?.full_name || profile.name || user.email;
-    const users = await getCachedUsers();
 
     return (
         <div className="flex flex-col h-full w-full p-8 overflow-y-auto animate-in fade-in duration-500">
@@ -39,7 +38,7 @@ export default async function DevDashboard() {
                     <h1 className="text-2xl font-bold text-gray-900">Welcome back, {userName}</h1>
                     <p className="text-sm text-gray-500 mt-1">Here's what's happening with your projects today</p>
                 </div>
-                <CreateProjectButton variant="header" users={users} />
+                <CreateProjectButton variant="header" />
             </div>
 
             {/* Stats Overview */}
