@@ -9,31 +9,21 @@ import { Shimmer } from '@/components/ui/Skeleton';
 
 interface ProjectProgressPanelProps {
   projectId: string;
+  users: any[];
 }
 
-export const ProjectProgressPanel = memo(({ projectId }: ProjectProgressPanelProps) => {
+export const ProjectProgressPanel = memo(({ projectId, users }: ProjectProgressPanelProps) => {
   const [tickets, setTickets] = useState<Array<{ id: string; status: string | null; assignee_id: string | null }>>([]);
-  const [assigneeUsers, setAssigneeUsers] = useState<Record<string, any>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'Assignees' | 'Labels'>('Assignees');
   const supabase = useMemo(() => createClient(), []);
 
-  const fetchMissingAssigneeUsers = async (assigneeIds: string[]) => {
-    const missingIds = assigneeIds.filter((id) => !assigneeUsers[id]);
-    if (missingIds.length === 0) return;
-
-    const { data: usersData } = await supabase
-      .from('users')
-      .select('id, name, email, avatar_url')
-      .in('id', missingIds);
-
-    const map = (usersData || []).reduce((acc: Record<string, any>, u: any) => {
+  const assigneeUsers = useMemo(() => {
+    return users?.reduce((acc: Record<string, any>, u: any) => {
       acc[u.id] = u;
       return acc;
-    }, {});
-
-    setAssigneeUsers((prev) => ({ ...prev, ...map }));
-  };
+    }, {}) || {};
+  }, [users]);
 
   const fetchTickets = async () => {
     setIsLoading(true);
@@ -51,28 +41,6 @@ export const ProjectProgressPanel = memo(({ projectId }: ProjectProgressPanelPro
     }));
 
     setTickets(normalizedRows);
-
-    const uniqueAssigneeIds = Array.from(
-      new Set(normalizedRows.map(r => r.assignee_id).filter(Boolean))
-    ) as string[];
-
-    if (uniqueAssigneeIds.length === 0) {
-      setAssigneeUsers({});
-      setIsLoading(false);
-      return;
-    }
-
-    const { data: usersData } = await supabase
-      .from('users')
-      .select('id, name, email, avatar_url')
-      .in('id', uniqueAssigneeIds);
-
-    const map = (usersData || []).reduce((acc: Record<string, any>, u: any) => {
-      acc[u.id] = u;
-      return acc;
-    }, {});
-
-    setAssigneeUsers(map);
     setIsLoading(false);
   };
 
@@ -93,9 +61,6 @@ export const ProjectProgressPanel = memo(({ projectId }: ProjectProgressPanelPro
               assignee_id: payload.new.assignee_id ?? null,
             };
             setTickets(prev => [...prev, newTicket]);
-            if (newTicket.assignee_id) {
-              void fetchMissingAssigneeUsers([newTicket.assignee_id]);
-            }
           } else if (payload.eventType === 'UPDATE') {
             if (!payload.new?.id) return;
             const nextAssigneeId = payload.new.assignee_id ?? null;
@@ -104,9 +69,6 @@ export const ProjectProgressPanel = memo(({ projectId }: ProjectProgressPanelPro
                 ? { ...t, status: payload.new.status ?? null, assignee_id: nextAssigneeId }
                 : t
             ));
-            if (nextAssigneeId) {
-              void fetchMissingAssigneeUsers([nextAssigneeId]);
-            }
           } else if (payload.eventType === 'DELETE') {
             if (!payload.old?.id) return;
             setTickets((prev) => prev.filter((t) => t.id !== payload.old.id));
@@ -126,14 +88,20 @@ export const ProjectProgressPanel = memo(({ projectId }: ProjectProgressPanelPro
     const done = tickets.filter(t => t.status === 'done').length;
 
     const stats = tickets.reduce((acc: any, ticket: any) => {
-      const assigneeId = ticket.assignee_id || 'unassigned';
+      let assigneeId = ticket.assignee_id;
+      let user = assigneeId ? assigneeUsers[assigneeId] : null;
+
+      // Group all missing or invalid assignees into a unified 'unassigned' bucket
+      if (!user) {
+        assigneeId = 'unassigned';
+      }
+
       if (!acc[assigneeId]) {
-        const user = assigneeUsers[assigneeId];
         acc[assigneeId] = {
           id: assigneeId,
-          name: assigneeId === 'unassigned' ? 'Unassigned' : (user?.name || 'Unassigned'),
-          email: assigneeId === 'unassigned' ? 'unassigned@team.com' : (user?.email || 'unassigned@team.com'),
-          avatar_url: assigneeId === 'unassigned' ? null : user?.avatar_url,
+          name: assigneeId === 'unassigned' ? 'Unassigned' : user.name,
+          email: assigneeId === 'unassigned' ? 'No assignee' : user.email,
+          avatar_url: assigneeId === 'unassigned' ? null : user.avatar_url,
           count: 0
         };
       }
