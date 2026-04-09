@@ -4,6 +4,7 @@ import { ProjectList } from '@/components/dashboard/ProjectList';
 import { getCachedProjects, getCachedUsers } from '@/lib/cache';
 import { Suspense } from 'react';
 import { Metadata } from 'next';
+import { getUserProfile } from '@/lib/roles';
 
 import { ProjectSkeleton } from '@/components/dashboard/ProjectSkeleton';
 
@@ -21,11 +22,17 @@ export default function ProjectsPage() {
 }
 
 async function ProjectsContent() {
-    // Fetch cached projects and users in parallel
-    const [projects, users] = await Promise.all([
+    // Fetch cached projects, users, and current user profile in parallel
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    const [projects, users, profile] = await Promise.all([
         getCachedProjects(),
-        getCachedUsers()
+        getCachedUsers(),
+        user ? getUserProfile(supabase, user.email!) : Promise.resolve(null)
     ]);
+
+    const userRole = profile?.roles?.role_name || null;
 
     const typedUsers = (users || []).map((u: any) => ({
         id: u.id,
@@ -46,6 +53,7 @@ async function ProjectsContent() {
                 projects={projects} 
                 users={typedUsers} 
                 userMap={userMap} 
+                userRole={userRole}
             />
         </div>
     );

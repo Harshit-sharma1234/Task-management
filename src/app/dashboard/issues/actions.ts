@@ -193,9 +193,9 @@ export async function addComment(ticketId: string, comment: string) {
     .from('comments')
     .insert({
       ticket_id: ticketId,
-      user_id: profile.id,
       comment: comment
     })
+
     .select('*, users(id, name, email, avatar_url)')
     .single()
 

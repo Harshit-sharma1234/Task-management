@@ -2,18 +2,24 @@
 
 import { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { ChevronRight, Layout, Info, Link as LinkIcon, Check } from 'lucide-react';
+import { ChevronRight, Layout, Info, Link as LinkIcon, Check, Plus } from 'lucide-react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
+
+const AddIssueModal = dynamic(() => import('./issues/AddIssueModal').then(mod => mod.AddIssueModal), {
+  ssr: false,
+});
 
 interface ProjectDetailHeaderProps {
   projectName: string;
   projectId: string;
+  users: any[];
 }
 
-export function ProjectDetailHeader({ projectName, projectId }: ProjectDetailHeaderProps) {
+export function ProjectDetailHeader({ projectName, projectId, users }: ProjectDetailHeaderProps) {
   const searchParams = useSearchParams();
   const activeTab = (searchParams.get('tab') || 'overview').toLowerCase();
-
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const copyLink = () => {
@@ -37,24 +43,43 @@ export function ProjectDetailHeader({ projectName, projectId }: ProjectDetailHea
           <span className="text-gray-900 font-medium">{projectName}</span>
         </div>
 
-        <button 
-          onClick={copyLink}
-          className="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-gray-50 text-gray-400 hover:text-gray-600 transition-all group relative"
-          title="Copy link"
-        >
-          {copied ? (
-            <div className="flex items-center gap-1.5 text-indigo-600 animate-in fade-in zoom-in duration-200">
-              <Check size={14} />
-              <span className="text-[10px] font-bold uppercase tracking-wider">Copied</span>
-            </div>
-          ) : (
-            <>
-              <LinkIcon size={14} className="group-hover:rotate-12 transition-transform" />
-              <span className="text-[10px] font-bold uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity">Copy Link</span>
-            </>
-          )}
-        </button>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-md text-[11px] font-bold uppercase tracking-wider hover:bg-indigo-700 transition-all shadow-sm shadow-indigo-600/20 active:scale-95 mr-2"
+          >
+            <Plus size={14} />
+            <span>New Issue</span>
+          </button>
+
+          <button 
+            onClick={copyLink}
+            className="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-gray-50 text-gray-400 hover:text-gray-600 transition-all group relative"
+            title="Copy link"
+          >
+            {copied ? (
+              <div className="flex items-center gap-1.5 text-indigo-600 animate-in fade-in zoom-in duration-200">
+                <Check size={14} />
+                <span className="text-[10px] font-bold uppercase tracking-wider">Copied</span>
+              </div>
+            ) : (
+              <>
+                <LinkIcon size={14} className="group-hover:rotate-12 transition-transform" />
+                <span className="text-[10px] font-bold uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity">Copy Link</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
+
+      {isModalOpen && (
+        <AddIssueModal 
+          isOpen={isModalOpen} 
+          onClose={() => setIsModalOpen(false)} 
+          projects={[{ id: projectId, name: projectName }]}
+          users={users}
+        />
+      )}
 
       {/* Tabs */}
       <div className="flex items-center gap-6 text-[#1A1F2C]">
