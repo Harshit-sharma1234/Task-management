@@ -31,7 +31,7 @@ export function TeamClientWrapper() {
       <TeamHeader isAdmin={isAdmin} />
 
       {/* Team List with Search */}
-      <TeamList initialUsers={users} />
+      <TeamList initialUsers={users} isAdmin={isAdmin} />
     </div>
   );
 }
