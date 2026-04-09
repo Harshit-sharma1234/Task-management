@@ -16,7 +16,7 @@ export default async function InboxPage() {
             .from('notifications')
             .select(`
                 *,
-                actor:actor_id(id, name, email, avatar_url)
+                actor:users!actor_id(id, name, email, avatar_url)
             `)
             .eq('user_id', user.id)
             .order('created_at', { ascending: false }),
@@ -26,7 +26,10 @@ export default async function InboxPage() {
             .order('name'),
     ]);
 
-    const notifications = notificationsRes.data || [];
+    const notifications = (notificationsRes.data || []).map(n => {
+        const actor = Array.isArray(n.actor) ? n.actor[0] : n.actor;
+        return { ...n, actor };
+    });
     const allUsers = usersRes.data || [];
 
     // 3. Keep initial detail null to allow static shell to render immediately
