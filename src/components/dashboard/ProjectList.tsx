@@ -143,7 +143,7 @@ export function ProjectList({ projects, users, userMap }: ProjectListProps) {
                             className="pl-9 pr-4 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 w-64 bg-gray-50/50"
                         />
                     </div>
-                    <CreateProjectButton variant="header" users={users} />
+                    <CreateProjectButton variant="header" />
                 </div>
             </header>
 
@@ -163,7 +163,7 @@ export function ProjectList({ projects, users, userMap }: ProjectListProps) {
                                     ? `We couldn't find any projects matching "${searchTerm}".`
                                     : "You haven't created any projects yet. Start by creating a project to organize your team's tasks."}
                             </p>
-                            {!searchTerm && <CreateProjectButton variant="header" users={users} />}
+                            {!searchTerm && <CreateProjectButton variant="header" />}
                         </div>
                     ) : (
                         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">

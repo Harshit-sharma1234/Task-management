@@ -35,10 +35,12 @@ const getCachedProjectMembers = (projectId: string) =>
     }
   )();
 
+import { cache } from 'react';
+
 // Keep this as a regular async function because this flow depends on
 // request-auth context in page/layout. Individual sub-queries are cached.
 // NOTE: Do not wrap this in unstable_cache (uses request-bound auth flow).
-export async function getProjectDetails(id: string, sessionEmail: string) {
+export const getProjectDetails = cache(async (id: string, sessionEmail: string) => {
     const [projectRes, cachedUsers, membersRes, profileRes] = await Promise.all([
       getCachedProjectShell(id),
       getCachedProjectUsers(id),
@@ -54,7 +56,7 @@ export async function getProjectDetails(id: string, sessionEmail: string) {
       members: membersRes || [],
       profile: profileRes,
     };
-}
+});
 
 // Cache tickets list used by the "tab=issues" view.
 // Realtime in the client keeps it globally up-to-date.

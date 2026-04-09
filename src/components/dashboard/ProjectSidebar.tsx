@@ -31,7 +31,7 @@ export function ProjectSidebar({ project, users, currentMemberIds, userRole }: P
       />
 
       {/* Optimized Progress Section */}
-      <ProjectProgressPanel projectId={project.id} />
+      <ProjectProgressPanel projectId={project.id} users={users} />
 
       {/* Optimized Activity Section */}
       <ProjectActivityPanel projectId={project.id} userRole={userRole} />
