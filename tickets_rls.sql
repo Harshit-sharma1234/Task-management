@@ -1,75 +1,66 @@
 -- tickets_rls.sql
 -- Enforce Row Level Security (RLS) on the `tickets` table
+-- Updated for universal visibility for all authenticated users.
 
 -- 1. Enable RLS
 ALTER TABLE public.tickets ENABLE ROW LEVEL SECURITY;
 
--- 2. Drop existing policies if they exist (to allow safe re-runs)
+-- 2. Drop existing policies
+DROP POLICY IF EXISTS "Unified ticket view access" ON public.tickets;
+DROP POLICY IF EXISTS "Enhanced ticket update access" ON public.tickets;
+DROP POLICY IF EXISTS "Unified ticket insert access" ON public.tickets;
 DROP POLICY IF EXISTS "Users can view tickets for their projects" ON public.tickets;
-DROP POLICY IF EXISTS "Users can create tickets for their projects" ON public.tickets;
-DROP POLICY IF EXISTS "Users can update tickets for their projects" ON public.tickets;
-DROP POLICY IF EXISTS "Users can delete tickets for their projects" ON public.tickets;
 
--- 3. SELECT Policy: A user can view a ticket if they are a member of the project
-CREATE POLICY "Users can view tickets for their projects"
-ON public.tickets FOR SELECT
+-- 3. SELECT: All authenticated users can view all tickets
+CREATE POLICY "Unified ticket view access"
+ON public.tickets FOR SELECT TO authenticated
+USING (true);
+
+-- 4. UPDATE: Restricted to Admin, PM, Assignee, Reviewer
+CREATE POLICY "Enhanced ticket update access"
+ON public.tickets FOR UPDATE TO authenticated
 USING (
-    EXISTS (
-        SELECT 1 FROM public.project_members pm 
-        WHERE pm.project_id = tickets.project_id 
-        AND pm.user_id = auth.uid()
+    public.get_auth_role() IN ('Admin', 'Project Manager')
+    OR assignee_id = public.get_my_user_id()
+    OR reviewer_id = public.get_my_user_id()
+)
+WITH CHECK (
+    -- Authorization
+    (
+        public.get_auth_role() IN ('Admin', 'Project Manager')
+        OR assignee_id = public.get_my_user_id()
+        OR reviewer_id = public.get_my_user_id()
     )
-    OR
-    EXISTS (
-        SELECT 1 FROM public.projects p
-        WHERE p.id = tickets.project_id
-        AND p.lead_id = auth.uid()
+    AND
+    -- Status Restriction
+    (
+        status NOT IN ('in_review', 'done')
+        OR public.get_auth_role() IN ('Admin', 'Project Manager')
+        OR reviewer_id = public.get_my_user_id()
+    )
+    AND
+    -- Reviewer Eligibility
+    (
+        reviewer_id IS NULL
+        OR (
+            public.get_user_role_by_id(reviewer_id) IN ('Admin', 'Project Manager', 'Senior Developer')
+            AND
+            NOT (
+                public.get_auth_role() = 'Senior Developer' 
+                AND reviewer_id = public.get_my_user_id()
+            )
+        )
     )
 );
 
--- 4. INSERT Policy: A user can create a ticket if they are a member of the project
-CREATE POLICY "Users can create tickets for their projects"
-ON public.tickets FOR INSERT
+-- 5. INSERT: Admin, PM, and Project Members
+CREATE POLICY "Unified ticket insert access"
+ON public.tickets FOR INSERT TO authenticated
 WITH CHECK (
-    EXISTS (
+    public.get_auth_role() IN ('Admin', 'Project Manager')
+    OR EXISTS (
         SELECT 1 FROM public.project_members pm 
         WHERE pm.project_id = project_id 
-        AND pm.user_id = auth.uid()
-    )
-    OR
-    EXISTS (
-        SELECT 1 FROM public.projects p
-        WHERE p.id = project_id
-        AND p.lead_id = auth.uid()
-    )
-);
-
--- 5. UPDATE Policy: A user can update a ticket if they are a member of the project OR the assignee
-CREATE POLICY "Users can update tickets for their projects"
-ON public.tickets FOR UPDATE
-USING (
-    EXISTS (
-        SELECT 1 FROM public.project_members pm 
-        WHERE pm.project_id = tickets.project_id 
-        AND pm.user_id = auth.uid()
-    )
-    OR
-    EXISTS (
-        SELECT 1 FROM public.projects p
-        WHERE p.id = tickets.project_id
-        AND p.lead_id = auth.uid()
-    )
-);
-
--- 6. DELETE Policy: Optional - Only Project Leads or Ticket Creators can delete
-CREATE POLICY "Users can delete tickets for their projects"
-ON public.tickets FOR DELETE
-USING (
-    created_by = auth.uid()
-    OR
-    EXISTS (
-        SELECT 1 FROM public.projects p
-        WHERE p.id = tickets.project_id
-        AND p.lead_id = auth.uid()
+        AND pm.user_id = public.get_my_user_id()
     )
 );

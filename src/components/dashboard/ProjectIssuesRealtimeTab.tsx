@@ -3,6 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { IssuesList } from './issues/IssuesList';
+import dynamic from 'next/dynamic';
+
+const AddIssueModal = dynamic(() => import('./issues/AddIssueModal').then(mod => mod.AddIssueModal), {
+  ssr: false,
+});
 
 export function ProjectIssuesRealtimeTab({
   projectId,
@@ -16,6 +21,7 @@ export function ProjectIssuesRealtimeTab({
   users: any[];
 }) {
   const [tickets, setTickets] = useState<any[]>(initialTickets || []);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const supabase = useMemo(() => createClient(), []);
   const pendingEventsRef = useRef<any[]>([]);
   const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -104,7 +110,17 @@ export function ProjectIssuesRealtimeTab({
         tickets={tickets}
         users={users}
         emptyMessage={`No issues found for ${projectName}`}
+        onOpenModal={() => setIsModalOpen(true)}
       />
+
+      {isModalOpen && (
+        <AddIssueModal 
+          isOpen={isModalOpen} 
+          onClose={() => setIsModalOpen(false)} 
+          projects={[{ id: projectId, name: projectName }]}
+          users={users}
+        />
+      )}
     </div>
   );
 }

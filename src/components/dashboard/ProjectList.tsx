@@ -2,9 +2,11 @@
 
 import { useState, useMemo, memo } from 'react';
 import Link from 'next/link';
-import { Folder, Search } from 'lucide-react';
+import { Folder, Search, Trash2, Loader2 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
+import { deleteProject } from '@/app/dashboard/actions';
+import { AppRole } from '@/lib/roles';
 
 // Heavy components that contain modals/complex logic should be lazy loaded
 const PrioritySelector = dynamic(() => import('@/components/dashboard/PrioritySelector').then(mod => mod.PrioritySelector), { ssr: false });
@@ -32,6 +34,7 @@ interface ProjectListProps {
     projects: Project[];
     users: User[];
     userMap: Record<string, string>;
+    userRole: AppRole | null;
 }
 
 /**
@@ -41,13 +44,40 @@ interface ProjectListProps {
 const ProjectRow = memo(({ 
     project, 
     users, 
-    isLast 
+    isLast,
+    userRole
 }: { 
     project: Project; 
     users: User[]; 
     isLast: boolean;
+    userRole: AppRole | null;
 }) => {
     const router = useRouter();
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const canDelete = userRole === 'Admin' || userRole === 'Project Manager';
+
+    const handleDelete = async (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (!confirm(`Are you sure you want to delete "${project.project_name}"? This will delete all associated tickets and data.`)) {
+            return;
+        }
+
+        setIsDeleting(true);
+        try {
+            const result = await deleteProject(project.id);
+            if (result.error) {
+                alert(result.error);
+            }
+        } catch (err) {
+            console.error('Delete error:', err);
+            alert('An error occurred while deleting the project.');
+        } finally {
+            setIsDeleting(false);
+        }
+    };
 
     const prefetchProject = useMemo(() => {
         const overviewHref = `/dashboard/projects/${project.id}`;
@@ -60,7 +90,7 @@ const ProjectRow = memo(({
 
     return (
         <div 
-            className="grid grid-cols-[1fr_100px_140px_140px_140px] items-center py-3.5 hover:bg-gray-50/50 transition-colors group text-sm relative hover:z-20 focus-within:z-20 border-b border-gray-100"
+            className="grid grid-cols-[1fr_100px_140px_140px_140px_48px] items-center py-3.5 hover:bg-gray-50/50 transition-colors group text-sm relative hover:z-20 focus-within:z-20 border-b border-gray-100"
         >
             {/* Name */}
             <div className="flex items-center gap-3 pl-5 min-w-0">
@@ -103,13 +133,31 @@ const ProjectRow = memo(({
                     {project.status ? project.status.replace('_', ' ') : 'backlog'}
                 </span>
             </div>
+
+            {/* Actions */}
+            <div className="flex items-center justify-end pr-5 relative z-10">
+                {canDelete && (
+                    <button
+                        onClick={handleDelete}
+                        disabled={isDeleting}
+                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all duration-200 opacity-0 group-hover:opacity-100 disabled:opacity-50"
+                        title="Delete project"
+                    >
+                        {isDeleting ? (
+                            <Loader2 size={15} className="animate-spin text-red-500" />
+                        ) : (
+                            <Trash2 size={15} />
+                        )}
+                    </button>
+                )}
+            </div>
         </div>
     );
 });
 
 ProjectRow.displayName = 'ProjectRow';
 
-export function ProjectList({ projects, users, userMap }: ProjectListProps) {
+export function ProjectList({ projects, users, userMap, userRole }: ProjectListProps) {
     const [searchTerm, setSearchTerm] = useState('');
 
     const filteredProjects = useMemo(() => {
@@ -168,7 +216,7 @@ export function ProjectList({ projects, users, userMap }: ProjectListProps) {
                     ) : (
                         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                             {/* List Header */}
-                            <div className="grid grid-cols-[1fr_100px_140px_140px_140px] items-center border-b border-gray-100 bg-gray-50/50 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                            <div className="grid grid-cols-[1fr_100px_140px_140px_140px_48px] items-center border-b border-gray-100 bg-gray-50/50 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
                                 <div className="pl-5">Name</div>
                                 <div className="hidden md:block">Priority</div>
                                 <div className="hidden sm:block">Lead</div>
@@ -184,6 +232,7 @@ export function ProjectList({ projects, users, userMap }: ProjectListProps) {
                                         project={project} 
                                         users={users} 
                                         isLast={index === filteredProjects.length - 1} 
+                                        userRole={userRole}
                                     />
                                 ))}
                             </div>
