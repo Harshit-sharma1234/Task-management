@@ -44,6 +44,7 @@ export function UserAvatar({ name, avatarUrl, size = 'md', className = '', prior
                     src={avatarUrl}
                     alt={name || 'User'}
                     fill
+                    sizes={`${px}px`}
                     className="object-cover"
                     priority={priority}
                     onError={() => setImageError(true)}
