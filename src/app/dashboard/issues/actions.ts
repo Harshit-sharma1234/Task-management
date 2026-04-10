@@ -64,6 +64,9 @@ export async function createIssue(formData: FormData) {
 
   if (error) {
     console.error('SUPABASE ERROR CREATING TICKET:', error)
+    if (error.code === '23505' || error.message?.includes('tickets_title_key')) {
+      return { error: `A ticket with the title "${title}" already exists. Please use a different title.` }
+    }
     return { error: `Failed to create issue: ${error.message}` }
   }
 
@@ -176,6 +179,109 @@ async function logActivity(supabase: any, userId: string, ticketId: string, acti
   if (error) console.error('Error logging activity:', error)
 }
 
+/**
+ * Update issue title and/or description.
+ * RBAC: Only Admin, Project Manager, or the ticket creator can edit.
+ */
+export async function updateIssueContent(ticketId: string, updates: {
+  title?: string,
+  description?: string | null,
+}) {
+  const supabase = await createClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+  if (authError || !user) {
+    return { error: 'You must be logged in to edit an issue' }
+  }
+
+  // Fetch profile and current ticket in parallel
+  const [profile, { data: ticket }] = await Promise.all([
+    getUserProfile(supabase, user.email!),
+    supabase
+      .from('tickets')
+      .select('id, title, description, created_by, assignee_id')
+      .eq('id', ticketId)
+      .single()
+  ])
+
+  if (!profile) return { error: 'User profile not found' }
+  if (!ticket) return { error: 'Ticket not found' }
+
+  const role = profile.roles?.role_name || 'User'
+
+  // ACCESS GATE: Only Admin, Project Manager, or the ticket creator
+  const isAdmin = role === 'Admin'
+  const isPM = role === 'Project Manager'
+  const isCreator = profile.id === ticket.created_by
+
+  if (!isAdmin && !isPM && !isCreator) {
+    return { error: 'Only the Admin, Project Manager, or the issue creator can edit this issue.' }
+  }
+
+  // Build the update payload — only include changed fields
+  const updatePayload: Record<string, any> = { updated_at: new Date().toISOString() }
+  if (updates.title !== undefined && updates.title !== ticket.title) {
+    if (!updates.title.trim()) return { error: 'Title cannot be empty' }
+    updatePayload.title = updates.title.trim()
+  }
+  if (updates.description !== undefined && updates.description !== ticket.description) {
+    updatePayload.description = updates.description
+  }
+
+  // If nothing actually changed, return early
+  if (Object.keys(updatePayload).length === 1) {
+    return { success: true, data: ticket }
+  }
+
+  const adminClient = createAdminClient()
+  const { data, error } = await adminClient
+    .from('tickets')
+    .update(updatePayload)
+    .eq('id', ticketId)
+    .select('id, title, description')
+    .single()
+
+  if (error) {
+    console.error('SUPABASE ERROR UPDATING TICKET CONTENT:', error)
+    if (error.code === '23505' || error.message?.includes('tickets_title_key')) {
+      return { error: `A ticket with this title already exists. Please use a different title.` }
+    }
+    return { error: `Failed to update issue: ${error.message}` }
+  }
+
+  // Fire-and-forget logging & notifications
+  const postUpdatePromises = []
+
+  if (updatePayload.title) {
+    postUpdatePromises.push(
+      logActivity(supabase, profile.id, ticketId, 'content_edit', `Updated title from "${ticket.title}" to "${updatePayload.title}"`)
+    )
+  }
+  if (updatePayload.description !== undefined) {
+    postUpdatePromises.push(
+      logActivity(supabase, profile.id, ticketId, 'content_edit', 'Updated issue description')
+    )
+  }
+
+  // Notify the assignee (if different from editor)
+  if (ticket.assignee_id && ticket.assignee_id !== profile.id) {
+    postUpdatePromises.push(createNotification({
+      userId: ticket.assignee_id,
+      actorId: profile.id,
+      entityType: 'ticket',
+      entityId: ticketId,
+      type: 'status_change',
+      message: `${profile.name} edited issue: ${updatePayload.title || ticket.title}`
+    }))
+  }
+
+  Promise.all(postUpdatePromises).catch(err => console.error('Post-edit side effects error:', err))
+
+  revalidatePath(`/dashboard/issues/${ticketId}`, 'page')
+  revalidateTag('issues', 'max')
+  return { success: true, data }
+}
+
 export async function addComment(ticketId: string, comment: string) {
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -263,6 +369,92 @@ export async function addComment(ticketId: string, comment: string) {
 
   revalidatePath(`/dashboard/issues/${ticketId}`, 'page')
   return { success: true, data }
+}
+
+/**
+ * Edit a comment. Only the comment author can edit their own comment.
+ */
+export async function editComment(commentId: string, ticketId: string, newText: string) {
+  const supabase = await createClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+  if (authError || !user) {
+    return { error: 'You must be logged in to edit a comment' }
+  }
+
+  const profile = await getUserProfile(supabase, user.email!)
+  if (!profile) return { error: 'User profile not found' }
+
+  if (!newText.trim()) return { error: 'Comment cannot be empty' }
+
+  // Fetch the comment to verify ownership
+  const adminClient = createAdminClient()
+  const { data: comment } = await adminClient
+    .from('comments')
+    .select('id, user_id')
+    .eq('id', commentId)
+    .single()
+
+  if (!comment) return { error: 'Comment not found' }
+  if (comment.user_id !== profile.id) {
+    return { error: 'You can only edit your own comments' }
+  }
+
+  const { data, error } = await adminClient
+    .from('comments')
+    .update({ comment: newText.trim() })
+    .eq('id', commentId)
+    .select('id, comment, created_at, user_id, users(id, name, email, avatar_url)')
+    .single()
+
+  if (error) {
+    console.error('SUPABASE ERROR EDITING COMMENT:', error)
+    return { error: `Failed to edit comment: ${error.message}` }
+  }
+
+  revalidatePath(`/dashboard/issues/${ticketId}`, 'page')
+  return { success: true, data }
+}
+
+/**
+ * Delete a comment. Only the comment author can delete their own comment.
+ */
+export async function deleteComment(commentId: string, ticketId: string) {
+  const supabase = await createClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+  if (authError || !user) {
+    return { error: 'You must be logged in to delete a comment' }
+  }
+
+  const profile = await getUserProfile(supabase, user.email!)
+  if (!profile) return { error: 'User profile not found' }
+
+  // Fetch the comment to verify ownership
+  const adminClient = createAdminClient()
+  const { data: comment } = await adminClient
+    .from('comments')
+    .select('id, user_id')
+    .eq('id', commentId)
+    .single()
+
+  if (!comment) return { error: 'Comment not found' }
+  if (comment.user_id !== profile.id) {
+    return { error: 'You can only delete your own comments' }
+  }
+
+  const { error } = await adminClient
+    .from('comments')
+    .delete()
+    .eq('id', commentId)
+
+  if (error) {
+    console.error('SUPABASE ERROR DELETING COMMENT:', error)
+    return { error: `Failed to delete comment: ${error.message}` }
+  }
+
+  revalidatePath(`/dashboard/issues/${ticketId}`, 'page')
+  return { success: true }
 }
 
 export async function updateIssue(ticketId: string, updates: {
