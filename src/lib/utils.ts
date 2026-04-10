@@ -29,3 +29,15 @@ export function formatTime(date: string | Date) {
         return '';
     }
 }
+
+export function formatTimeLong(date: string | Date) {
+    if (!date) return '';
+    const d = typeof date === 'string' ? new Date(date) : date;
+    
+    try {
+        const distance = formatDistanceToNow(d, { addSuffix: true });
+        return `Created ${distance.replace('about ', '')}`; // e.g. "Created 5 hours ago"
+    } catch (e) {
+        return '';
+    }
+}
