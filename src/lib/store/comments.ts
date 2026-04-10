@@ -23,6 +23,7 @@ interface CommentsState {
   addCommentRealtime: (ticketId: string, comment: Comment) => void;
   replaceTempComment: (ticketId: string, tempId: string, realComment: Comment) => void;
   removeComment: (ticketId: string, tempId: string) => void;
+  updateComment: (ticketId: string, commentId: string, newText: string) => void;
 }
 
 export const useCommentsStore = create<CommentsState>((set) => ({
@@ -113,6 +114,19 @@ export const useCommentsStore = create<CommentsState>((set) => ({
           [ticketId]: existing.filter(c => c.id !== id)
         },
         knownTempIds: { ...state.knownTempIds, [ticketId]: newTempIds }
+      };
+    }),
+
+  updateComment: (ticketId, commentId, newText) =>
+    set((state) => {
+      const existing = state.commentsMap[ticketId] || [];
+      return {
+        commentsMap: {
+          ...state.commentsMap,
+          [ticketId]: existing.map(c => 
+            c.id === commentId ? { ...c, comment: newText } : c
+          )
+        }
       };
     }),
 }));
