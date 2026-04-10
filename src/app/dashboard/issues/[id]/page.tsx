@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { CommentSection } from '@/components/dashboard/issues/CommentSection';
 import { IssuePropertyControls } from '@/components/dashboard/issues/IssuePropertyControls';
 import { IssueHeaderActions } from '@/components/dashboard/issues/IssueHeaderActions';
+import { EditableIssueContent } from '@/components/dashboard/issues/EditableIssueContent';
 import { getCachedUserProfile, getCachedUsers } from '@/lib/cache';
 import { IssueActivitySkeleton } from '@/components/dashboard/issues/IssueActivitySkeleton';
 
@@ -82,6 +83,7 @@ export default async function IssueDetailsPage({ params }: { params: { id: strin
         priority,
         assignee_id,
         reviewer_id,
+        created_by,
         created_at,
         due_date,
         attachments,
@@ -104,8 +106,9 @@ export default async function IssueDetailsPage({ params }: { params: { id: strin
     ? (ticket as any).projects?.[0]?.project_name
     : (ticket as any).projects?.project_name;
 
-  // RBAC for deletion
+  // RBAC for deletion and editing
   const canDelete = profile?.roles?.role_name === 'Admin' || profile?.roles?.role_name === 'Project Manager';
+  const canEdit = canDelete || profile?.id === (ticket as any).created_by;
 
   const currentUserForActivity = {
     id: profile?.id || '',
@@ -131,14 +134,13 @@ export default async function IssueDetailsPage({ params }: { params: { id: strin
       <div className="flex-1 flex overflow-hidden">
         {/* Main Content Area */}
         <div className="flex-1 overflow-y-auto p-10 max-w-4xl border-r border-gray-100">
-          <div className="mb-12">
-            <h1 className="text-3xl font-bold text-gray-900 mb-6">{ticket.title}</h1>
-
-            <div className="prose prose-sm max-w-none text-gray-700 leading-relaxed mb-6">
-              <p className="whitespace-pre-wrap">
-                {ticket.description || "No description provided."}
-              </p>
-            </div>
+          <div>
+            <EditableIssueContent
+              ticketId={id}
+              initialTitle={ticket.title}
+              initialDescription={ticket.description}
+              canEdit={canEdit}
+            />
 
             {/* Attachments Section */}
             {ticket.attachments && ticket.attachments.length > 0 && (
