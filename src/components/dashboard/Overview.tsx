@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import { cn, formatTime } from '@/lib/utils'
+import { cn, formatTime, formatTimeLong } from '@/lib/utils'
 import { STATUS_ICONS } from '@/lib/constants'
 import { getCachedStats, getCachedUsers, getCachedRecentTickets, getCachedProjects, getCachedUserTasks } from '@/lib/cache'
 import { Suspense, type ReactNode } from 'react'
@@ -224,8 +224,8 @@ async function IssueOverviewList() {
                                     <div className="hidden sm:block px-2 py-0.5 bg-gray-50 border border-gray-100 rounded text-[9px] font-bold text-gray-400 uppercase">
                                         {ticket.status.replace('_', ' ')}
                                     </div>
-                                    <span className="text-[10px] font-semibold text-gray-300 uppercase tabular-nums">
-                                        {formatTime(ticket.created_at)}
+                                    <span className="text-[10px] font-semibold text-gray-400 capitalize tracking-wide pr-2">
+                                        {formatTimeLong(ticket.created_at)}
                                     </span>
                                 </div>
                             </Link>
