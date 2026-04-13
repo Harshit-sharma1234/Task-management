@@ -20,9 +20,9 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
 
     // Password Update State
     const [isChangingPassword, setIsChangingPassword] = useState(false)
+    const [oldPassword, setOldPassword] = useState('')
     const [newPassword, setNewPassword] = useState('')
     const [confirmPassword, setConfirmPassword] = useState('')
-    const [signOutDevices, setSignOutDevices] = useState(true)
     const [isSavingPassword, setIsSavingPassword] = useState(false)
     const [passwordError, setPasswordError] = useState('')
     const [passwordSuccess, setPasswordSuccess] = useState(false)
@@ -83,6 +83,10 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
     }
 
     const handlePasswordSubmit = async () => {
+        if (!oldPassword) {
+            setPasswordError("Current password is required")
+            return
+        }
         if (newPassword !== confirmPassword) {
             setPasswordError("Passwords don't match")
             return
@@ -96,12 +100,13 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
         setPasswordError('')
         setPasswordSuccess(false)
 
-        const result = await updateUserPassword(newPassword)
+        const result = await updateUserPassword(oldPassword, newPassword)
         
         if (result.error) {
             setPasswordError(result.error)
         } else {
             setPasswordSuccess(true)
+            setOldPassword('')
             setNewPassword('')
             setConfirmPassword('')
             setTimeout(() => {
@@ -389,40 +394,40 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
                                             </div>
                                         )}
 
-                                        <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-4">
                                             <div className="space-y-1.5">
-                                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">New Password</label>
+                                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Current Password</label>
                                                 <input 
                                                     type="password" 
-                                                    value={newPassword}
-                                                    onChange={(e) => setNewPassword(e.target.value)}
+                                                    value={oldPassword}
+                                                    onChange={(e) => setOldPassword(e.target.value)}
                                                     className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm font-medium focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all shadow-inner"
-                                                    placeholder="8+ characters"
+                                                    placeholder="Required to continue"
                                                 />
                                             </div>
-                                            <div className="space-y-1.5">
-                                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Confirm New</label>
-                                                <input 
-                                                    type="password" 
-                                                    value={confirmPassword}
-                                                    onChange={(e) => setConfirmPassword(e.target.value)}
-                                                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm font-medium focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all shadow-inner"
-                                                />
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="space-y-1.5">
+                                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">New Password</label>
+                                                    <input 
+                                                        type="password" 
+                                                        value={newPassword}
+                                                        onChange={(e) => setNewPassword(e.target.value)}
+                                                        className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm font-medium focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all shadow-inner"
+                                                        placeholder="8+ characters"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Confirm New</label>
+                                                    <input 
+                                                        type="password" 
+                                                        value={confirmPassword}
+                                                        onChange={(e) => setConfirmPassword(e.target.value)}
+                                                        className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm font-medium focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all shadow-inner"
+                                                    />
+                                                </div>
                                             </div>
                                         </div>
 
-                                        <div className="bg-white/50 p-4 rounded-xl border border-indigo-100/50 flex items-start gap-3">
-                                            <input 
-                                                id="sign-out" 
-                                                type="checkbox" 
-                                                checked={signOutDevices}
-                                                onChange={(e) => setSignOutDevices(e.target.checked)}
-                                                className="w-4 h-4 mt-0.5 text-indigo-600 bg-gray-100 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
-                                            />
-                                            <label htmlFor="sign-out" className="text-xs cursor-pointer text-gray-600 leading-normal">
-                                                Sign out of all other devices after saving. Recommended for security.
-                                            </label>
-                                        </div>
 
                                         <div className="flex justify-end gap-3 pt-2">
                                             <button 
@@ -430,6 +435,7 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
                                                     setIsChangingPassword(false)
                                                     setPasswordError('')
                                                     setPasswordSuccess(false)
+                                                    setOldPassword('')
                                                     setNewPassword('')
                                                     setConfirmPassword('')
                                                 }}
@@ -439,7 +445,7 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
                                             </button>
                                             <button 
                                                 onClick={handlePasswordSubmit}
-                                                disabled={isSavingPassword || newPassword.length < 8 || newPassword !== confirmPassword}
+                                                disabled={isSavingPassword || !oldPassword || newPassword.length < 8 || newPassword !== confirmPassword}
                                                 className="px-6 py-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-600/30 transition-all active:scale-95 disabled:bg-gray-400 disabled:shadow-none disabled:cursor-not-allowed"
                                             >
                                                 {isSavingPassword ? 'Saving Changes...' : 'Update Password'}
