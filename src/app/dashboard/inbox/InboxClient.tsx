@@ -13,6 +13,8 @@ import {
     deleteNotification
 } from '@/app/dashboard/notifications/actions';
 import { fetchEntityDetailAction } from './actions';
+import { editComment, deleteComment } from '@/app/dashboard/issues/actions';
+import { toast } from 'sonner';
 
 const getNormalizedType = (type: string) => {
     if (['assignment', 'status_change', 'comment', 'ticket', 'issue'].includes(type)) return 'ticket';
@@ -24,7 +26,7 @@ import { STATUS_ICONS, PRIORITY_ICONS } from '@/lib/constants';
 import { 
     Loader2, BellOff, MoreHorizontal, Filter, Settings2, Check, Trash2, CheckCircle2, X,
     ChevronRight, MessageSquare, UserPlus, Zap, FileText, Circle, CircleEllipsis,
-    SignalHigh, SignalMedium, SignalLow, FolderKanban, Clock, ArrowLeft
+    SignalHigh, SignalMedium, SignalLow, FolderKanban, Clock, ArrowLeft, Pencil
 } from 'lucide-react';
 import { PropertyInlineRow } from '@/components/dashboard/issues/PropertyInlineRow';
 import { useNotificationStore } from '@/lib/store/notifications';
@@ -78,6 +80,9 @@ export default function InboxClient({
     const [showViewOptions, setShowViewOptions] = useState(false);
     const [typeFilter, setTypeFilter] = useState<string[]>([]);
     const setGlobalUnreadCount = useNotificationStore((s) => s.setUnreadCount);
+    const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+    const [editValue, setEditValue] = useState('');
+    const [commentActionLoading, setCommentActionLoading] = useState<string | null>(null);
     const parentRef = useRef<HTMLDivElement>(null);
     const detailCache = useRef<Map<string, { detail: any; activity: any[] }>>(new Map());
     const fetchPromises = useRef<Map<string, Promise<any>>>(new Map());
@@ -238,7 +243,7 @@ export default function InboxClient({
         });
 
         return result;
-    }, [notifications, viewOptions, typeFilter]);
+    }, [optimisticNotifications, viewOptions, typeFilter]);
 
     const virtualizer = useVirtualizer({
         count: filteredAndSorted.length,
@@ -320,6 +325,61 @@ export default function InboxClient({
     };
 
     const normalizedType = selectedNotification ? getNormalizedType(selectedNotification.entity_type) : null;
+
+    // ── Comment Edit/Delete handlers ──
+    const handleEditCommentStart = (item: any) => {
+        setEditingCommentId(item.id);
+        setEditValue(item.comment);
+    };
+
+    const handleEditCommentCancel = () => {
+        setEditingCommentId(null);
+        setEditValue('');
+    };
+
+    const handleEditCommentSave = async (commentId: string, ticketId: string) => {
+        const text = editValue.trim();
+        if (!text || commentActionLoading) return;
+
+        const originalText = entityActivity.find(a => a.id === commentId)?.comment || '';
+        // Optimistic update
+        setEntityActivity(prev => prev.map(a => a.id === commentId ? { ...a, comment: text } : a));
+        setEditingCommentId(null);
+        setCommentActionLoading(commentId);
+
+        const result = await editComment(commentId, ticketId, text);
+        if (result.error) {
+            setEntityActivity(prev => prev.map(a => a.id === commentId ? { ...a, comment: originalText } : a));
+            toast.error(result.error);
+        } else {
+            toast.success('Comment updated');
+            // Invalidate cache for this entity
+            if (selectedNotification?.entity_id) {
+                detailCache.current.delete(selectedNotification.entity_id);
+            }
+        }
+        setCommentActionLoading(null);
+    };
+
+    const handleDeleteComment = async (commentId: string, ticketId: string) => {
+        if (commentActionLoading || !confirm('Delete this comment?')) return;
+
+        const originalActivity = [...entityActivity];
+        setEntityActivity(prev => prev.filter(a => a.id !== commentId));
+        setCommentActionLoading(commentId);
+
+        const result = await deleteComment(commentId, ticketId);
+        if (result.error) {
+            setEntityActivity(originalActivity);
+            toast.error(result.error);
+        } else {
+            toast.success('Comment deleted');
+            if (selectedNotification?.entity_id) {
+                detailCache.current.delete(selectedNotification.entity_id);
+            }
+        }
+        setCommentActionLoading(null);
+    };
 
     return (
         <div className="flex h-full bg-white">
@@ -598,8 +658,21 @@ export default function InboxClient({
                                         </div>
 
                                         <div className="space-y-5">
-                                            {entityActivity.map((item, idx) => (
-                                                <ActivityItem key={`${item.activityType}-${item.id}`} item={item} />
+                                            {entityActivity.map((item) => (
+                                                <ActivityItem 
+                                                    key={`${item.activityType}-${item.id}`} 
+                                                    item={item}
+                                                    currentUserId={currentUser?.id}
+                                                    ticketId={entityDetail?.data?.id}
+                                                    editingCommentId={editingCommentId}
+                                                    editValue={editValue}
+                                                    commentActionLoading={commentActionLoading}
+                                                    onEditStart={handleEditCommentStart}
+                                                    onEditCancel={handleEditCommentCancel}
+                                                    onEditSave={handleEditCommentSave}
+                                                    onEditValueChange={setEditValue}
+                                                    onDelete={handleDeleteComment}
+                                                />
                                             ))}
 
                                             {entityActivity.length === 0 && (
@@ -698,11 +771,26 @@ const NotificationRow = memo(({ notification, selected, onSelect, onDelete, onMo
 
 NotificationRow.displayName = 'NotificationRow';
 
-function ActivityItem({ item }: any) {
-    const user = item.users
+function ActivityItem({ 
+    item, 
+    currentUserId,
+    ticketId,
+    editingCommentId, 
+    editValue, 
+    commentActionLoading,
+    onEditStart, 
+    onEditCancel, 
+    onEditSave, 
+    onEditValueChange,
+    onDelete 
+}: any) {
+    const user = item.users;
+    const isOwner = item.user_id === currentUserId;
+    const isEditing = editingCommentId === item.id;
+    const isLoading = commentActionLoading === item.id;
 
     return (
-        <div className="flex gap-3">
+        <div className="flex gap-3 group/activity">
             {/* Avatar */}
             <UserAvatar
                 name={user?.name || user?.email || 'User'}
@@ -711,20 +799,82 @@ function ActivityItem({ item }: any) {
             />
 
             <div className="flex-1 min-w-0">
-                {/* Name + time */}
-                <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[13px] font-semibold text-gray-900">
-                        {user?.name || user?.email || 'User'}
-                    </span>
-                    <span className="text-[11px] text-gray-400">
-                        {formatTime(item.created_at)}
-                    </span>
+                {/* Name + time + actions */}
+                <div className="flex items-center justify-between gap-2 mb-1">
+                    <div className="flex items-center gap-2">
+                        <span className="text-[13px] font-semibold text-gray-900">
+                            {user?.name || user?.email || 'User'}
+                        </span>
+                        <span className="text-[11px] text-gray-400">
+                            {formatTime(item.created_at)}
+                        </span>
+                    </div>
+
+                    {/* Edit/Delete Actions for own comments */}
+                    {item.activityType === 'comment' && isOwner && !editingCommentId && (
+                        <div className="flex items-center gap-1 opacity-0 group-hover/activity:opacity-100 transition-opacity">
+                            <button
+                                onClick={() => onEditStart(item)}
+                                className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 transition-colors"
+                                title="Edit comment"
+                            >
+                                <Pencil size={11} />
+                            </button>
+                            <button
+                                onClick={() => onDelete(item.id, ticketId)}
+                                className="p-1 hover:bg-red-50 rounded text-gray-400 hover:text-red-600 transition-colors"
+                                title="Delete comment"
+                            >
+                                <Trash2 size={11} />
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 {/* Content */}
                 {item.activityType === 'comment' ? (
-                    <div className="text-[13px] text-gray-700 bg-gray-50 rounded-lg p-3 border border-gray-100 leading-relaxed">
-                        {item.comment}
+                    <div className="text-[13px] text-gray-700 leading-relaxed relative">
+                        {isEditing ? (
+                            <div className="space-y-2">
+                                <div className="flex items-center gap-2 border border-gray-200 rounded-lg pl-3 pr-1.5 py-1 bg-white focus-within:border-gray-400 transition-all shadow-sm">
+                                    <input
+                                        type="text"
+                                        className="w-full bg-transparent text-[13px] text-gray-900 focus:outline-none py-1"
+                                        value={editValue}
+                                        onChange={(e) => onEditValueChange(e.target.value)}
+                                        autoFocus
+                                        onKeyDown={(e: React.KeyboardEvent) => {
+                                            if (e.key === 'Enter') onEditSave(item.id, ticketId);
+                                            if (e.key === 'Escape') onEditCancel();
+                                        }}
+                                    />
+                                    <div className="flex items-center gap-1">
+                                        <button
+                                            onClick={() => onEditSave(item.id, ticketId)}
+                                            className="p-1 hover:bg-blue-50 text-blue-600 rounded transition-colors"
+                                        >
+                                            <Check size={13} />
+                                        </button>
+                                        <button
+                                            onClick={onEditCancel}
+                                            className="p-1 hover:bg-gray-100 text-gray-400 rounded transition-colors"
+                                        >
+                                            <X size={13} />
+                                        </button>
+                                    </div>
+                                </div>
+                                <p className="text-[10px] text-gray-400">Press Enter to save, Esc to cancel</p>
+                            </div>
+                        ) : (
+                            <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                                {item.comment}
+                                {isLoading && (
+                                    <div className="absolute inset-0 bg-white/50 flex items-center justify-center rounded-lg">
+                                        <Loader2 size={12} className="animate-spin text-gray-400" />
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <div className="text-[12px] text-gray-500 italic">
