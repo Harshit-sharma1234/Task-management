@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useMemo, memo } from 'react';
+import { useState, useMemo, memo, useEffect } from 'react';
 import Link from 'next/link';
 import { Folder, Search, Trash2, Loader2 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { deleteProject } from '@/app/dashboard/actions';
 import { AppRole } from '@/lib/roles';
+import { createClient } from '@/lib/supabase/client';
 
 // Heavy components that contain modals/complex logic should be lazy loaded
 const PrioritySelector = dynamic(() => import('@/components/dashboard/PrioritySelector').then(mod => mod.PrioritySelector), { ssr: false });
@@ -159,16 +160,60 @@ ProjectRow.displayName = 'ProjectRow';
 
 export function ProjectList({ projects, users, userMap, userRole }: ProjectListProps) {
     const [searchTerm, setSearchTerm] = useState('');
+    const [localProjects, setLocalProjects] = useState<Project[]>(projects);
+    const supabase = useMemo(() => createClient(), []);
+
+    // Keep state in sync with props
+    useEffect(() => {
+        setLocalProjects(projects);
+    }, [projects]);
+
+    // Supabase Realtime Listener
+    useEffect(() => {
+        const channel = supabase
+            .channel('projects-list-updates')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'projects' },
+                (payload) => {
+                    const { eventType, new: newItem, old: oldItem } = payload;
+
+                    setLocalProjects((prev) => {
+                        if (eventType === 'INSERT') {
+                            // Check for duplicates
+                            if (prev.some(p => p.id === newItem.id)) return prev;
+                            return [newItem as Project, ...prev];
+                        }
+
+                        if (eventType === 'UPDATE') {
+                            return prev.map((p) => (p.id === newItem.id ? { ...p, ...newItem } as Project : p));
+                        }
+
+                        if (eventType === 'DELETE') {
+                            return prev.filter((p) => p.id === oldItem.id);
+                        }
+
+                        return prev;
+                    });
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [supabase]);
 
     const filteredProjects = useMemo(() => {
-        if (!searchTerm.trim()) return projects;
+        const listToFilter = localProjects;
+        if (!searchTerm.trim()) return listToFilter;
         
         const term = searchTerm.toLowerCase();
-        return projects.filter(project => 
+        return listToFilter.filter(project => 
             project.project_name.toLowerCase().includes(term) ||
             (project.lead_id && userMap[project.lead_id]?.toLowerCase().includes(term))
         );
-    }, [projects, searchTerm, userMap]);
+    }, [localProjects, searchTerm, userMap]);
 
     return (
         <div className="flex flex-col h-full w-full">
