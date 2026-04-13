@@ -5,8 +5,9 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail, sendBulkEmails } from '@/lib/email'
 import { newSignupNotificationEmail, emailVerificationEmail } from '@/lib/email-templates'
 import { randomInt } from 'crypto'
+import { getBaseUrl } from '@/lib/urls'
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+const APP_URL = getBaseUrl()
 
 export async function requestOTP(email: string) {
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
