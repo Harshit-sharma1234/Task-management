@@ -71,3 +71,31 @@ body {
 .text-gradient {
   @apply bg-clip-text text-transparent bg-gradient-to-br from-slate-900 to-slate-500;
 }
+
+/* Tiptap Rich Text Editor Overrides */
+.tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #94a3b8;
+  pointer-events: none;
+  height: 0;
+}
+
+.tiptap ul {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.tiptap li p {
+  display: inline;
+}
+
+.tiptap b, .tiptap strong {
+  font-weight: 700;
+}
+
+.tiptap i, .tiptap em {
+  font-style: italic;
+}
