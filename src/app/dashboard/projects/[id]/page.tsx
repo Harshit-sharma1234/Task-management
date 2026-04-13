@@ -36,7 +36,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  const { project, projectError, users, members } = await getProjectDetails(id, user.email!);
+  const { project, projectError, users, members, profile, allUsers } = await getProjectDetails(id, user.email!);
 
   if (projectError || !project) {
     console.error('Project fetch error:', projectError);
@@ -55,16 +55,21 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
             </div>
           }
         >
-          <ProjectIssuesTab projectId={id} users={users || []} projectName={project.project_name} />
+          <ProjectIssuesTab 
+            projectId={id} 
+            users={allUsers || []} 
+            projectName={project.project_name} 
+            currentUser={profile}
+          />
         </Suspense>
       ) : (
         <Suspense fallback={<ProjectOverviewSkeleton />}>
           <ProjectOverviewTab
             projectId={id}
             project={project}
-            users={users || []}
+            users={allUsers || []}
             currentMemberIds={currentMemberIds}
-            currentUser={user}
+            currentUser={profile}
           />
         </Suspense>
       )}
@@ -76,10 +81,12 @@ async function ProjectIssuesTab({
   projectId,
   users,
   projectName,
+  currentUser,
 }: {
   projectId: string;
   users: any[];
   projectName: string;
+  currentUser: any;
 }) {
   const tickets = await getProjectIssuesTickets(projectId);
 
@@ -90,6 +97,7 @@ async function ProjectIssuesTab({
       projectName={projectName}
       initialTickets={tickets}
       users={users}
+      currentUser={currentUser}
     />
   );
 }
