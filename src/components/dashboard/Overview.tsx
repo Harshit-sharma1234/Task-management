@@ -11,9 +11,10 @@ import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { cn, formatTime, formatTimeLong } from '@/lib/utils'
 import { STATUS_ICONS } from '@/lib/constants'
-import { getCachedStats, getCachedUsers, getCachedRecentTickets, getCachedProjects, getCachedUserTasks } from '@/lib/cache'
+import { getCachedStats, getCachedUsers, getCachedRecentTickets, getCachedProjects, getCachedUserTasks, getCachedUpcomingDeadlines, getCachedRecentNotifications } from '@/lib/cache'
 import { Suspense, type ReactNode } from 'react'
 import { WidgetSkeleton, StatsSkeleton } from './OverviewSkeletons'
+import { markAsRead } from '@/app/dashboard/notifications/actions'
 
 // Lazy load interactive elements
 const CreateProjectButton = dynamic(() => import('@/components/dashboard/CreateProjectButton').then(mod => mod.CreateProjectButton), { 
@@ -34,24 +35,27 @@ interface WidgetProps {
 
 function Widget({ title, href, count, children, className }: WidgetProps) {
     return (
-        <div className={cn("bg-white border border-gray-100 rounded-xl p-5 shadow-sm transition-all duration-300 hover:shadow-md", className)}>
-            <div className="flex justify-between items-center border-b border-gray-50 pb-4 mb-4">
-                <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
-                    {count !== undefined && (
-                        <span className="bg-gray-50 text-gray-500 text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-gray-100">
-                            {count}
-                        </span>
+        <div className={cn("premium-card rounded-2xl p-6 relative overflow-hidden group", className)}>
+            <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+            <div className="relative z-10">
+                <div className="flex justify-between items-center mb-6">
+                    <div className="flex items-center gap-2.5">
+                        <h3 className="text-sm font-bold text-slate-800 tracking-tight">{title}</h3>
+                        {count !== undefined && (
+                            <span className="bg-slate-100 text-slate-500 text-[10px] font-bold px-2 py-0.5 rounded-full border border-slate-200/50">
+                                {count}
+                            </span>
+                        )}
+                    </div>
+                    {href && (
+                        <Link href={href} className="text-xs text-slate-400 hover:text-indigo-600 flex items-center gap-1 group/link transition-all font-semibold">
+                            View all <ArrowRight size={12} className="group-hover/link:translate-x-0.5 transition-transform" />
+                        </Link>
                     )}
                 </div>
-                {href && (
-                    <Link href={href} className="text-xs text-gray-400 hover:text-gray-900 flex items-center gap-1 group transition-colors font-medium">
-                        View all <ArrowRight size={12} className="group-hover:translate-x-0.5 transition-transform" />
-                    </Link>
-                )}
-            </div>
-            <div className="animate-slide-up">
-                {children}
+                <div className="animate-slide-up">
+                    {children}
+                </div>
             </div>
         </div>
     )
@@ -79,12 +83,12 @@ export default function DashboardOverview({ userId }: DashboardOverviewProps) {
                 </div>
 
                 {/* Right Column (Focus Widgets) */}
-                <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-6">
                     <Suspense fallback={<WidgetSkeleton rows={2} />}>
                         <MyTasksWidget userId={userId} />
                     </Suspense>
-                    <Suspense fallback={<WidgetSkeleton rows={2} />}>
-                        <InProgressWidget />
+                    <Suspense fallback={<WidgetSkeleton rows={3} />}>
+                        <UpcomingDeadlinesWidget />
                     </Suspense>
                 </div>
             </div>
@@ -100,10 +104,10 @@ async function StatsCards() {
     
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <StatCard label="Total Projects" value={stats.projectsCount} icon={Folder} color="text-indigo-600" bg="bg-indigo-50" delay="delay-0" />
+            <StatCard label="Urgent Issues" value={stats.urgentIssuesCount} icon={CircleDot} color="text-red-500" bg="bg-red-50" delay="delay-0" />
             <StatCard label="Completed" value={stats.completedProjectsCount} icon={CheckCircle2} color="text-green-500" bg="bg-green-50" delay="delay-75" />
             <StatCard label="In Progress" value={stats.inProgressProjectsCount} icon={Clock} color="text-indigo-600" bg="bg-indigo-50" delay="delay-150" />
-            <StatCard label="Recent Issues" value={stats.tasksCount || 0} icon={CircleDot} color="text-purple-600" bg="bg-purple-50" delay="delay-300" />
+            <StatCard label="Total Tickets" value={stats.tasksCount || 0} icon={Folder} color="text-purple-600" bg="bg-purple-50" delay="delay-300" />
         </div>
     )
 }
@@ -111,17 +115,19 @@ async function StatsCards() {
 function StatCard({ label, value, icon: Icon, color, bg, delay }: any) {
     return (
         <div className={cn(
-            "bg-white border border-gray-100 rounded-xl p-5 shadow-sm transition-all duration-300",
-            "hover:shadow-md hover:-translate-y-0.5 group animate-slide-up",
+            "premium-card rounded-2xl p-6 group animate-slide-up relative overflow-hidden",
             delay
         )}>
-            <div className="flex justify-between items-start">
+            <div className={cn("absolute -right-4 -top-4 w-24 h-24 rounded-full opacity-[0.03] transition-transform duration-700 group-hover:scale-150", bg)} />
+            <div className="flex justify-between items-start relative z-10">
                 <div>
-                    <p className="text-sm text-gray-500 font-medium">{label}</p>
-                    <h3 className="text-3xl font-bold text-gray-900 mt-2 tracking-tight">{value}</h3>
+                    <p className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">{label}</p>
+                    <h3 className="text-3xl font-extrabold text-slate-900 mt-2 tracking-tight">
+                        {value}
+                    </h3>
                 </div>
-                <div className={cn("p-2.5 rounded-lg transition-transform duration-300 group-hover:scale-110", bg, color)}>
-                    <Icon size={20} />
+                <div className={cn("p-3 rounded-xl transition-all duration-500 shadow-sm ring-1 ring-black/5 group-hover:scale-110 group-hover:rotate-3", bg, color)}>
+                    <Icon size={20} strokeWidth={2.5} />
                 </div>
             </div>
         </div>
@@ -134,6 +140,7 @@ function StatCard({ label, value, icon: Icon, color, bg, delay }: any) {
 async function ProjectOverviewList() {
     const stats = await getCachedStats();
     const recentProjects = stats.recentProjects || [];
+    const projectStats = stats.projectStats || {};
 
     return (
         <Widget title="Project Overview" href="/dashboard/projects">
@@ -146,35 +153,44 @@ async function ProjectOverviewList() {
                     <CreateProjectButton variant="empty-state" />
                 </div>
             ) : (
-                <div className="divide-y divide-gray-50 -mx-5 -mb-5">
-                    {recentProjects.map((project: any) => (
-                        <Link 
-                            key={project.id} 
-                            href={`/dashboard/projects/${project.id}`}
-                            className="px-5 py-4 hover:bg-gray-50 transition-all flex items-center justify-between group/project border-b border-gray-50 last:border-0"
-                        >
-                            <div className="flex items-center gap-4">
-                                <div className="bg-indigo-50 p-2.5 rounded-lg text-indigo-600 group-hover/project:bg-indigo-100 group-hover/project:scale-105 transition-all">
-                                    <Folder size={18} />
+                <div className="divide-y divide-gray-50 -mx-6 -mb-6">
+                    {recentProjects.map((project: any) => {
+                        const pStat = projectStats[project.id] || { total: 0, done: 0 };
+                        const progress = pStat.total > 0 ? Math.round((pStat.done / pStat.total) * 100) : 0;
+
+                        return (
+                            <Link 
+                                key={project.id} 
+                                href={`/dashboard/projects/${project.id}`}
+                                className="px-6 py-5 hover:bg-slate-50/80 transition-all flex items-center justify-between group/project border-b border-gray-100 last:border-0"
+                            >
+                                <div className="flex items-center gap-4 flex-1">
+                                    <div className="bg-indigo-50 p-2.5 rounded-xl text-indigo-600 group-hover/project:bg-indigo-100 group-hover/project:scale-105 transition-all shadow-sm ring-1 ring-indigo-100/50">
+                                        <Folder size={18} />
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2">
+                                            <h3 className="text-sm font-bold text-slate-800 group-hover/project:text-indigo-600 transition-colors tracking-tight">{project.project_name}</h3>
+                                            <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">
+                                                {pStat.done}/{pStat.total} tasks
+                                            </span>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div>
-                                    <h3 className="text-sm font-semibold text-gray-900 group-hover/project:text-indigo-600 transition-colors uppercase tracking-tight">{project.project_name}</h3>
-                                    <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{project.description || 'No description'}</p>
+                                <div className="text-right flex items-center gap-2">
+                                    <div className={cn("w-1.5 h-1.5 rounded-full",
+                                        project.status === 'done' ? 'bg-green-500' :
+                                        project.status === 'in_progress' ? 'bg-indigo-500' :
+                                        project.status === 'cancelled' ? 'bg-red-500' :
+                                        'bg-orange-500'
+                                    )} />
+                                    <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">
+                                        {project.status ? project.status.replace('_', ' ') : 'backlog'}
+                                    </span>
                                 </div>
-                            </div>
-                            <div className="text-right flex items-center gap-2">
-                                <div className={cn("w-1.5 h-1.5 rounded-full",
-                                    project.status === 'done' ? 'bg-green-500' :
-                                    project.status === 'in_progress' ? 'bg-indigo-500' :
-                                    project.status === 'cancelled' ? 'bg-red-500' :
-                                    'bg-orange-500'
-                                )} />
-                                <span className="text-[10px] font-bold uppercase text-gray-400 tracking-wider">
-                                    {project.status ? project.status.replace('_', ' ') : 'backlog'}
-                                </span>
-                            </div>
-                        </Link>
-                    ))}
+                            </Link>
+                        );
+                    })}
                 </div>
             )}
         </Widget>
@@ -270,29 +286,39 @@ async function MyTasksWidget({ userId }: { userId: string }) {
 /**
  * ── WIDGET: IN PROGRESS ──
  */
-async function InProgressWidget() {
-    const projects = await getCachedProjects();
-    const inProgress = projects.filter((p: any) => p.status === 'in_progress');
+/**
+ * ── WIDGET: UPCOMING DEADLINES ──
+ */
+async function UpcomingDeadlinesWidget() {
+    const deadlines = await getCachedUpcomingDeadlines();
 
     return (
-        <Widget title="In Progress" count={inProgress.length}>
-            {inProgress.length > 0 ? (
-                <div className="flex flex-col gap-4">
-                    {inProgress.slice(0, 3).map((project: any) => (
-                        <div key={project.id} className="group/prog cursor-pointer">
-                            <div className="flex items-center justify-between">
-                                <span className="text-xs font-semibold text-gray-700 truncate pr-2 group-hover/prog:text-indigo-600 transition-colors uppercase tracking-tight">
-                                    {project.project_name}
-                                </span>
-                                <span className="text-[10px] font-bold text-gray-300 uppercase shrink-0">
-                                    {formatTime(project.created_at)}
+        <Widget title="Upcoming Deadlines">
+            {deadlines.length > 0 ? (
+                <div className="flex flex-col gap-5">
+                    {deadlines.map((item: any) => (
+                        <div key={item.id} className="group/item cursor-pointer">
+                            <div className="flex items-center justify-between mb-1.5">
+                                <div className="flex items-center gap-2 max-w-[70%]">
+                                    <div className="h-1.5 w-1.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)] animate-pulse" />
+                                    <span className="text-xs font-bold text-slate-700 truncate group-hover/item:text-indigo-600 transition-colors tracking-tight">
+                                        {item.project_name || item.title}
+                                    </span>
+                                </div>
+                                <span className="text-[10px] font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded border border-red-100/50">
+                                    {new Date(item.target_date || item.due_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                                 </span>
                             </div>
                         </div>
                     ))}
                 </div>
             ) : (
-                <div className="text-center py-6 text-[10px] text-gray-300 font-bold uppercase tracking-widest">None active</div>
+                <div className="text-center py-8">
+                    <div className="inline-flex p-3 bg-slate-50 rounded-full text-slate-300 mb-3">
+                        <Clock size={24} />
+                    </div>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">No imminent deadlines</p>
+                </div>
             )}
         </Widget>
     )
