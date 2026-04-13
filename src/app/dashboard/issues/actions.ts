@@ -163,6 +163,16 @@ export async function createIssue(formData: FormData) {
     })
   }
 
+  // Auto-Project Membership for Assignee
+  if (assigneeId) {
+    const adminClient = createAdminClient();
+    await adminClient
+      .from('project_members')
+      .upsert({ project_id: projectId, user_id: assigneeId }, { onConflict: 'project_id,user_id' });
+    
+    revalidateTag('project-members', 'max');
+  }
+
   revalidatePath('/dashboard/issues', 'page')
   return { success: true, data }
 }
@@ -547,6 +557,31 @@ export async function updateIssue(ticketId: string, updates: {
     return { error: `Failed to update issue: ${error.message}` }
   }
 
+  // Auto-Project Membership for new Assignee or Reviewer
+  if (updates.assignee_id || updates.reviewer_id) {
+    const adminClient = createAdminClient();
+    const projectIdQuery = await adminClient.from('tickets').select('project_id').eq('id', ticketId).single();
+    
+    if (projectIdQuery.data?.project_id) {
+      const { project_id } = projectIdQuery.data;
+      const membershipUpserts = [];
+      
+      if (updates.assignee_id) {
+        membershipUpserts.push(
+          adminClient.from('project_members').upsert({ project_id, user_id: updates.assignee_id }, { onConflict: 'project_id,user_id' })
+        );
+      }
+      if (updates.reviewer_id) {
+        membershipUpserts.push(
+          adminClient.from('project_members').upsert({ project_id, user_id: updates.reviewer_id }, { onConflict: 'project_id,user_id' })
+        );
+      }
+      
+      await Promise.all(membershipUpserts);
+      revalidateTag('project-members', 'max');
+    }
+  }
+
   // Logging & Notifications — fire-and-forget (non-blocking)
   // These don't need to block the response to the user
   const postUpdatePromises = []
@@ -604,15 +639,16 @@ export async function deleteIssue(ticketId: string) {
   const profile = await getUserProfile(supabase, user.email!)
   if (!profile) return { error: 'User profile not found' }
 
-  // Removed RBAC: Anyone can delete an issue as requested
-  // const role = profile.roles?.role_name
-  // if (role !== 'Admin' && role !== 'Project Manager') {
-  //   return { error: 'Only Admins or Project Managers can delete issues' }
-  // }
-
-  // Use admin client to bypass RLS for deletion as requested "anyone able to delete"
+  // Use admin client to bypass RLS for deletion
   const { createAdminClient } = await import('@/lib/supabase/admin')
   const adminClient = createAdminClient()
+
+  // Fetch project_id BEFORE deletion so we can revalidate the specific project path
+  const { data: ticket } = await adminClient
+    .from('tickets')
+    .select('project_id')
+    .eq('id', ticketId)
+    .single()
 
   const { error } = await adminClient
     .from('tickets')
@@ -624,8 +660,18 @@ export async function deleteIssue(ticketId: string) {
     return { error: `Failed to delete issue: ${error.message}` }
   }
 
+  // Multi-layer revalidation: tags + specific project layout path
   revalidateTag('issues', 'max')
   revalidateTag('dashboard-stats', 'max')
+
+  // Force hard re-render of the project layout if we know the project
+  if (ticket?.project_id) {
+    revalidatePath(`/dashboard/projects/${ticket.project_id}`, 'layout')
+  }
+
+  // Also revalidate general issues page
+  revalidatePath('/dashboard/issues', 'page')
+
   return { success: true }
 }
 

@@ -20,9 +20,10 @@ interface BulkActionToolbarProps {
     onClear: () => void;
     totalTickets: number;
     currentUser?: any;
+    onOptimisticDelete?: (ids: string[]) => void;
 }
 
-export function BulkActionToolbar({ selectedIds, onClear, totalTickets, currentUser }: BulkActionToolbarProps) {
+export function BulkActionToolbar({ selectedIds, onClear, totalTickets, currentUser, onOptimisticDelete }: BulkActionToolbarProps) {
     const [loadingAction, setLoadingAction] = useState<string | null>(null);
     const [showMoreActions, setShowMoreActions] = useState(false);
 
@@ -65,6 +66,11 @@ export function BulkActionToolbar({ selectedIds, onClear, totalTickets, currentU
         }
 
         setLoadingAction('delete');
+        // Optimistically remove from UI
+        if (onOptimisticDelete) {
+            onOptimisticDelete(selectedIds);
+        }
+        
         const result = await bulkDeleteIssues(selectedIds);
 
         if (result.error) {

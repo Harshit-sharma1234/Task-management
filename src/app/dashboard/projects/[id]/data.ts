@@ -1,6 +1,6 @@
 import { unstable_cache } from 'next/cache';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getCachedProjectUsers, getCachedUserProfile } from '@/lib/cache';
+import { getCachedProjectUsers, getCachedUserProfile, getCachedIssueUsers } from '@/lib/cache';
 
 const getCachedProjectShell = (projectId: string) =>
   unstable_cache(
@@ -16,8 +16,7 @@ const getCachedProjectShell = (projectId: string) =>
     },
     ['project-shell', projectId],
     {
-      tags: ['projects', `project:${projectId}`],
-      revalidate: 300,
+      tags: ['project-shell', 'projects', `project:${projectId}`],
     }
   )();
 
@@ -31,7 +30,6 @@ const getCachedProjectMembers = (projectId: string) =>
     ['project-members', projectId],
     {
       tags: ['project-members', 'projects', `project:${projectId}`],
-      revalidate: 300,
     }
   )();
 
@@ -41,12 +39,19 @@ import { cache } from 'react';
 // request-auth context in page/layout. Individual sub-queries are cached.
 // NOTE: Do not wrap this in unstable_cache (uses request-bound auth flow).
 export const getProjectDetails = cache(async (id: string, sessionEmail: string) => {
-    const [projectRes, cachedUsers, membersRes, profileRes] = await Promise.all([
+    const adminClient = createAdminClient();
+
+    const [projectRes, cachedUsers, membersRes, profileRes, rawAllUsersRes] = await Promise.all([
       getCachedProjectShell(id),
       getCachedProjectUsers(id),
       getCachedProjectMembers(id),
-      // Sidebar permissions: cached profile lookup to avoid repeated DB hits.
-      getCachedUserProfile(sessionEmail)
+      getCachedUserProfile(sessionEmail),
+      // BYPASS CACHE: Direct DB query ensures modal always shows ALL system users.
+      // No cache layer can restrict this list to project members only.
+      adminClient
+        .from('users')
+        .select('id, name, email, avatar_url, roles(role_name)')
+        .order('name'),
     ]);
 
     return {
@@ -55,29 +60,39 @@ export const getProjectDetails = cache(async (id: string, sessionEmail: string) 
       users: cachedUsers || [],
       members: membersRes || [],
       profile: profileRes,
+      allUsers: rawAllUsersRes.data || [],
     };
 });
 
 // Cache tickets list used by the "tab=issues" view.
 // Realtime in the client keeps it globally up-to-date.
 export async function getProjectIssuesTickets(projectId: string) {
-  return unstable_cache(
-    async () => {
-      const adminClient = createAdminClient();
-      const { data } = await adminClient
-        .from('tickets')
-        .select('id, title, status, priority, assignee_id, reviewer_id, created_at, projects(id, project_name)')
-        .eq('project_id', projectId)
-        .order('created_at', { ascending: false });
+  const adminClient = createAdminClient();
+  const { data, error } = await adminClient
+    .from('tickets')
+    .select(`
+      id, 
+      title, 
+      status, 
+      priority, 
+      assignee_id, 
+      reviewer_id, 
+      created_by, 
+      created_at, 
+      updated_at,
+      attachments, 
+      projects(id, project_name), 
+      assignees:users!assignee_id(id, name, avatar_url),
+      reviewers:users!reviewer_id(id, name, avatar_url)
+    `)
+    .eq('project_id', projectId)
+    .order('created_at', { ascending: false });
 
-      return data || [];
-    },
-    ['project-issues-tickets', projectId],
-    {
-      tags: ['issues', 'projects', `project:${projectId}`],
-      revalidate: 30,
-    }
-  )();
+  if (error) {
+    console.error(`[Data] Error fetching tickets for project ${projectId}:`, error);
+    return [];
+  }
+  return data || [];
 }
 
 // Cache resources used by the overview view.
@@ -97,7 +112,6 @@ export async function getProjectResources(projectId: string) {
     ['project-resources', projectId],
     {
       tags: ['project-resources', 'projects', `project:${projectId}`],
-      revalidate: 30,
     }
   )();
 }

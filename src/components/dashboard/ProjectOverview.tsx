@@ -11,6 +11,7 @@ import { updateProjectDescription, addProjectResource, deleteProjectResource } f
 import { toast } from 'sonner';
 import { ExternalLink, Trash2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { twMerge } from 'tailwind-merge';
 
 
 interface ProjectOverviewProps {
@@ -134,14 +135,14 @@ export function ProjectOverview({ project, users, currentMemberIds, currentUser,
         </div>
 
         {/* Horizontal Properties Row */}
-        <div className="flex flex-wrap items-center gap-x-8 gap-y-3 pt-4 border-t border-gray-100">
+        <div className="flex flex-wrap items-center gap-x-8 gap-y-3 pt-4 border-t border-gray-100 relative z-[1] focus-within:z-50 transition-all duration-200">
           <div className="flex items-center gap-2 text-sm text-gray-500">
             <span className="text-gray-400 font-medium tracking-tight">Properties</span>
             <StatusSelector projectId={project.id} currentStatus={project.status} />
             <PrioritySelector projectId={project.id} currentPriority={project.priority} showLabel={true} />
             <LeadSelector projectId={project.id} currentLeadId={project.lead_id} users={users} showEmail={true} />
             <MemberSelector projectId={project.id} users={users} currentMemberIds={currentMemberIds} showEmails={true} />
-            <TargetDateSelector projectId={project.id} currentTargetDate={project.start_date || null} />
+            <TargetDateSelector projectId={project.id} currentTargetDate={project.target_date || project.start_date || null} />
           </div>
         </div>
       </div>
