@@ -7,7 +7,6 @@ import { createClient } from '@/lib/supabase/client';
 import { useNotificationStore } from '@/lib/store/notifications';
 import { 
   Building2, 
-  ChevronDown, 
   LayoutDashboard, 
   FolderKanban, 
   Users, 
@@ -18,8 +17,6 @@ import {
   UserCheck
 } from 'lucide-react';
 
-import { UserDropdown } from './UserDropdown';
-import { useAvatarStore } from '@/lib/store/avatar';
 
 interface SidebarProps {
   initialUnreadCount?: number;
@@ -39,18 +36,6 @@ export function Sidebar({ initialUnreadCount, userId, userRole, pendingOnboardin
   const pathname = usePathname();
   const router = useRouter();
   const unreadCount = useNotificationStore((s) => s.unreadCount);
-  const globalAvatarUrl = useAvatarStore((s) => s.avatarUrl);
-
-  // Merge global avatar URL for instant updates
-  const userProfile = useMemo(() => {
-    if (!profileData) return null;
-    return {
-      name: profileData.name,
-      email: profileData.email,
-      avatar_url: globalAvatarUrl !== undefined ? globalAvatarUrl : profileData.avatar_url,
-      role: profileData.role
-    };
-  }, [profileData, globalAvatarUrl]);
   const setUnreadCount = useNotificationStore((s) => s.setUnreadCount);
   const isHydrated = useNotificationStore((s) => s.isHydrated);
   const supabase = useMemo(() => createClient(), []);
@@ -116,16 +101,6 @@ export function Sidebar({ initialUnreadCount, userId, userRole, pendingOnboardin
     };
   }, [userId, supabase, setUnreadCount]);
 
-  const handleSignOut = async () => {
-    try {
-      await supabase.auth.signOut();
-      router.push('/login');
-      router.refresh();
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
-  };
-
   return (
     <aside className="w-64 shrink-0 border-r border-gray-200 bg-white flex flex-col h-full">
       {/* Workspace Selector */}
@@ -145,7 +120,6 @@ export function Sidebar({ initialUnreadCount, userId, userRole, pendingOnboardin
             <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none mt-0.5">Workspace</span>
           </div>
         </div>
-        <ChevronDown size={14} className="text-slate-300 group-hover:text-slate-500 transition-colors" />
       </Link>
 
       {/* Main Navigation */}
@@ -305,15 +279,6 @@ export function Sidebar({ initialUnreadCount, userId, userRole, pendingOnboardin
 
       </nav>
 
-      {/* User Profile Section */}
-      {userProfile && (
-        <div className="p-4 border-t border-slate-50 mt-auto">
-          <UserDropdown 
-            profile={userProfile} 
-            onSignOut={handleSignOut} 
-          />
-        </div>
-      )}
     </aside>
   );
 }
