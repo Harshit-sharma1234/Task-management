@@ -6,15 +6,18 @@ import {
     Clock,
     CircleDot,
     Plus,
+    Activity,
+    Settings,
 } from 'lucide-react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { cn, formatTime, formatTimeLong } from '@/lib/utils'
 import { STATUS_ICONS } from '@/lib/constants'
-import { getCachedStats, getCachedUsers, getCachedRecentTickets, getCachedProjects, getCachedUserTasks, getCachedUpcomingDeadlines, getCachedRecentNotifications } from '@/lib/cache'
+import { getCachedStats, getCachedUsers, getCachedRecentTickets, getCachedProjects, getCachedUserTasks, getCachedUpcomingDeadlines, getCachedRecentNotifications, getCachedUserNote } from '@/lib/cache'
 import { Suspense, type ReactNode } from 'react'
 import { WidgetSkeleton, StatsSkeleton } from './OverviewSkeletons'
 import { markAsRead } from '@/app/dashboard/notifications/actions'
+import { ScratchpadWidget } from './ScratchpadWidget'
 
 // Lazy load interactive elements
 const CreateProjectButton = dynamic(() => import('@/components/dashboard/CreateProjectButton').then(mod => mod.CreateProjectButton), { 
@@ -66,9 +69,10 @@ function Widget({ title, href, count, children, className }: WidgetProps) {
  */
 interface DashboardOverviewProps {
     userId: string;
+    userRole?: string;
 }
 
-export default function DashboardOverview({ userId }: DashboardOverviewProps) {
+export default function DashboardOverview({ userId, userRole = '' }: DashboardOverviewProps) {
     return (
         <div className="w-full">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -88,7 +92,7 @@ export default function DashboardOverview({ userId }: DashboardOverviewProps) {
                         <MyTasksWidget userId={userId} />
                     </Suspense>
                     <Suspense fallback={<WidgetSkeleton rows={3} />}>
-                        <UpcomingDeadlinesWidget />
+                        <ScratchpadServer userId={userId} />
                     </Suspense>
                 </div>
             </div>
@@ -306,41 +310,11 @@ async function MyTasksWidget({ userId }: { userId: string }) {
  * ── WIDGET: IN PROGRESS ──
  */
 /**
- * ── WIDGET: UPCOMING DEADLINES ──
+ * ── WIDGET: SCRATCHPAD SERVER WRAPPER ──
  */
-async function UpcomingDeadlinesWidget() {
-    const deadlines = await getCachedUpcomingDeadlines();
-
-    return (
-        <Widget title="Upcoming Deadlines">
-            {deadlines.length > 0 ? (
-                <div className="flex flex-col gap-5">
-                    {deadlines.map((item: any) => (
-                        <div key={item.id} className="group/item cursor-pointer">
-                            <div className="flex items-center justify-between mb-1.5">
-                                <div className="flex items-center gap-2 max-w-[70%]">
-                                    <div className="h-1.5 w-1.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)] animate-pulse" />
-                                    <span className="text-xs font-bold text-slate-700 truncate group-hover/item:text-indigo-600 transition-colors tracking-tight">
-                                        {item.project_name || item.title}
-                                    </span>
-                                </div>
-                                <span className="text-[10px] font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded border border-red-100/50">
-                                    {new Date(item.target_date || item.due_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                                </span>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            ) : (
-                <div className="text-center py-8">
-                    <div className="inline-flex p-3 bg-slate-50 rounded-full text-slate-300 mb-3">
-                        <Clock size={24} />
-                    </div>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">No imminent deadlines</p>
-                </div>
-            )}
-        </Widget>
-    )
+async function ScratchpadServer({ userId }: { userId: string }) {
+    const initialNote = await getCachedUserNote(userId);
+    return <ScratchpadWidget userId={userId} initialContent={initialNote} />;
 }
 
 export { StatsCards };
