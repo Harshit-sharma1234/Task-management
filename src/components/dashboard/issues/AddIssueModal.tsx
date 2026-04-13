@@ -19,6 +19,7 @@ import {
   FileIcon,
   Trash2
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { createIssue } from '@/app/dashboard/issues/actions';
 import { useRouter } from 'next/navigation';
 
@@ -77,34 +78,30 @@ export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModa
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setIsSubmitting(true);
-
+    
     const data = new FormData();
     Object.entries(formData).forEach(([key, value]) => data.append(key, value));
     
     // Append files
     selectedFiles.forEach((file) => data.append('attachments', file));
 
-    try {
-      const result = await createIssue(data);
-
-      if (result.error) {
-        setError(result.error);
-        setIsSubmitting(false);
-      } else {
-        setIsSubmitting(false);
-        onClose();
-        
-        // Use transition for revalidation to ensure other parts of the UI update smoothly
-        startTransition(() => {
-          router.refresh();
-        });
-      }
-    } catch (err: any) {
-      console.error('Submission error:', err);
-      setError(err.message || 'An unexpected error occurred. Please try again.');
-      setIsSubmitting(false);
-    }
+    // Instant Close & Background Process
+    onClose();
+    
+    startTransition(async () => {
+      const promise = createIssue(data);
+      
+      toast.promise(promise, {
+        loading: 'Creating your issue...',
+        success: (result: any) => {
+          if (result.error) throw new Error(result.error);
+          return 'Issue created successfully!';
+        },
+        error: (err: any) => {
+          return `Failed to create issue: ${err.message}`;
+        }
+      });
+    });
   };
 
   if (!isOpen) return null;
