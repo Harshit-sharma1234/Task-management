@@ -2,36 +2,84 @@
 
 import { useState, useMemo, memo } from 'react'
 import { Search, Trash2, Loader2 } from 'lucide-react'
+import { useTeamStore } from '@/lib/store/team'
 import { UserAvatar } from '@/components/ui/UserAvatar'
-import { deleteMember } from '@/app/dashboard/team/actions'
+import { deleteMember, updateUserRole } from '@/app/dashboard/team/actions'
+import { toast } from 'sonner'
+import { DeleteMemberModal } from './DeleteMemberModal'
 
 /**
  * Memoized row component to prevent unnecessary re-renders when 
  * searching or switching filters if the user data hasn't changed.
  */
-const TeamMemberRow = memo(({ user, isAdmin }: { user: any, isAdmin: boolean }) => {
+const TeamMemberRow = memo(({ user, isAdmin, currentUserRole }: { user: any, isAdmin: boolean, currentUserRole: string | null }) => {
+    const { refresh } = useTeamStore();
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isUpdatingRole, setIsUpdatingRole] = useState(false);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+
     const rawRole = user.roles?.role_name || 'User'
     const displayRole = rawRole === 'Admin' ? 'Workspace admin' : rawRole
 
-    const handleDelete = async () => {
-        if (!confirm(`Are you sure you want to delete ${user.name || user.email}? This will remove them from the system permanently.`)) {
+    const canDelete = isAdmin || (currentUserRole === 'Project Manager' && (rawRole === 'Junior Developer' || rawRole === 'Senior Developer'));
+    const canChangeRole = isAdmin || (currentUserRole === 'Project Manager' && (rawRole === 'Junior Developer' || rawRole === 'Senior Developer'));
+
+    const handleRoleChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const newRole = e.target.value;
+        // Keep confirm for now or add another modal later if needed, 
+        // focus is on fixing the delete error and standardizing that UI first.
+        if (!confirm(`Are you sure you want to change ${user.name || user.email}'s role to ${newRole}?`)) {
+            e.target.value = rawRole; // Reset
             return;
         }
 
+        setIsUpdatingRole(true);
+        try {
+            // Optimistic update
+            useTeamStore.getState().updateRole(user.id, newRole);
+            
+            const result = await updateUserRole(user.id, newRole);
+            if (result.error) {
+                toast.error(result.error);
+                // Sync back on error
+                refresh();
+            } else {
+                toast.success('Role updated successfully');
+            }
+        } catch (err) {
+            console.error('Update role error:', err);
+            toast.error('Failed to update member role');
+            refresh();
+        } finally {
+            setIsUpdatingRole(false);
+        }
+    };
+
+    const confirmDelete = async () => {
         setIsDeleting(true);
+        // Optimistic update
+        useTeamStore.getState().removeUser(user.id);
+
         try {
             const result = await deleteMember(user.id);
             if (result.error) {
-                alert(result.error);
+                toast.error(result.error);
+                // Rollback on error
+                refresh();
+            } else {
+                toast.success('Member deleted successfully');
             }
         } catch (err) {
             console.error('Delete error:', err);
-            alert('Failed to delete member');
+            toast.error('Failed to delete member');
+            refresh();
         } finally {
-            setIsDeleting(true); // Should probably be false, but wait, the row will disappear anyway if successful
             setIsDeleting(false);
         }
+    };
+
+    const handleDeleteClick = () => {
+        setIsDeleteModalOpen(true);
     };
 
     return (
@@ -57,24 +105,53 @@ const TeamMemberRow = memo(({ user, isAdmin }: { user: any, isAdmin: boolean }) 
                 <div className="text-[13px] text-gray-500 font-medium tabular-nums">{user.email}</div>
             </td>
             <td className="px-2 py-3 whitespace-nowrap">
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50/50 text-indigo-600 ring-1 ring-indigo-100/50 transition-all group-hover:bg-indigo-100/30">
-                    {displayRole}
-                </span>
+                {canChangeRole ? (
+                    <div className="relative inline-block w-full max-w-[140px]">
+                        <select
+                            defaultValue={rawRole}
+                            onChange={handleRoleChange}
+                            disabled={isUpdatingRole}
+                            className={`appearance-none w-full bg-indigo-50/50 border border-indigo-100/50 rounded px-2 py-0.5 text-[10px] font-bold text-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-500/30 transition-all ${isUpdatingRole ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-indigo-100/30'} pr-6`}
+                        >
+                            {isAdmin && <option value="Admin">Admin</option>}
+                            {isAdmin && <option value="Project Manager">Project Manager</option>}
+                            <option value="Senior Developer">Senior Developer</option>
+                            <option value="Junior Developer">Junior Developer</option>
+                        </select>
+                        <div className="absolute inset-y-0 right-0 flex items-center px-1 pointer-events-none text-indigo-400">
+                            {isUpdatingRole ? <Loader2 size={10} className="animate-spin" /> : <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>}
+                        </div>
+                    </div>
+                ) : (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50/50 text-indigo-600 ring-1 ring-indigo-100/50 transition-all group-hover:bg-indigo-100/30">
+                        {displayRole}
+                    </span>
+                )}
             </td>
             <td className="px-2 py-3 whitespace-nowrap text-right">
-                {isAdmin && (
-                    <button
-                        onClick={handleDelete}
-                        disabled={isDeleting}
-                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all duration-200 opacity-0 group-hover:opacity-100 disabled:opacity-50"
-                        title="Delete member"
-                    >
-                        {isDeleting ? (
-                            <Loader2 size={13} className="animate-spin text-red-500" />
-                        ) : (
-                            <Trash2 size={13} />
-                        )}
-                    </button>
+                {canDelete && (
+                    <>
+                        <button
+                            onClick={handleDeleteClick}
+                            disabled={isDeleting}
+                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all duration-200 opacity-0 group-hover:opacity-100 disabled:opacity-50"
+                            title="Delete member"
+                        >
+                            {isDeleting ? (
+                                <Loader2 size={13} className="animate-spin text-red-500" />
+                            ) : (
+                                <Trash2 size={13} />
+                            )}
+                        </button>
+
+                        <DeleteMemberModal
+                            isOpen={isDeleteModalOpen}
+                            onClose={() => setIsDeleteModalOpen(false)}
+                            onConfirm={confirmDelete}
+                            userName={user.name}
+                            userEmail={user.email}
+                        />
+                    </>
                 )}
             </td>
         </tr>
@@ -83,11 +160,12 @@ const TeamMemberRow = memo(({ user, isAdmin }: { user: any, isAdmin: boolean }) 
 
 TeamMemberRow.displayName = 'TeamMemberRow'
 
-export function TeamList({ initialUsers, isAdmin }: { initialUsers: any[], isAdmin: boolean }) {
+export function TeamList({ isAdmin, currentUserRole }: { isAdmin: boolean, currentUserRole: string | null }) {
+    const { users: initialUsers, refresh } = useTeamStore();
     const [searchTerm, setSearchTerm] = useState('')
     const [roleFilter, setRoleFilter] = useState('All')
 
-    // Memoize the filtered users calculation to avoid expensive re-computation on every minor state change
+    // Memoize the filtered users calculation
     const filteredUsers = useMemo(() => {
         return initialUsers.filter(u => {
             const matchesSearch = u.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -155,7 +233,7 @@ export function TeamList({ initialUsers, isAdmin }: { initialUsers: any[], isAdm
                             </tr>
                         ) : (
                             filteredUsers.map((user) => (
-                                <TeamMemberRow key={user.id} user={user} isAdmin={isAdmin} />
+                                <TeamMemberRow key={user.id} user={user} isAdmin={isAdmin} currentUserRole={currentUserRole} />
                             ))
                         )}
                     </tbody>
