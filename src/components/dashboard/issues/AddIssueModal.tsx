@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useTransition } from 'react';
 import {
   X,
   Maximize2,
@@ -20,6 +20,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { createIssue } from '@/app/dashboard/issues/actions';
+import { useRouter } from 'next/navigation';
 
 interface Project {
   id: string;
@@ -57,6 +58,8 @@ const priorityOptions = [
 ];
 
 export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModalProps) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -91,7 +94,11 @@ export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModa
       } else {
         setIsSubmitting(false);
         onClose();
-        // No router.refresh() — Realtime listener handles the INSERT instantly
+        
+        // Use transition for revalidation to ensure other parts of the UI update smoothly
+        startTransition(() => {
+          router.refresh();
+        });
       }
     } catch (err: any) {
       console.error('Submission error:', err);
@@ -146,22 +153,35 @@ export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModa
 
             {/* Selected Files Display */}
             {selectedFiles.length > 0 && (
-              <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-50 mt-2">
-                {selectedFiles.map((file, idx) => (
-                  <div key={idx} className="flex items-center gap-2 bg-indigo-50/50 border border-indigo-100 rounded-lg px-2.5 py-1.5 animate-in zoom-in-95 duration-200 group/file">
-                    <FileIcon size={14} className="text-indigo-500" />
-                    <span className="text-xs font-semibold text-indigo-700 max-w-[120px] truncate">
-                      {file.name}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedFiles(prev => prev.filter((_, i) => i !== idx))}
-                      className="p-0.5 text-indigo-400 hover:text-red-500 transition-colors"
-                    >
-                      <Trash2 size={12} />
-                    </button>
-                  </div>
-                ))}
+              <div className="pt-4 border-t border-gray-100 mt-2">
+                <div className="flex items-center gap-2 mb-3 px-1">
+                  <Paperclip size={14} className="text-gray-400" />
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Selected Attachments</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {selectedFiles.map((file, idx) => (
+                    <div key={idx} className="flex items-center gap-3 bg-gray-50/50 border border-gray-100 rounded-xl p-2.5 animate-in zoom-in-95 duration-200 group/file hover:border-indigo-200 hover:bg-white transition-all">
+                      <div className="w-9 h-9 bg-white border border-gray-100 rounded-lg flex items-center justify-center text-indigo-500 group-hover/file:bg-indigo-50 group-hover/file:border-indigo-100 transition-all shadow-sm">
+                        <FileIcon size={16} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-xs font-bold text-gray-900 truncate block">
+                          {file.name}
+                        </span>
+                        <span className="text-[10px] text-gray-400 font-extrabold uppercase tracking-tight">
+                          {(file.size / 1024).toFixed(1)} KB
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedFiles(prev => prev.filter((_, i) => i !== idx))}
+                        className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>

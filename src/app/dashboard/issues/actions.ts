@@ -190,13 +190,10 @@ async function logActivity(supabase: any, userId: string, ticketId: string, acti
 }
 
 /**
- * Update issue title and/or description.
+ * Update issue title, description and/or attachments.
  * RBAC: Only Admin, Project Manager, or the ticket creator can edit.
  */
-export async function updateIssueContent(ticketId: string, updates: {
-  title?: string,
-  description?: string | null,
-}) {
+export async function updateIssueContent(formData: FormData) {
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
 
@@ -204,12 +201,15 @@ export async function updateIssueContent(ticketId: string, updates: {
     return { error: 'You must be logged in to edit an issue' }
   }
 
+  const ticketId = formData.get('id') as string
+  if (!ticketId) return { error: 'Ticket ID is required' }
+
   // Fetch profile and current ticket in parallel
   const [profile, { data: ticket }] = await Promise.all([
     getUserProfile(supabase, user.email!),
     supabase
       .from('tickets')
-      .select('id, title, description, created_by, assignee_id')
+      .select('id, title, description, created_by, assignee_id, attachments')
       .eq('id', ticketId)
       .single()
   ])
@@ -228,19 +228,64 @@ export async function updateIssueContent(ticketId: string, updates: {
     return { error: 'Only the Admin, Project Manager, or the issue creator can edit this issue.' }
   }
 
+  const title = formData.get('title') as string
+  const description = formData.get('description') as string
+  // Use a stringified JSON for existing attachments to keep
+  const existingAttachmentsStr = formData.get('existingAttachments') as string
+  const existingAttachments = existingAttachmentsStr ? JSON.parse(existingAttachmentsStr) : []
+
   // Build the update payload — only include changed fields
-  const updatePayload: Record<string, any> = { updated_at: new Date().toISOString() }
-  if (updates.title !== undefined && updates.title !== ticket.title) {
-    if (!updates.title.trim()) return { error: 'Title cannot be empty' }
-    updatePayload.title = updates.title.trim()
-  }
-  if (updates.description !== undefined && updates.description !== ticket.description) {
-    updatePayload.description = updates.description
+  const updatePayload: Record<string, any> = { 
+    updated_at: new Date().toISOString(),
+    attachments: existingAttachments 
   }
 
-  // If nothing actually changed, return early
-  if (Object.keys(updatePayload).length === 1) {
-    return { success: true, data: ticket }
+  if (title !== undefined && title !== ticket.title) {
+    if (!title.trim()) return { error: 'Title cannot be empty' }
+    updatePayload.title = title.trim()
+  }
+  if (description !== undefined && description !== ticket.description) {
+    updatePayload.description = description.trim() || null
+  }
+
+  // Handle new attachments
+  const newFiles = formData.getAll('attachments');
+  const newAttachmentsMetadata = [];
+
+  if (newFiles.length > 0) {
+    const adminClient = createAdminClient();
+    
+    for (const fileObj of newFiles) {
+      const file = fileObj as File;
+      if (!file || !file.name || file.size === 0) continue;
+      
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
+      const filePath = `${ticket.id}/${fileName}`;
+      
+      const { error: uploadError } = await adminClient.storage
+        .from('issue-attachments')
+        .upload(filePath, file, {
+          contentType: file.type,
+          upsert: true
+        });
+        
+      if (!uploadError) {
+        const { data: { publicUrl } } = adminClient.storage
+          .from('issue-attachments')
+          .getPublicUrl(filePath);
+          
+        newAttachmentsMetadata.push({
+          name: file.name,
+          url: publicUrl,
+          type: file.type,
+          size: file.size
+        });
+      }
+    }
+    
+    // Merge new attachments with existing ones
+    updatePayload.attachments = [...existingAttachments, ...newAttachmentsMetadata];
   }
 
   const adminClient = createAdminClient()
@@ -248,14 +293,11 @@ export async function updateIssueContent(ticketId: string, updates: {
     .from('tickets')
     .update(updatePayload)
     .eq('id', ticketId)
-    .select('id, title, description')
+    .select()
     .single()
 
   if (error) {
     console.error('SUPABASE ERROR UPDATING TICKET CONTENT:', error)
-    if (error.code === '23505' || error.message?.includes('tickets_title_key')) {
-      return { error: `A ticket with this title already exists. Please use a different title.` }
-    }
     return { error: `Failed to update issue: ${error.message}` }
   }
 
@@ -270,6 +312,11 @@ export async function updateIssueContent(ticketId: string, updates: {
   if (updatePayload.description !== undefined) {
     postUpdatePromises.push(
       logActivity(supabase, profile.id, ticketId, 'content_edit', 'Updated issue description')
+    )
+  }
+  if (newAttachmentsMetadata.length > 0) {
+    postUpdatePromises.push(
+      logActivity(supabase, profile.id, ticketId, 'content_edit', `Added ${newAttachmentsMetadata.length} new attachment(s)`)
     )
   }
 
