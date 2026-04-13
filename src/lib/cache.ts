@@ -85,6 +85,42 @@ export const getCachedStats = unstable_cache(
 );
 
 /**
+ * Cached fetch for global dashboard statistics (counts), specific to a user.
+ */
+export const getCachedUserStatsV2 = (userId: string) => 
+  unstable_cache(
+    async () => {
+      const supabase = createAdminClient();
+      const [
+        urgentTicketsRes,
+        completedTicketsRes,
+        inProgressTicketsRes,
+        allTicketsRes,
+        projectMembersRes
+      ] = await Promise.all([
+        supabase.from('tickets').select('*', { count: 'exact', head: true }).or(`assignee_id.eq.${userId},reviewer_id.eq.${userId}`).eq('priority', 'urgent').neq('status', 'done'),
+        supabase.from('tickets').select('*', { count: 'exact', head: true }).or(`assignee_id.eq.${userId},reviewer_id.eq.${userId}`).eq('status', 'done'),
+        supabase.from('tickets').select('*', { count: 'exact', head: true }).or(`assignee_id.eq.${userId},reviewer_id.eq.${userId}`).in('status', ['in_progress', 'in_review']),
+        supabase.from('tickets').select('*', { count: 'exact', head: true }).or(`assignee_id.eq.${userId},reviewer_id.eq.${userId}`),
+        supabase.from('project_members').select('*', { count: 'exact', head: true }).eq('user_id', userId)
+      ]);
+      
+      return {
+        urgentIssuesCount: urgentTicketsRes.count || 0,
+        completedTicketsCount: completedTicketsRes.count || 0,
+        inProgressTicketsCount: inProgressTicketsRes.count || 0,
+        tasksCount: allTicketsRes.count || 0,
+        projectsAssignedCount: projectMembersRes.count || 0
+      };
+    },
+    [`dashboard-user-stats-${userId}-v2`],
+    { 
+      revalidate: 60,
+      tags: ['dashboard-stats', 'projects', 'tickets', `user-tasks-${userId}`] 
+    }
+  )();
+
+/**
  * Cached fetch for a specific user's profile.
  * Keyed by email.
  */

@@ -52,7 +52,7 @@ export default async function AdminDashboard() {
 
             {/* Stats Overview */}
             <Suspense fallback={<StatsSkeleton />}>
-                <StatsCards />
+                <StatsCards userId={user.id} />
             </Suspense>
 
             {/* Main Content (Widgets) */}
