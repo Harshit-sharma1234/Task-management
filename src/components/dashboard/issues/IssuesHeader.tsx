@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { Plus, Filter, SlidersHorizontal } from 'lucide-react';
 import { twMerge } from 'tailwind-merge';
+import { DisplayOptions } from './DisplayOptions';
+import { DisplaySettings } from '@/lib/utils/issue-display-utils';
 
 interface Project {
   id: string;
@@ -21,9 +23,22 @@ interface IssuesHeaderProps {
   activeFilter?: string;
   onFilterChange: (filter: string) => void;
   onOpenModal: () => void;
+  displaySettings: DisplaySettings;
+  onDisplaySettingsChange: (settings: DisplaySettings) => void;
+  hideCreateButton?: boolean;
 }
 
-export function IssuesHeader({ totalIssues, projects, users, activeFilter = 'all', onFilterChange, onOpenModal }: IssuesHeaderProps) {
+export function IssuesHeader({ 
+  totalIssues, 
+  projects, 
+  users, 
+  activeFilter = 'all', 
+  onFilterChange, 
+  onOpenModal,
+  displaySettings,
+  onDisplaySettingsChange,
+  hideCreateButton = false
+}: IssuesHeaderProps) {
 
   const filters = [
     { id: 'all', label: 'All issues' },
@@ -54,13 +69,19 @@ export function IssuesHeader({ totalIssues, projects, users, activeFilter = 'all
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button 
-              onClick={onOpenModal}
-              className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm"
-            >
-              <Plus size={16} />
-              <span>New Issue</span>
-            </button>
+            <DisplayOptions 
+              settings={displaySettings} 
+              onChange={onDisplaySettingsChange} 
+            />
+            {!hideCreateButton && (
+              <button 
+                onClick={onOpenModal}
+                className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm"
+              >
+                <Plus size={16} />
+                <span>New Issue</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
