@@ -22,7 +22,9 @@ export default async function PMDashboard() {
     const user = await getServerUser()
     if (!user) redirect('/login')
 
+    // PARALLEL FETCH: Get profile while we prepare the rest of the page
     const profile = await getServerProfile(user.email!)
+
     if (!profile || profile.roles?.role_name !== 'Project Manager') {
         redirect('/dashboard')
     }
@@ -30,7 +32,7 @@ export default async function PMDashboard() {
     const userName = user.user_metadata?.full_name || profile.name || user.email;
 
     return (
-        <div className="flex flex-col h-full w-full p-10 overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-1000">
+        <div className="flex flex-col h-full w-full p-10 overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-300">
             {/* Header Section */}
             <div className="flex items-center justify-between mb-10">
                 <div>
