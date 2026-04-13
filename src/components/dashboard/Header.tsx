@@ -77,15 +77,41 @@ export function Header({ userId, email }: HeaderProps) {
         </div>
       )}
 
-      <header className="h-16 border-b border-gray-100 bg-white flex items-center justify-between px-8 shrink-0">
-        <div className="flex-1 overflow-hidden" />
-        
-        <div className="flex items-center gap-4">
-          {userProfile && (
-            <UserDropdown 
-              profile={userProfile} 
-              onSignOut={() => setShowSignOutConfirm(true)} 
+      <header className="h-16 sticky top-0 z-50 glass-panel border-b border-gray-100/50 flex items-center justify-between px-8 shrink-0">
+        <div className="flex-1 flex items-center gap-6">
+          {/* Mockup Search Bar */}
+          <div className="relative group max-w-sm w-full">
+            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+              <span className="text-slate-400 group-focus-within:text-indigo-500 transition-colors">
+                <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M14.5 14.5L10.5 10.5M12.5 6.5C12.5 9.81371 9.81371 12.5 6.5 12.5C3.18629 12.5 0.5 9.81371 0.5 6.5C0.5 3.18629 3.18629 0.5 6.5 0.5C9.81371 0.5 12.5 3.18629 12.5 6.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </span>
+            </div>
+            <input 
+              type="text" 
+              placeholder="Search or jump to..." 
+              className="w-full bg-slate-100/50 border border-transparent focus:border-indigo-200 focus:bg-white focus:ring-4 focus:ring-indigo-50/50 rounded-lg py-1.5 pl-10 pr-4 text-sm transition-all outline-none text-slate-600 placeholder:text-slate-400 font-medium"
+              onKeyDown={(e) => {
+                if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                  e.preventDefault();
+                }
+              }}
             />
+            <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
+              <kbd className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-slate-200 bg-white text-[10px] font-bold text-slate-400 shadow-sm">
+                ⌘K
+              </kbd>
+            </div>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-6">
+          {userProfile && (
+            <div className="flex items-center gap-3 pl-6 border-l border-slate-100">
+              <UserDropdown 
+                profile={userProfile} 
+                onSignOut={() => setShowSignOutConfirm(true)} 
+              />
+            </div>
           )}
         </div>
       </header>
