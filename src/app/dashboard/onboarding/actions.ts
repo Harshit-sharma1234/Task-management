@@ -6,8 +6,9 @@ import { getUserProfile } from '@/lib/roles'
 import { revalidateTag, revalidatePath } from 'next/cache'
 import { sendEmail } from '@/lib/email'
 import { onboardingApprovedEmail, onboardingRejectedEmail } from '@/lib/email-templates'
+import { getBaseUrl } from '@/lib/urls'
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+const APP_URL = getBaseUrl()
 
 /**
  * Fetch all pending onboarding requests with user details.
