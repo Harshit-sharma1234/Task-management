@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { UserCircle, Shield, Plus, Lock } from 'lucide-react'
-import { updateUserPassword, updateUserAvatar } from '@/app/dashboard/actions'
+import { UserCircle, Shield, Plus, Lock, Mail } from 'lucide-react'
+import { updateUserPassword, updateUserAvatar, updateUserEmail } from '@/app/dashboard/actions'
 import { createClient } from '@/lib/supabase/client'
 import Image from 'next/image'
 import { UserAvatar } from '@/components/ui/UserAvatar'
@@ -24,6 +24,13 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
     const [isSavingPassword, setIsSavingPassword] = useState(false)
     const [passwordError, setPasswordError] = useState('')
     const [passwordSuccess, setPasswordSuccess] = useState(false)
+
+    // Email Update State
+    const [isChangingEmail, setIsChangingEmail] = useState(false)
+    const [newEmail, setNewEmail] = useState(user.email)
+    const [isSavingEmail, setIsSavingEmail] = useState(false)
+    const [emailError, setEmailError] = useState('')
+    const [emailSuccess, setEmailSuccess] = useState(false)
 
     const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
@@ -100,6 +107,35 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
             }, 2500)
         }
         setIsSavingPassword(false)
+    }
+
+    const handleEmailSubmit = async () => {
+        if (!newEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
+            setEmailError('Please enter a valid email address')
+            return
+        }
+        if (newEmail === user.email) {
+            setIsChangingEmail(false)
+            return
+        }
+
+        setIsSavingEmail(true)
+        setEmailError('')
+        setEmailSuccess(false)
+
+        const result = await updateUserEmail(newEmail)
+
+        if (result.error) {
+            setEmailError(result.error)
+        } else {
+            setEmailSuccess(true)
+            setUserData({ ...user, email: newEmail })
+            setTimeout(() => {
+                setIsChangingEmail(false)
+                setEmailSuccess(false)
+            }, 2500)
+        }
+        setIsSavingEmail(false)
     }
 
 
@@ -229,6 +265,83 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
                                             )}
                                         </div>
                                     </div>
+                                </div>
+                            </div>
+
+                            {/* Email Row */}
+                            <div className="group">
+                                <div className="flex flex-col pb-8 border-b border-gray-50">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <div className="w-[140px]">
+                                            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Email Address</p>
+                                        </div>
+                                        <div className="flex-1 flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gray-100/80 text-gray-500">
+                                                    <Mail size={16} />
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-bold text-gray-900">{isChangingEmail ? 'Update Email' : user.email}</p>
+                                                    {!isChangingEmail && <p className="text-xs text-gray-500">Primary email for notifications</p>}
+                                                </div>
+                                            </div>
+                                            {!isChangingEmail && (
+                                                <button 
+                                                    onClick={() => setIsChangingEmail(true)}
+                                                    className="px-5 py-2 text-xs font-bold text-gray-900 bg-gray-50 hover:bg-gray-100 rounded-lg transition-all border border-gray-200/60"
+                                                >
+                                                    Change
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {isChangingEmail && (
+                                        <div className="ml-[140px] pt-4 mt-2 border-t border-gray-50 space-y-4">
+                                            {emailError && (
+                                                <div className="p-3 bg-red-50 text-red-600 text-xs font-bold rounded-lg border border-red-100">
+                                                    {emailError}
+                                                </div>
+                                            )}
+                                            {emailSuccess && (
+                                                <div className="p-3 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-lg border border-emerald-100">
+                                                    Email updated successfully!
+                                                </div>
+                                            )}
+
+                                            <div className="space-y-1.5 w-max min-w-[320px]">
+                                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">New Email</label>
+                                                <input 
+                                                    type="email" 
+                                                    value={newEmail}
+                                                    onChange={(e) => setNewEmail(e.target.value)}
+                                                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm font-medium focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all shadow-inner"
+                                                    placeholder="you@example.com"
+                                                />
+                                            </div>
+
+                                            <div className="flex gap-3 pt-2">
+                                                <button 
+                                                    onClick={() => {
+                                                        setIsChangingEmail(false)
+                                                        setEmailError('')
+                                                        setEmailSuccess(false)
+                                                        setNewEmail(user.email)
+                                                    }}
+                                                    className="px-5 py-2.5 text-xs font-bold text-gray-500 hover:text-gray-900 transition-colors"
+                                                >
+                                                    Cancel
+                                                </button>
+                                                <button 
+                                                    onClick={handleEmailSubmit}
+                                                    disabled={isSavingEmail || !newEmail}
+                                                    className="px-6 py-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-600/30 transition-all active:scale-95 disabled:bg-gray-400 disabled:shadow-none disabled:cursor-not-allowed"
+                                                >
+                                                    {isSavingEmail ? 'Saving...' : 'Save Email'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
