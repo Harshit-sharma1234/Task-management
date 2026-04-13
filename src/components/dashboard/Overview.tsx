@@ -99,7 +99,26 @@ export default function DashboardOverview({ userId }: DashboardOverviewProps) {
 /**
  * ── STATS CARDS ──
  */
-async function StatsCards() {
+interface StatsCardsProps {
+    userId?: string;
+}
+
+async function StatsCards({ userId }: StatsCardsProps) {
+    if (userId) {
+        // Fetch personalized stats
+        const { getCachedUserStatsV2 } = await import('@/lib/cache');
+        const userStats = await getCachedUserStatsV2(userId);
+        return (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                <StatCard label="My Urgent Issues" value={userStats.urgentIssuesCount} icon={CircleDot} color="text-red-500" bg="bg-red-50" delay="delay-0" />
+                <StatCard label="Tickets Completed" value={userStats.completedTicketsCount} icon={CheckCircle2} color="text-green-500" bg="bg-green-50" delay="delay-75" />
+                <StatCard label="In Progress" value={userStats.inProgressTicketsCount} icon={Clock} color="text-indigo-600" bg="bg-indigo-50" delay="delay-150" />
+                <StatCard label="Projects Assigned" value={userStats.projectsAssignedCount} icon={Folder} color="text-purple-600" bg="bg-purple-50" delay="delay-300" />
+            </div>
+        );
+    }
+
+    // Default to global stats
     const stats = await getCachedStats();
     
     return (

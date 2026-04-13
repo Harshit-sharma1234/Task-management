@@ -53,7 +53,7 @@ export default async function DevDashboard() {
 
             {/* Stats Overview */}
             <Suspense fallback={<StatsSkeleton />}>
-                <StatsCards />
+                <StatsCards userId={user.id} />
             </Suspense>
 
             {/* Main Content (Widgets) */}
