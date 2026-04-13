@@ -1,17 +1,21 @@
 @import "tailwindcss";
 
 @theme {
-  --color-linear-bg: #0e0e11;
-  --color-linear-panel: #1e1e24;
-  --color-linear-text: #f1f1f1;
-  --color-linear-muted: #8a8f98;
-  --color-linear-border: #2c2d33;
+  --color-linear-bg: #fbfbfc;
+  --color-linear-panel: #ffffff;
+  --color-linear-text: #0e0e11;
+  --color-linear-muted: #64748b;
+  --color-linear-border: #e2e8f0;
   --color-linear-accent: #5e6ad2;
   --color-linear-accent-hover: #4b55b2;
   
+  --shadow-premium: 0 8px 30px rgb(0,0,0,0.04);
+  --shadow-premium-hover: 0 20px 40px rgb(0,0,0,0.08);
+  
   --animate-shimmer: shimmer 2s linear infinite;
   --animate-fade-in: fade-in 0.3s ease-out;
-  --animate-slide-up: slide-up 0.4s ease-out;
+  --animate-slide-up: slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-scale-in: scale-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   
   @keyframes shimmer {
     from { transform: translateX(-100%); }
@@ -24,28 +28,46 @@
   }
 
   @keyframes slide-up {
-    from { opacity: 0; transform: translateY(10px); }
+    from { opacity: 0; transform: translateY(20px); }
     to { opacity: 1; transform: translateY(0); }
   }
+
+  @keyframes scale-in {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+}
+
+:root {
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.3);
 }
 
 body {
   background-color: var(--color-linear-bg);
   color: var(--color-linear-text);
-  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
 }
 
-.animate-shimmer {
-  background: linear-gradient(90deg, #f0f0f0 25%, #f8f8f8 50%, #f0f0f0 75%);
-  background-size: 200% 100%;
-  animation: shimmer 2s infinite ease-in-out;
+.premium-card {
+  @apply bg-white border border-slate-200/60 transition-all duration-500;
+  box-shadow: var(--shadow-premium);
+}
+
+.premium-card:hover {
+  box-shadow: var(--shadow-premium-hover);
+  transform: translateY(-2px);
+}
+
+.text-gradient {
+  @apply bg-clip-text text-transparent bg-gradient-to-br from-slate-900 to-slate-500;
 }

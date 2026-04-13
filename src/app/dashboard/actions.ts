@@ -657,6 +657,60 @@ export async function updateUserPassword(password: string) {
     return { success: true }
 }
 
+export async function updateUserEmail(email: string) {
+    const supabase = await createClient()
+    
+    // Ensure the user is logged in
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+        return { error: 'You must be logged in to update your email.' }
+    }
+
+    const adminClient = createAdminClient()
+    
+    // Check if new email already exists
+    const { data: existingUser } = await adminClient
+        .from('users')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle()
+        
+    if (existingUser && existingUser.id !== user.id) {
+        return { error: 'An account with this email already exists.' }
+    }
+
+    // 1. Update Auth Email (using admin client to auto-confirm)
+    const { error: authUpdateError } = await adminClient.auth.admin.updateUserById(user.id, {
+        email: email,
+        email_confirm: true 
+    })
+    
+    if (authUpdateError) {
+        console.error('Error updating auth email:', authUpdateError)
+        return { error: authUpdateError.message }
+    }
+    
+    // 2. Update Public Users table — search by ID, Auth ID, or Email to be robust
+    const { error: dbError } = await adminClient
+        .from('users')
+        .update({ 
+            email: email,
+            id: user.id,      // Sync public ID to Auth ID
+            auth_id: user.id  // Sync Auth ID column
+        })
+        .or(`id.eq.${user.id},auth_id.eq.${user.id},email.eq.${user.email}`)
+        
+    if (dbError) {
+        console.error('Error updating public user email:', dbError)
+        return { error: 'Failed to update user profile and synchronize IDs.' }
+    }
+
+    // Since the email has changed, we might need to invalidate their cache
+    revalidatePath('/dashboard/settings', 'page')
+    return { success: true }
+}
+
+
 export async function updateUserAvatar(userId: string, avatarUrl: string) {
     const supabase = await createClient()
     
@@ -664,8 +718,10 @@ export async function updateUserAvatar(userId: string, avatarUrl: string) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: 'Not authenticated' }
 
-    // 1. Try to find the existing row by ID OR Email
-    const { data: existingRows } = await supabase
+    const adminClient = createAdminClient()
+
+    // 1. Try to find the existing row by ID OR Email (using admin client to bypass RLS)
+    const { data: existingRows } = await adminClient
         .from('users')
         .select('id, email')
         .or(`id.eq.${userId},email.eq.${user.email}`)
@@ -674,28 +730,27 @@ export async function updateUserAvatar(userId: string, avatarUrl: string) {
 
     let error;
     if (targetRow) {
-        // 2. Perform an UPDATE on the existing row (using its actual ID)
-        const { error: updateError } = await supabase
+        // 2. Perform an UPDATE on the existing row
+        const { error: updateError } = await adminClient
             .from('users')
             .update({ 
                 avatar_url: avatarUrl,
-                id: userId, // Fix the ID if it was different
+                id: userId,
                 name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User'
             })
             .eq('email', user.email)
         error = updateError
     } else {
         // 3. Perform an INSERT if absolutely new
-        // Note: This needs a default for employee_id if it's required
-        const { error: insertError } = await supabase
+        const { error: insertError } = await adminClient
             .from('users')
             .insert({ 
                 id: userId, 
                 avatar_url: avatarUrl, 
                 email: user.email,
                 name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
-                employee_id: `EMP-${Date.now()}`, // Temporary fallback for required columns
-                role_id: 'f1e5cb69-a296-43c7-8905-00fc99e1f5aa' // Junior Developer
+                employee_id: `EMP-${Date.now()}`,
+                role_id: 'f1e5cb69-a296-43c7-8905-00fc99e1f5aa'
             })
         error = insertError
     }
@@ -705,10 +760,12 @@ export async function updateUserAvatar(userId: string, avatarUrl: string) {
         return { error: error.message }
     }
 
-    // Invalidate profile caches (and team list avatars if shown there)
+    // Invalidate all caches that include avatar data
     revalidateTag(`user-profile-${user.email}`, 'max')
     revalidateTag('team-members', 'max')
-    return { success: true }
+    revalidateTag('issues', 'max')
+    revalidatePath('/dashboard', 'layout')
+    return { success: true, avatarUrl }
 }
 
 export async function provisionEmployee(formData: FormData) {
