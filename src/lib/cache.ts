@@ -14,7 +14,11 @@ export const getCachedUsers = unstable_cache(
       .order('name');
     
     if (error) {
-      console.error('[Cache] Error fetching users:', error);
+      console.error(`[Cache] Database error fetching user list: ${error.message}`, {
+        code: error.code,
+        hint: error.hint,
+        details: error.details
+      });
       return [];
     }
     return data || [];
@@ -95,7 +99,11 @@ export const getCachedUserProfile = (email: string) =>
         .maybeSingle(); // Better than .single() for caching potential nulls
       
       if (error) {
-        console.error(`[Cache] Error fetching profile for ${email}:`, error);
+        console.error(`[Cache] Database error fetching profile for ${email}: ${error.message}`, {
+          code: error.code,
+          hint: error.hint,
+          details: error.details
+        });
         return null;
       }
       return data;
