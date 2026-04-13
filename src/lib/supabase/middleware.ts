@@ -46,11 +46,53 @@ export async function updateSession(request: NextRequest) {
         return NextResponse.redirect(url)
     }
 
-    // If user is authenticated and on login, redirect to dashboard
-    if (user && pathname === '/login') {
+    // Allow unauthenticated access to onboarding status pages and signup
+    if (!user && (pathname === '/onboarding-pending' || pathname === '/onboarding-rejected' || pathname === '/signup')) {
+        return supabaseResponse
+    }
+
+    // If user is authenticated and on login or signup, check onboarding status first
+    if (user && (pathname === '/login' || pathname === '/signup')) {
+        const { data: profile } = await supabase
+            .from('users')
+            .select('onboarding_status')
+            .eq('email', user.email)
+            .maybeSingle()
+
+        if (profile?.onboarding_status === 'pending') {
+            const url = request.nextUrl.clone()
+            url.pathname = '/onboarding-pending'
+            return NextResponse.redirect(url)
+        }
+        if (profile?.onboarding_status === 'rejected') {
+            const url = request.nextUrl.clone()
+            url.pathname = '/onboarding-rejected'
+            return NextResponse.redirect(url)
+        }
+
         const url = request.nextUrl.clone()
         url.pathname = '/dashboard'
         return NextResponse.redirect(url)
+    }
+
+    // Block pending/rejected users from accessing dashboard
+    if (user && pathname.startsWith('/dashboard')) {
+        const { data: statusCheck } = await supabase
+            .from('users')
+            .select('onboarding_status')
+            .eq('email', user.email)
+            .maybeSingle()
+
+        if (statusCheck?.onboarding_status === 'pending') {
+            const url = request.nextUrl.clone()
+            url.pathname = '/onboarding-pending'
+            return NextResponse.redirect(url)
+        }
+        if (statusCheck?.onboarding_status === 'rejected') {
+            const url = request.nextUrl.clone()
+            url.pathname = '/onboarding-rejected'
+            return NextResponse.redirect(url)
+        }
     }
 
     // Handle exact '/dashboard' routing (RBAC) to eliminate the Double Hop
