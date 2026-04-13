@@ -20,7 +20,6 @@ import {
   Trash2
 } from 'lucide-react';
 import { createIssue } from '@/app/dashboard/issues/actions';
-import { useRouter } from 'next/navigation';
 
 interface Project {
   id: string;
@@ -58,7 +57,6 @@ const priorityOptions = [
 ];
 
 export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModalProps) {
-  const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -93,7 +91,7 @@ export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModa
       } else {
         setIsSubmitting(false);
         onClose();
-        router.refresh();
+        // No router.refresh() — Realtime listener handles the INSERT instantly
       }
     } catch (err: any) {
       console.error('Submission error:', err);
