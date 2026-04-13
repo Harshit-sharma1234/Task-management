@@ -13,9 +13,9 @@
   --shadow-premium-hover: 0 20px 40px rgb(0,0,0,0.08);
   
   --animate-shimmer: shimmer 2s linear infinite;
-  --animate-fade-in: fade-in 0.3s ease-out;
-  --animate-slide-up: slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-  --animate-scale-in: scale-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-fade-in: fade-in 0.2s ease-out;
+  --animate-slide-up: slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-scale-in: scale-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   
   @keyframes shimmer {
     from { transform: translateX(-100%); }
@@ -70,4 +70,32 @@ body {
 
 .text-gradient {
   @apply bg-clip-text text-transparent bg-gradient-to-br from-slate-900 to-slate-500;
+}
+
+/* Tiptap Rich Text Editor Overrides */
+.tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #94a3b8;
+  pointer-events: none;
+  height: 0;
+}
+
+.tiptap ul {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.tiptap li p {
+  display: inline;
+}
+
+.tiptap b, .tiptap strong {
+  font-weight: 700;
+}
+
+.tiptap i, .tiptap em {
+  font-style: italic;
 }

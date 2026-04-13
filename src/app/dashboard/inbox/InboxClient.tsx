@@ -80,6 +80,7 @@ export default function InboxClient({
     const [showViewOptions, setShowViewOptions] = useState(false);
     const [typeFilter, setTypeFilter] = useState<string[]>([]);
     const setGlobalUnreadCount = useNotificationStore((s) => s.setUnreadCount);
+    const decrementGlobalUnreadCount = useNotificationStore((s) => s.decrementUnreadCount);
     const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
     const [editValue, setEditValue] = useState('');
     const [commentActionLoading, setCommentActionLoading] = useState<string | null>(null);
@@ -113,8 +114,16 @@ export default function InboxClient({
             initialNotifications.slice(1, 3).forEach(n => {
                 fetchEntityDetail(n, true);
             });
+
+            // AUTO-MARK AS READ: If the initial selected one is unread, mark it now.
+            if (firstNotif && !firstNotif.is_read) {
+                // We use markAsRead direct call + store update
+                addOptimisticState({ id: firstNotif.id, isRead: true });
+                markAsRead(firstNotif.id);
+                decrementGlobalUnreadCount();
+            }
         }
-    }, []);
+    }, [initialSelectedId]);
 
     const supabase = useMemo(() => createClient(), []);
 
@@ -262,6 +271,7 @@ export default function InboxClient({
         if (!notification.is_read) {
             addOptimisticState({ id: notification.id, isRead: true });
             markAsRead(notification.id);
+            decrementGlobalUnreadCount();
         }
     }
 

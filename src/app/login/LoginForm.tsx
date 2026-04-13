@@ -1,9 +1,10 @@
 'use client';
 
-import { useActionState, useEffect } from 'react';
+import { useActionState, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Mail, Lock, Loader2, AlertCircle } from 'lucide-react';
 import { login } from './actions';
+import { ForgotPasswordFlow } from './ForgotPasswordFlow';
 
 function SubmitButton({ isPending }: { isPending: boolean }) {
   return (
@@ -26,6 +27,7 @@ function SubmitButton({ isPending }: { isPending: boolean }) {
 
 export default function LoginForm({ initialMessage }: { initialMessage?: string }) {
   const [state, formAction, isPending] = useActionState(login, null);
+  const [showForgot, setShowForgot] = useState(false);
   const router = useRouter();
 
   // Handle special onboarding redirect codes
@@ -71,6 +73,13 @@ export default function LoginForm({ initialMessage }: { initialMessage?: string 
         <div className="space-y-1">
           <div className="flex items-center justify-between">
             <label className="text-xs font-medium text-[var(--color-linear-muted)]">Password</label>
+            <button 
+                type="button"
+                onClick={() => setShowForgot(true)}
+                className="text-[10px] font-bold text-[var(--color-linear-accent)] hover:underline"
+            >
+                Forgot password?
+            </button>
           </div>
           <div className="relative">
             <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-[var(--color-linear-muted)]">
@@ -89,6 +98,8 @@ export default function LoginForm({ initialMessage }: { initialMessage?: string 
         
         <SubmitButton isPending={isPending} />
       </form>
+
+      {showForgot && <ForgotPasswordFlow onClose={() => setShowForgot(false)} />}
     </div>
   );
 }
