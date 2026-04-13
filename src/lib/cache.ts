@@ -26,7 +26,7 @@ export const getCachedUsers = unstable_cache(
   ['team-members-list'],
   { 
     revalidate: 3600, // 1 hour
-    tags: ['team-members'] 
+    tags: ['team-members', 'users'] 
   }
 );
 
@@ -271,7 +271,26 @@ export const getCachedIssueUsers = unstable_cache(
   ['issue-users-list'],
   {
     revalidate: 300, // 5 min
-    tags: ['team-members'],
+    tags: ['team-members', 'users'],
+  }
+);
+
+/**
+ * Super lightweight fetch for user dropdowns to minimize payload size.
+ */
+export const getCachedUsersMinimal = unstable_cache(
+  async () => {
+    const supabase = createAdminClient();
+    const { data } = await supabase
+      .from('users')
+      .select('id, name')
+      .order('name');
+    return data || [];
+  },
+  ['users-minimal-list'],
+  {
+    revalidate: 600,
+    tags: ['team-members', 'users'],
   }
 );
 

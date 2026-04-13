@@ -46,12 +46,7 @@ export const getProjectDetails = cache(async (id: string, sessionEmail: string) 
       getCachedProjectUsers(id),
       getCachedProjectMembers(id),
       getCachedUserProfile(sessionEmail),
-      // BYPASS CACHE: Direct DB query ensures modal always shows ALL system users.
-      // No cache layer can restrict this list to project members only.
-      adminClient
-        .from('users')
-        .select('id, name, email, avatar_url, roles(role_name)')
-        .order('name'),
+      getCachedIssueUsers(),
     ]);
 
     return {
@@ -60,7 +55,7 @@ export const getProjectDetails = cache(async (id: string, sessionEmail: string) 
       users: cachedUsers || [],
       members: membersRes || [],
       profile: profileRes,
-      allUsers: rawAllUsersRes.data || [],
+      allUsers: rawAllUsersRes || [],
     };
 });
 

@@ -17,7 +17,7 @@ function revalidateProjectDataTags(tags: string[] = ['projects', 'tickets']) {
     tags.forEach(tag => revalidateTag(tag, 'max'));
 }
 
-import { getCachedUsers } from '../../lib/cache'
+import { getCachedUsers, getCachedUserProfile } from '../../lib/cache'
 
 /**
  * Converts raw Postgres/Supabase errors into user-friendly messages.
@@ -59,7 +59,7 @@ function friendlyDbError(error: any, context: 'project' | 'issue' | 'generic' = 
     return 'Connection issue. Please check your network and try again.';
   }
 
-  // Fallback — still better than raw SQL
+  // Fallback — still better than SQL
   return `Something went wrong. Please try again. (${msg.substring(0, 80)})`;
 }
 
@@ -69,19 +69,14 @@ export async function fetchUsersForProject() {
 
 export async function createProject(formData: FormData) {
     const supabase = await createClient()
+    
+    // Auth and Profile checks
     const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) return { error: 'You must be logged in to create a project' }
 
-    if (authError || !user) {
-        return { error: 'You must be logged in to create a project' }
-    }
-
-    // Fetch profile in parallel with validation — auth user is already available
-    const [profile] = await Promise.all([
-        getUserProfile(supabase, user.email!)
-    ])
-    if (!profile) {
-        return { error: 'User profile not found in database.' }
-    }
+    // Use cached profile to avoid DB hit
+    const profile = await getCachedUserProfile(user.email!)
+    if (!profile) return { error: 'User profile not found. Please try logging in again.' }
 
     const projectName = formData.get('project_name') as string
     const description = formData.get('description') as string
@@ -91,28 +86,14 @@ export async function createProject(formData: FormData) {
     const startDate = formData.get('start_date') as string
     const assignedTo = formData.getAll('assigned_to') as string[]
 
-    if (!projectName?.trim()) {
-        return { error: 'Project name is required' }
-    }
-    if (!description?.trim()) {
-        return { error: 'Description is required' }
-    }
-    if (!leadId) {
-        return { error: 'Lead is required' }
-    }
-    if (!priority) {
-        return { error: 'Priority is required' }
-    }
-    if (!status) {
-        return { error: 'Status is required' }
-    }
-    if (!startDate) {
-        return { error: 'Start date is required' }
-    }
-    if (!assignedTo || assignedTo.length === 0 || (assignedTo.length === 1 && !assignedTo[0])) {
-        return { error: 'At least one assignee is required' }
-    }
-
+    // Basic validation
+    if (!projectName?.trim()) return { error: 'Project name is required' }
+    if (!description?.trim()) return { error: 'Description is required' }
+    if (!leadId) return { error: 'Lead is required' }
+    if (!priority) return { error: 'Priority is required' }
+    if (!status) return { error: 'Status is required' }
+    
+    // Step 1: Create the Project first (Atomic operation)
     const { data: newProject, error: projectError } = await supabase
         .from('projects')
         .insert({
@@ -123,7 +104,6 @@ export async function createProject(formData: FormData) {
             priority: priority,
             status: status,
             start_date: startDate || null,
-            assigned_to: null
         })
         .select('id')
         .single()
@@ -133,126 +113,82 @@ export async function createProject(formData: FormData) {
         return { error: friendlyDbError(projectError, 'project') }
     }
 
-    // Add members to the project_members table
-    const membersToInsert = [{ project_id: newProject.id, user_id: profile.id }]
-    
-    // If the lead is a different person, add them too (if not already added)
-    if (leadId && leadId !== profile.id) {
-        membersToInsert.push({ project_id: newProject.id, user_id: leadId })
-    }
-
-    // Add all selected assignees
-    if (assignedTo && assignedTo.length > 0) {
-        assignedTo.forEach(id => {
-            if (id && !membersToInsert.some(m => m.user_id === id)) {
-                membersToInsert.push({ project_id: newProject.id, user_id: id })
-            }
-        })
-    }
-
-    // Use admin client to bypass RLS for member insertion during creation
+    // --- Background Operations (Fire and forget where possible) ---
     const adminClient = createAdminClient()
-    const { error: memberError } = await adminClient
-        .from('project_members')
-        .insert(membersToInsert)
-
-    if (memberError) {
-        console.error('SUPABASE ERROR ADDING MEMBERS:', memberError)
-    } else {
-        // Notify the Lead (if not the creator)
-        if (leadId && leadId !== profile.id) {
-            await createNotification({
-                userId: leadId,
-                actorId: profile.id,
-                entityType: 'project',
-                entityId: newProject.id,
-                type: 'assignment',
-                message: `${profile.name} assigned you as Lead for project: ${projectName}`
+    
+    // Background execution of side effects (members, notifications, files)
+    // We don't await them all if they aren't critical for the "Success" response
+    const runSideEffects = async () => {
+        try {
+            // 2. Members insertion
+            const membersToInsert = [{ project_id: newProject.id, user_id: profile.id }]
+            if (leadId && leadId !== profile.id) {
+                membersToInsert.push({ project_id: newProject.id, user_id: leadId })
+            }
+            assignedTo.forEach(id => {
+                if (id && id !== '' && !membersToInsert.some(m => m.user_id === id)) {
+                    membersToInsert.push({ project_id: newProject.id, user_id: id })
+                }
             })
-        }
+            await adminClient.from('project_members').insert(membersToInsert)
 
-        // Notify other assignees in parallel
-        if (assignedTo && assignedTo.length > 0) {
-            await Promise.all(assignedTo.map(id => {
+            // 3. Notifications & Files
+            const secondaryPromises: Promise<any>[] = []
+            
+            if (leadId && leadId !== profile.id) {
+                secondaryPromises.push(createNotification({
+                    userId: leadId,
+                    actorId: profile.id,
+                    entityType: 'project',
+                    entityId: newProject.id,
+                    type: 'assignment',
+                    message: `${profile.name} assigned you as Lead for project: ${projectName}`
+                }))
+            }
+            
+            assignedTo.forEach(id => {
                 if (id && id !== profile.id && id !== leadId) {
-                    return createNotification({
+                    secondaryPromises.push(createNotification({
                         userId: id,
                         actorId: profile.id,
                         entityType: 'project',
                         entityId: newProject.id,
                         type: 'assignment',
                         message: `${profile.name} added you as a member to project: ${projectName}`
-                    })
+                    }))
                 }
-                return Promise.resolve();
-            }))
-        }
-    }
+            })
 
-    // Handle attachments (store as project resources so they show up in ProjectOverview)
-    const files = formData.getAll('attachments')
-    if (files && files.length > 0) {
-        const attachmentsToInsert: Array<{ project_id: string; title: string; url: string; created_by: string }> = []
-
-        // Ensure bucket exists (first-time setup safety)
-        try {
-            const { data: buckets } = await adminClient.storage.listBuckets()
-            const bucketExists = buckets?.some((b: any) => b.name === 'project-attachments')
-            if (!bucketExists) {
-                await adminClient.storage.createBucket('project-attachments', { public: true })
-            }
-        } catch (err) {
-            console.error('[createProject] Error checking/creating bucket:', err)
-        }
-
-        for (const fileObj of files) {
-            const file = fileObj as File
-            if (!file || !file.name || file.size === 0) continue
-
-            const fileExt = file.name.split('.').pop()
-            const safeExt = fileExt ? fileExt.replace(/[^a-zA-Z0-9]/g, '') : 'bin'
-            const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${safeExt}`
-            const filePath = `${newProject.id}/${fileName}`
-
-            const { error: uploadError } = await adminClient.storage
-                .from('project-attachments')
-                .upload(filePath, file, { contentType: file.type, upsert: true })
-
-            if (uploadError) {
-                console.error('[createProject] Error uploading attachment:', uploadError)
-                continue
-            }
-
-            const { data: { publicUrl } } = adminClient.storage
-                .from('project-attachments')
-                .getPublicUrl(filePath)
-
-            if (publicUrl) {
-                attachmentsToInsert.push({
-                    project_id: newProject.id,
-                    title: file.name,
-                    url: publicUrl,
-                    created_by: user.id
+            const files = formData.getAll('attachments') as File[]
+            if (files.length > 0) {
+                const uploadPromises = files.filter(f => f && f.size > 0).map(async (file) => {
+                    const fileExt = file.name.split('.').pop()?.replace(/[^a-zA-Z0-9]/g, '') || 'bin'
+                    const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`
+                    const filePath = `${newProject.id}/${fileName}`
+                    await adminClient.storage.from('project-attachments').upload(filePath, file, { contentType: file.type, upsert: true })
+                    const { data: { publicUrl } } = adminClient.storage.from('project-attachments').getPublicUrl(filePath)
+                    return { project_id: newProject.id, title: file.name, url: publicUrl, created_by: user.id }
                 })
+                
+                const results = await Promise.all(uploadPromises)
+                if (results.length > 0) {
+                    await adminClient.from('project_resources').insert(results)
+                }
             }
-        }
 
-        if (attachmentsToInsert.length > 0) {
-            const { error: resErr } = await adminClient
-                .from('project_resources')
-                .insert(attachmentsToInsert)
-
-            if (resErr) {
-                console.error('[createProject] Error inserting attachment resources:', resErr)
-            }
+            await Promise.all(secondaryPromises)
+        } catch (err) {
+            console.error('[createProject] Side effect error:', err)
         }
     }
 
-    revalidateProjectDataTags()
-    revalidatePath('/dashboard/projects', 'page')
-    revalidatePath('/dashboard', 'page')
+    // Run side effects in background — do not await!
+    runSideEffects()
 
-    return { success: true }
+    // Immediate Revalidation
+    revalidateTag('projects', 'max')
+    
+    return { success: true, id: newProject.id }
 }
 
 export async function updateProjectPriority(projectId: string, priority: string | null) {

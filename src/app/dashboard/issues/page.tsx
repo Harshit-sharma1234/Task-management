@@ -4,6 +4,8 @@ import { redirect } from 'next/navigation';
 import { IssuesView } from '@/components/dashboard/issues/IssuesView';
 import { IssueListSkeleton } from '@/components/dashboard/issues/IssueListSkeleton';
 import { Metadata } from 'next';
+import { getUserProfile } from '@/lib/roles';
+import { getCachedIssueProjects, getCachedIssueUsers, getCachedIssuesList } from '@/lib/cache';
 
 export const metadata: Metadata = {
   title: 'Issues',
@@ -37,16 +39,13 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
 
 async function IssueListContent({ filter, userEmail, userId }: { filter: string; userEmail: string; userId: string }) {
   const supabase = await createClient();
-  const { getUserProfile } = await import('@/lib/roles');
-  const currentUser = await getUserProfile(supabase, userEmail, userId);
-
-  const { getCachedIssueProjects, getCachedIssueUsers, getCachedIssuesList } = await import('@/lib/cache');
-
-  // Fetch all required data in parallel; issues list itself is cached.
-  const [ticketsRes, cachedProjects, cachedUsers] = await Promise.all([
+  
+  // Fetch all required data in parallel including user profile
+  const [ticketsRes, cachedProjects, cachedUsers, currentUser] = await Promise.all([
     getCachedIssuesList(INITIAL_ISSUES_LIMIT),
     getCachedIssueProjects(),
     getCachedIssueUsers(),
+    getUserProfile(supabase, userEmail, userId)
   ]);
 
   const tickets = ticketsRes || [];
