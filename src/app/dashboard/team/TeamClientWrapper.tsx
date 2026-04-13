@@ -8,13 +8,13 @@ import { TeamList } from '@/components/dashboard/TeamList';
 import { TeamSkeleton } from '@/components/dashboard/TeamSkeleton';
 
 export function TeamClientWrapper() {
-  const { users, isAdmin, hasFetched, setTeamData } = useTeamStore();
+  const { users, isAdmin, currentUserRole, hasFetched, setTeamData } = useTeamStore();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!hasFetched) {
       fetchTeamData().then(data => {
-        setTeamData(data.users, data.isAdmin);
+        setTeamData(data.users, data.isAdmin, data.currentUserRole);
       }).catch(err => {
         console.error(err);
         setError('Failed to load team data');
@@ -31,7 +31,7 @@ export function TeamClientWrapper() {
       <TeamHeader isAdmin={isAdmin} />
 
       {/* Team List with Search */}
-      <TeamList initialUsers={users} isAdmin={isAdmin} />
+      <TeamList isAdmin={isAdmin} currentUserRole={currentUserRole} />
     </div>
   );
 }

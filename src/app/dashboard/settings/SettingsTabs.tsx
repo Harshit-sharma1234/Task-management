@@ -1,15 +1,17 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { UserCircle, Shield, Plus, Lock } from 'lucide-react'
-import { updateUserPassword, updateUserAvatar } from '@/app/dashboard/actions'
+import { UserCircle, Shield, Plus, Lock, Mail } from 'lucide-react'
+import { updateUserPassword, updateUserAvatar, updateUserEmail } from '@/app/dashboard/actions'
 import { createClient } from '@/lib/supabase/client'
 import Image from 'next/image'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { useSettingsStore } from '@/lib/store/settings'
+import { useAvatarStore } from '@/lib/store/avatar'
 
 export function SettingsTabs({ user }: { user: { id: string, name: string, email: string, avatar_url: string | null } }) {
     const setUserData = useSettingsStore((s) => s.setUserData)
+    const setGlobalAvatar = useAvatarStore((s) => s.setAvatarUrl)
     const [activeTab, setActiveTab] = useState<'profile' | 'security'>('profile')
     const fileInputRef = useRef<HTMLInputElement>(null)
     const [previewUrl, setPreviewUrl] = useState<string | null>(user.avatar_url)
@@ -24,6 +26,13 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
     const [isSavingPassword, setIsSavingPassword] = useState(false)
     const [passwordError, setPasswordError] = useState('')
     const [passwordSuccess, setPasswordSuccess] = useState(false)
+
+    // Email Update State
+    const [isChangingEmail, setIsChangingEmail] = useState(false)
+    const [newEmail, setNewEmail] = useState(user.email)
+    const [isSavingEmail, setIsSavingEmail] = useState(false)
+    const [emailError, setEmailError] = useState('')
+    const [emailSuccess, setEmailSuccess] = useState(false)
 
     const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
@@ -70,6 +79,7 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
         setSelectedFile(null)
         setPreviewUrl(publicUrl)
         setUserData({ ...user, avatar_url: publicUrl })
+        setGlobalAvatar(publicUrl) // Broadcast to Header & all components site-wide
     }
 
     const handlePasswordSubmit = async () => {
@@ -102,12 +112,41 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
         setIsSavingPassword(false)
     }
 
+    const handleEmailSubmit = async () => {
+        if (!newEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
+            setEmailError('Please enter a valid email address')
+            return
+        }
+        if (newEmail === user.email) {
+            setIsChangingEmail(false)
+            return
+        }
+
+        setIsSavingEmail(true)
+        setEmailError('')
+        setEmailSuccess(false)
+
+        const result = await updateUserEmail(newEmail)
+
+        if (result.error) {
+            setEmailError(result.error)
+        } else {
+            setEmailSuccess(true)
+            setUserData({ ...user, email: newEmail })
+            setTimeout(() => {
+                setIsChangingEmail(false)
+                setEmailSuccess(false)
+            }, 2500)
+        }
+        setIsSavingEmail(false)
+    }
+
 
 
     return (
         <div className="bg-white rounded-[24px] shadow-[0_20px_50px_rgba(0,0,0,0.05)] w-full max-w-5xl flex overflow-hidden min-h-[640px] border border-gray-100/50">
             {/* Sidebar Left */}
-            <div className="w-[280px] bg-[#f9fafb]/50 border-r border-gray-100 p-8 flex flex-col justify-between">
+            <div className="w-[260px] bg-[#f9fafb]/50 border-r border-gray-100 p-6 flex flex-col justify-between shrink-0">
                 <div>
                     <div className="mb-10">
                         <h2 className="text-xl font-bold text-gray-900 tracking-tight">Settings</h2>
@@ -117,25 +156,25 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
                     <nav className="space-y-1.5">
                         <button 
                             onClick={() => setActiveTab('profile')}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
+                            className={`w-full flex items-center gap-2.5 px-3 py-3 rounded-xl text-[12px] font-bold transition-all duration-200 whitespace-nowrap overflow-hidden ${
                                 activeTab === 'profile' 
-                                ? 'bg-white shadow-[0_2px_10px_rgba(0,0,0,0.04)] text-indigo-600 border border-gray-100' 
-                                : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100/50'
+                                ? 'bg-white shadow-[0_2px_15px_rgba(0,0,0,0.06)] text-indigo-600 border border-gray-100/50 translate-x-1' 
+                                : 'text-gray-400 hover:text-gray-900 hover:bg-gray-100/50'
                             }`}
                         >
-                            <UserCircle size={18} className={activeTab === 'profile' ? 'text-indigo-600' : 'text-gray-400'} />
-                            Profile Details
+                            <UserCircle size={18} className="shrink-0" />
+                            <span className="truncate">Profile Details</span>
                         </button>
                         <button 
                             onClick={() => setActiveTab('security')}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
+                            className={`w-full flex items-center gap-2.5 px-3 py-3 rounded-xl text-[12px] font-bold transition-all duration-200 whitespace-nowrap overflow-hidden ${
                                 activeTab === 'security' 
-                                ? 'bg-white shadow-[0_2px_10px_rgba(0,0,0,0.04)] text-indigo-600 border border-gray-100' 
-                                : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100/50'
+                                ? 'bg-white shadow-[0_2px_15px_rgba(0,0,0,0.06)] text-indigo-600 border border-gray-100/50 translate-x-1' 
+                                : 'text-gray-400 hover:text-gray-900 hover:bg-gray-100/50'
                             }`}
                         >
-                            <Shield size={18} className={activeTab === 'security' ? 'text-indigo-600' : 'text-gray-400'} />
-                            Security & Access
+                            <Shield size={18} className="shrink-0" />
+                            <span className="truncate">Security & Access</span>
                         </button>
                     </nav>
                 </div>
@@ -154,7 +193,7 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
             {/* Content Right */}
             <div className="flex-1 bg-white relative">
                 {activeTab === 'profile' ? (
-                    <div className="p-12 animate-in fade-in slide-in-from-right-4 duration-500">
+                    <div className="p-10 animate-in fade-in slide-in-from-right-4 duration-500">
                         <div className="mb-10">
                             <h3 className="text-2xl font-bold text-gray-900 leading-tight">Profile Details</h3>
                             <p className="text-sm text-gray-500 mt-1">Manage how you appear to your team.</p>
@@ -164,31 +203,28 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
                             {/* Profile Row */}
                             <div className="group">
                                 <div className="flex items-center justify-between pb-8 border-b border-gray-50">
-                                    <div className="w-[140px]">
-                                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Your Photo</p>
+                                    <div className="w-[110px] shrink-0">
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-2 border-l-2 border-gray-100">Photo</p>
                                     </div>
-                                    <div className="flex-1 flex items-center justify-between bg-gray-50/30 p-4 rounded-2xl border border-transparent hover:border-gray-100 hover:bg-white hover:shadow-sm transition-all duration-300">
-                                        <div className="flex items-center gap-5">
-                                            <div className="relative group/avatar">
-                                                {selectedFile && previewUrl ? (
-                                                    <Image src={previewUrl} alt="Profile" width={64} height={64} className="w-16 h-16 rounded-full object-cover shadow-[0_4px_12px_rgba(0,0,0,0.1)] border-2 border-white" />
-                                                ) : (
-                                                    <UserAvatar
-                                                        name={user.name}
-                                                        avatarUrl={user.avatar_url}
-                                                        size="xl"
-                                                        className="border-2 border-white shadow-[0_4px_12px_rgba(0,0,0,0.1)]"
-                                                    />
-                                                )}
-                                                <div className="absolute inset-0 rounded-full bg-black/0 group-hover/avatar:bg-black/20 flex items-center justify-center transition-all duration-200">
-                                                    <Plus size={20} className="text-white opacity-0 group-hover/avatar:opacity-100" />
+                                        <div className="flex-1 flex items-center justify-between bg-white p-6 rounded-[24px] border border-gray-100 shadow-[0_2px_20px_rgba(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] transition-all duration-500 gap-6 overflow-hidden">
+                                            <div className="flex items-center gap-5 min-w-0">
+                                                <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-white shadow-[0_4px_12px_rgba(0,0,0,0.1)] relative shrink-0 aspect-square flex-none">
+                                                    {selectedFile && previewUrl ? (
+                                                        <Image src={previewUrl} alt="Profile" fill className="object-cover" />
+                                                    ) : (
+                                                        <UserAvatar
+                                                            name={user.name}
+                                                            avatarUrl={user.avatar_url}
+                                                            size="xl"
+                                                            className="w-full h-full"
+                                                        />
+                                                    )}
+                                                </div>
+                                                <div className="min-w-0 flex flex-col justify-center">
+                                                    <p className="text-[17px] font-bold text-gray-900 leading-tight truncate">{user.name}</p>
+                                                    <p className="text-[13px] text-gray-400 font-medium truncate">{user.email}</p>
                                                 </div>
                                             </div>
-                                            <div>
-                                                <p className="text-base font-bold text-gray-900">{user.name}</p>
-                                                <p className="text-sm text-gray-500 font-medium">{user.email}</p>
-                                            </div>
-                                        </div>
 
                                         <div className="flex gap-2">
                                             <input 
@@ -200,29 +236,29 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
                                                 onChange={handleImageSelect} 
                                             />
                                             {selectedFile ? (
-                                                <>
+                                                <div className="flex items-center gap-1.5 shrink-0 ml-auto">
                                                     <button 
                                                         onClick={() => {
                                                             setSelectedFile(null)
                                                             setPreviewUrl(user.avatar_url)
                                                         }}
                                                         disabled={isUploading}
-                                                        className="px-4 py-2 text-xs font-bold text-gray-600 hover:text-gray-900 transition-colors"
+                                                        className="px-4 py-2.5 text-[11px] font-bold text-gray-400 hover:text-gray-900 transition-all whitespace-nowrap rounded-lg"
                                                     >
                                                         Cancel
                                                     </button>
                                                     <button 
                                                         onClick={confirmImageUpload}
                                                         disabled={isUploading}
-                                                        className="px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-lg shadow-indigo-600/20 transition-all active:scale-95 disabled:opacity-50"
+                                                        className="px-6 py-2.5 text-[11px] font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-600/20 transition-all active:scale-95 disabled:opacity-50 whitespace-nowrap"
                                                     >
                                                         {isUploading ? 'Uploading...' : 'Confirm'}
                                                     </button>
-                                                </>
+                                                </div>
                                             ) : (
                                                 <label 
                                                     htmlFor="avatar-upload"
-                                                    className="px-5 py-2 text-xs font-bold text-indigo-600 border border-indigo-100 hover:bg-indigo-50/50 rounded-lg transition-all cursor-pointer"
+                                                    className="px-6 py-2.5 text-[11px] font-bold text-indigo-600 bg-indigo-50/50 hover:bg-indigo-600 hover:text-white rounded-xl transition-all cursor-pointer border border-indigo-100/50 active:scale-95 shrink-0 whitespace-nowrap ml-auto"
                                                 >
                                                     Change Photo
                                                 </label>
@@ -231,10 +267,87 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Email Row */}
+                            <div className="group">
+                                <div className="flex flex-col pb-8 border-b border-gray-50">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <div className="w-[110px] shrink-0">
+                                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-2 border-l-2 border-gray-100">Email</p>
+                                        </div>
+                                            <div className="flex-1 flex items-center justify-between bg-white p-5 rounded-[20px] border border-gray-100 shadow-[0_2px_15px_rgba(0,0,0,0.02)]">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-gray-50 text-gray-400 group-hover:bg-indigo-50 group-hover:text-indigo-500 transition-colors duration-300">
+                                                        <Mail size={18} />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-bold text-gray-900">{isChangingEmail ? 'Update Email' : user.email}</p>
+                                                        {!isChangingEmail && <p className="text-[11px] text-gray-400 font-medium">Primary email for notifications</p>}
+                                                    </div>
+                                                </div>
+                                            {!isChangingEmail && (
+                                                <button 
+                                                    onClick={() => setIsChangingEmail(true)}
+                                                    className="px-5 py-2 text-xs font-bold text-gray-900 bg-gray-50 hover:bg-gray-100 rounded-lg transition-all border border-gray-200/60"
+                                                >
+                                                    Change
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {isChangingEmail && (
+                                        <div className="ml-[110px] pt-4 mt-2 border-t border-gray-50 space-y-4">
+                                            {emailError && (
+                                                <div className="p-3 bg-red-50 text-red-600 text-xs font-bold rounded-lg border border-red-100">
+                                                    {emailError}
+                                                </div>
+                                            )}
+                                            {emailSuccess && (
+                                                <div className="p-3 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-lg border border-emerald-100">
+                                                    Email updated successfully!
+                                                </div>
+                                            )}
+
+                                            <div className="space-y-1.5 w-max min-w-[320px]">
+                                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">New Email</label>
+                                                <input 
+                                                    type="email" 
+                                                    value={newEmail}
+                                                    onChange={(e) => setNewEmail(e.target.value)}
+                                                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm font-medium focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all shadow-inner"
+                                                    placeholder="you@example.com"
+                                                />
+                                            </div>
+
+                                            <div className="flex gap-3 pt-2">
+                                                <button 
+                                                    onClick={() => {
+                                                        setIsChangingEmail(false)
+                                                        setEmailError('')
+                                                        setEmailSuccess(false)
+                                                        setNewEmail(user.email)
+                                                    }}
+                                                    className="px-5 py-2.5 text-xs font-bold text-gray-500 hover:text-gray-900 transition-colors"
+                                                >
+                                                    Cancel
+                                                </button>
+                                                <button 
+                                                    onClick={handleEmailSubmit}
+                                                    disabled={isSavingEmail || !newEmail}
+                                                    className="px-6 py-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-600/30 transition-all active:scale-95 disabled:bg-gray-400 disabled:shadow-none disabled:cursor-not-allowed"
+                                                >
+                                                    {isSavingEmail ? 'Saving...' : 'Save Email'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 ) : (
-                    <div className="p-12 animate-in fade-in slide-in-from-right-4 duration-500">
+                    <div className="p-10 animate-in fade-in slide-in-from-right-4 duration-500">
                         <div className="mb-10">
                             <h3 className="text-2xl font-bold text-gray-900 leading-tight">Security & Privacy</h3>
                             <p className="text-sm text-gray-500 mt-1">Keep your account safe and manage logins.</p>
