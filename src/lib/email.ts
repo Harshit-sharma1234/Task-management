@@ -1,16 +1,19 @@
 import nodemailer from 'nodemailer';
 
+/**
+ * Configure the SMTP transporter for Brevo.
+ */
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
+  host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
   port: parseInt(process.env.SMTP_PORT || '587'),
-  secure: process.env.SMTP_PORT === '465', // true for 465, false for other ports
+  secure: false, // true for 465, false for 587
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASSWORD,
   },
 });
 
-const FROM_ADDRESS = process.env.EMAIL_FROM || 'Tectome <onboarding@yourdomain.com>';
+const FROM_ADDRESS = process.env.EMAIL_FROM || 'Tectome <nainanikapil1@gmail.com>';
 
 interface SendEmailParams {
   to: string | string[];
@@ -20,7 +23,7 @@ interface SendEmailParams {
 }
 
 /**
- * Send an email via Nodemailer with automatic retry (up to 3 attempts).
+ * Send an email via Brevo SMTP with automatic retry (up to 3 attempts).
  * Used for onboarding notifications, approval emails, etc.
  */
 export async function sendEmail(params: SendEmailParams) {
@@ -31,17 +34,18 @@ export async function sendEmail(params: SendEmailParams) {
     try {
       const info = await transporter.sendMail({
         from: FROM_ADDRESS,
-        to: params.to,
+        to: Array.isArray(params.to) ? params.to.join(', ') : params.to,
         subject: params.subject,
         html: params.html,
         replyTo: params.replyTo,
       });
 
-      console.log('[Email] Sent successfully:', info.messageId);
+      console.log('[Email] Sent successfully via Brevo:', info.messageId);
       return { success: true, id: info.messageId };
     } catch (err) {
       lastError = err as Error;
       console.error(`[Email] Attempt ${attempt}/${MAX_RETRIES} failed:`, lastError.message);
+      
       if (attempt < MAX_RETRIES) {
         await new Promise(r => setTimeout(r, 1000 * attempt)); // exponential backoff
       }
