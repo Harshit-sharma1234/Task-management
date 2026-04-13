@@ -481,3 +481,24 @@ export const getCachedRecentNotifications = (userId: string, limit: number = 3) 
     }
   )();
 
+/**
+ * Cached fetch for a user's personal scratchpad.
+ */
+export const getCachedUserNote = (userId: string) =>
+  unstable_cache(
+    async () => {
+      const supabase = createAdminClient();
+      const { data } = await supabase
+        .from('user_notes')
+        .select('content')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      return data?.content || '';
+    },
+    [`user-note-${userId}`],
+    {
+      revalidate: 60,
+      tags: [`user-note-${userId}`]
+    }
+  )();
