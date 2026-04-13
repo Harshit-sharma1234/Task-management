@@ -8,11 +8,12 @@ export interface UserProfile {
     employee_id: string
     name: string
     email: string
-    role_id: string
+    role_id: string | null
     avatar_url?: string | null
+    onboarding_status?: 'pending' | 'approved' | 'rejected'
     roles: {
         role_name: AppRole
-    }
+    } | null
 }
 
 
@@ -25,10 +26,17 @@ export async function getUserProfile(
     email: string,
     id?: string
 ): Promise<UserProfile | null> {
-    const { data, error } = await supabase
+    let query = supabase
         .from('users')
         .select('*, roles(role_name)')
-        .eq('email', email)
+    
+    if (id) {
+        query = query.or(`id.eq.${id},email.eq.${email}`)
+    } else {
+        query = query.eq('email', email)
+    }
+
+    const { data, error } = await query
 
     const userRow = data?.[0] || null
 
