@@ -638,16 +638,27 @@ export async function toggleProjectMember(projectId: string, userId: string) {
     return { success: true }
 }
 
-export async function updateUserPassword(password: string) {
+export async function updateUserPassword(oldPassword: string, newPassword: string) {
     const supabase = await createClient()
     
-    // Ensure the user is logged in
+    // 1. Ensure the user is logged in
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
         return { error: 'You must be logged in to update your password.' }
     }
 
-    const { error } = await supabase.auth.updateUser({ password })
+    // 2. Verify OLD password first
+    const { error: verifyError } = await supabase.auth.signInWithPassword({
+        email: user.email!,
+        password: oldPassword
+    })
+
+    if (verifyError) {
+        return { error: 'Incorrect old password. Please try again.' }
+    }
+
+    // 3. Update to NEW password
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
     
     if (error) {
         console.error('Error updating password:', error)
