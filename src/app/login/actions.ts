@@ -31,6 +31,16 @@ export async function login(prevState: any, formData: FormData) {
   const profile = await getUserProfile(supabase, credentials.email, user?.id)
   console.timeEnd('login-profile');
 
+  // Check onboarding status before anything else
+  if (profile?.onboarding_status === 'pending') {
+    await supabase.auth.signOut()
+    return { error: 'onboarding_pending' }
+  }
+  if (profile?.onboarding_status === 'rejected') {
+    await supabase.auth.signOut()
+    return { error: 'onboarding_rejected' }
+  }
+
   if (!profile) {
     await supabase.auth.signOut()
     return { error: 'No authorized profile found for this email. Contact your admin.' }
