@@ -613,6 +613,60 @@ export async function updateUserPassword(password: string) {
     return { success: true }
 }
 
+export async function updateUserEmail(email: string) {
+    const supabase = await createClient()
+    
+    // Ensure the user is logged in
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+        return { error: 'You must be logged in to update your email.' }
+    }
+
+    const adminClient = createAdminClient()
+    
+    // Check if new email already exists
+    const { data: existingUser } = await adminClient
+        .from('users')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle()
+        
+    if (existingUser && existingUser.id !== user.id) {
+        return { error: 'An account with this email already exists.' }
+    }
+
+    // 1. Update Auth Email (using admin client to auto-confirm)
+    const { error: authUpdateError } = await adminClient.auth.admin.updateUserById(user.id, {
+        email: email,
+        email_confirm: true 
+    })
+    
+    if (authUpdateError) {
+        console.error('Error updating auth email:', authUpdateError)
+        return { error: authUpdateError.message }
+    }
+    
+    // 2. Update Public Users table — search by ID, Auth ID, or Email to be robust
+    const { error: dbError } = await adminClient
+        .from('users')
+        .update({ 
+            email: email,
+            id: user.id,      // Sync public ID to Auth ID
+            auth_id: user.id  // Sync Auth ID column
+        })
+        .or(`id.eq.${user.id},auth_id.eq.${user.id},email.eq.${user.email}`)
+        
+    if (dbError) {
+        console.error('Error updating public user email:', dbError)
+        return { error: 'Failed to update user profile and synchronize IDs.' }
+    }
+
+    // Since the email has changed, we might need to invalidate their cache
+    revalidatePath('/dashboard/settings', 'page')
+    return { success: true }
+}
+
+
 export async function updateUserAvatar(userId: string, avatarUrl: string) {
     const supabase = await createClient()
     
