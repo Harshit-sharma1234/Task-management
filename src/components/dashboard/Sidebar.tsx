@@ -18,18 +18,39 @@ import {
   UserCheck
 } from 'lucide-react';
 
+import { UserDropdown } from './UserDropdown';
+import { useAvatarStore } from '@/lib/store/avatar';
+
 interface SidebarProps {
   initialUnreadCount?: number;
   userId: string;
   userRole?: string;
   pendingOnboardingCount?: number;
+  profileData?: {
+    name: string;
+    email: string;
+    avatar_url: string | null;
+    role: string;
+  } | null;
 }
 
-export function Sidebar({ initialUnreadCount, userId, userRole, pendingOnboardingCount = 0 }: SidebarProps) {
+export function Sidebar({ initialUnreadCount, userId, userRole, pendingOnboardingCount = 0, profileData }: SidebarProps) {
   const isAdminOrPm = userRole === 'Admin' || userRole === 'Project Manager';
   const pathname = usePathname();
   const router = useRouter();
   const unreadCount = useNotificationStore((s) => s.unreadCount);
+  const globalAvatarUrl = useAvatarStore((s) => s.avatarUrl);
+
+  // Merge global avatar URL for instant updates
+  const userProfile = useMemo(() => {
+    if (!profileData) return null;
+    return {
+      name: profileData.name,
+      email: profileData.email,
+      avatar_url: globalAvatarUrl !== undefined ? globalAvatarUrl : profileData.avatar_url,
+      role: profileData.role
+    };
+  }, [profileData, globalAvatarUrl]);
   const setUnreadCount = useNotificationStore((s) => s.setUnreadCount);
   const isHydrated = useNotificationStore((s) => s.isHydrated);
   const supabase = useMemo(() => createClient(), []);
@@ -94,6 +115,16 @@ export function Sidebar({ initialUnreadCount, userId, userRole, pendingOnboardin
       supabase.removeChannel(channel);
     };
   }, [userId, supabase, setUnreadCount]);
+
+  const handleSignOut = async () => {
+    try {
+      await supabase.auth.signOut();
+      router.push('/login');
+      router.refresh();
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
 
   return (
     <aside className="w-64 shrink-0 border-r border-gray-200 bg-white flex flex-col h-full">
@@ -273,6 +304,16 @@ export function Sidebar({ initialUnreadCount, userId, userRole, pendingOnboardin
         </div>
 
       </nav>
+
+      {/* User Profile Section */}
+      {userProfile && (
+        <div className="p-4 border-t border-slate-50 mt-auto">
+          <UserDropdown 
+            profile={userProfile} 
+            onSignOut={handleSignOut} 
+          />
+        </div>
+      )}
     </aside>
   );
 }
