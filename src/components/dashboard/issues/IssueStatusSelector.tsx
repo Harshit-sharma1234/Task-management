@@ -19,6 +19,7 @@ interface IssueStatusSelectorProps {
     currentUser?: any;
     assigneeId?: string | null;
     reviewerId?: string | null;
+    hideLabel?: boolean;
 }
 
 const statusOptions = [
@@ -36,7 +37,8 @@ export const IssueStatusSelector = memo(({
     currentStatus,
     currentUser,
     assigneeId,
-    reviewerId
+    reviewerId,
+    hideLabel = false
 }: IssueStatusSelectorProps) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
@@ -107,7 +109,8 @@ export const IssueStatusSelector = memo(({
                 }}
                 disabled={isUpdating || !canUpdate}
                 className={twMerge(
-                    "flex items-center gap-1.5 px-2 py-1 rounded-md transition-all min-w-[100px]",
+                    "flex items-center gap-1.5 px-2 py-1 rounded-md transition-all",
+                    hideLabel ? "min-w-0 px-1" : "min-w-[100px]",
                     canUpdate ? "hover:bg-gray-100 group/status" : "cursor-not-allowed opacity-70",
                     isOpen && "bg-gray-100"
                 )}
@@ -117,13 +120,17 @@ export const IssueStatusSelector = memo(({
                 ) : (
                     <div className={twMerge("w-2 h-2 rounded-full shrink-0", activeStatus.dot)}></div>
                 )}
-                <span className="text-[10px] font-bold uppercase text-gray-400 tracking-tight truncate group-hover/status:text-gray-600 transition-colors">
-                    {activeStatus.label}
-                </span>
-                <ChevronDown size={10} className={twMerge(
-                    "text-gray-300 group-hover/status:text-gray-500 transition-transform duration-200",
-                    isOpen && "rotate-180"
-                )} />
+                {!hideLabel && (
+                  <>
+                    <span className="text-[10px] font-bold uppercase text-gray-400 tracking-tight truncate group-hover/status:text-gray-600 transition-colors">
+                        {activeStatus.label}
+                    </span>
+                    <ChevronDown size={10} className={twMerge(
+                        "text-gray-300 group-hover/status:text-gray-500 transition-transform duration-200",
+                        isOpen && "rotate-180"
+                    )} />
+                  </>
+                )}
             </button>
 
             {isOpen && (

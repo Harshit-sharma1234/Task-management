@@ -18,7 +18,7 @@ export default async function ProjectDetailLayout({ children, params }: LayoutPr
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  const { project, projectError, users, members, profile } = await getProjectDetails(id, user.email!);
+  const { project, projectError, users, members, profile, allUsers } = await getProjectDetails(id, user.email!);
 
   if (projectError || !project) {
     console.error('Project fetch error:', projectError);
@@ -32,7 +32,7 @@ export default async function ProjectDetailLayout({ children, params }: LayoutPr
     <ProjectTransitionProvider>
       <div className="flex flex-col h-full bg-white text-gray-900 overflow-hidden">
         {/* Project Header (Breadcrumbs & Tabs) - Stable in Layout */}
-        <ProjectDetailHeader projectName={project.project_name} projectId={id} users={users || []} />
+        <ProjectDetailHeader projectName={project.project_name} projectId={id} users={allUsers || []} />
 
         {/* Main Content Area */}
         <div className="flex-1 flex overflow-hidden">
@@ -45,7 +45,7 @@ export default async function ProjectDetailLayout({ children, params }: LayoutPr
           <div className="w-80 hidden xl:block overflow-y-auto bg-[#fbfbfb]">
             <ProjectSidebar 
               project={project} 
-              users={users || []} 
+              users={allUsers || []} 
               currentMemberIds={currentMemberIds} 
               userRole={userRole}
             />
