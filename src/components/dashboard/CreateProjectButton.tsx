@@ -1,8 +1,9 @@
 'use client'
 
-import { useMemo, useState, useRef, useEffect } from 'react'
+import { useMemo, useState, useRef, useEffect, useTransition } from 'react'
 import { Plus, ChevronDown, Check, X, Users, Calendar, CircleDot, MoreHorizontal, User, Paperclip, FileIcon, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import { createProject } from '@/app/dashboard/actions'
 
 interface User {
@@ -16,6 +17,7 @@ interface CreateProjectButtonProps {
 
 export function CreateProjectButton({ variant = 'header' }: CreateProjectButtonProps) {
   const router = useRouter()
+  const [isPending, startTransition] = useTransition()
   const [isOpen, setIsOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
@@ -82,7 +84,6 @@ export function CreateProjectButton({ variant = 'header' }: CreateProjectButtonP
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    setIsLoading(true)
     setError('')
 
     const raw = new FormData(e.currentTarget)
@@ -93,16 +94,23 @@ export function CreateProjectButton({ variant = 'header' }: CreateProjectButtonP
     })
     selectedFiles.forEach((f) => data.append('attachments', f))
 
-    const result = await createProject(data)
+    // Instant Close & Background Process
+    closeModal()
     
-    if (result.error) {
-      setError(result.error)
-      setIsLoading(false)
-    } else {
-      setIsLoading(false)
-      closeModal()
-      router.refresh()
-    }
+    startTransition(async () => {
+      const promise = createProject(data)
+      
+      toast.promise(promise, {
+        loading: 'Creating your project...',
+        success: (result: any) => {
+          if (result.error) throw new Error(result.error)
+          return 'Project created successfully!'
+        },
+        error: (err: any) => {
+          return `Failed to create project: ${err.message}`
+        }
+      })
+    })
   }
 
   const statusOptions = useMemo(

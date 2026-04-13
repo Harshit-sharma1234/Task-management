@@ -6,6 +6,8 @@ import { revalidatePath, revalidateTag } from 'next/cache'
 import { getUserProfile } from '@/lib/roles'
 import { createNotification, parseMentions } from '@/app/dashboard/notifications/actions'
 
+import { getCachedUserProfile } from '@/lib/cache'
+
 export async function createIssue(formData: FormData) {
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -14,12 +16,10 @@ export async function createIssue(formData: FormData) {
     return { error: 'You must be logged in to create an issue' }
   }
 
-  // Fetch profile — auth user already available
-  const [profile] = await Promise.all([
-    getUserProfile(supabase, user.email!)
-  ])
+  // Use cached profile
+  const profile = await getCachedUserProfile(user.email!)
   if (!profile) {
-    return { error: 'User profile not found in database.' }
+    return { error: 'User profile not found. Please try logging in again.' }
   }
 
   const title = formData.get('title') as string
@@ -29,25 +29,14 @@ export async function createIssue(formData: FormData) {
   const projectId = formData.get('project_id') as string
   const assigneeId = formData.get('assignee_id') as string
 
-  if (!title?.trim()) {
-    return { error: 'Title is required' }
-  }
-  if (!description?.trim()) {
-    return { error: 'Description is required' }
-  }
-  if (!status) {
-    return { error: 'Status is required' }
-  }
-  if (!priority) {
-    return { error: 'Priority is required' }
-  }
-  if (!projectId) {
-    return { error: 'Project is required' }
-  }
-  if (!assigneeId) {
-    return { error: 'Assignee is required' }
-  }
+  // Validation
+  if (!title?.trim()) return { error: 'Title is required' }
+  if (!description?.trim()) return { error: 'Description is required' }
+  if (!status) return { error: 'Status is required' }
+  if (!priority) return { error: 'Priority is required' }
+  if (!projectId) return { error: 'Project is required' }
 
+  // Step 1: Create Ticket (Atomic)
   const { data, error } = await supabase
     .from('tickets')
     .insert({
@@ -70,110 +59,66 @@ export async function createIssue(formData: FormData) {
     return { error: `Failed to create issue: ${error.message}` }
   }
 
-  // Handle attachments
-  const allEntries = Array.from(formData.entries());
-  console.log('DEBUG: FormData keys:', allEntries.map(e => e[0]));
+  // --- Background Operations (Parallel) ---
+  const adminClient = createAdminClient()
   
-  const files = formData.getAll('attachments');
-  const attachmentsMetadata = [];
-
-  console.log(`DEBUG: Processing ${files.length} potential attachments`);
-
-  if (files.length > 0) {
-    const adminClient = createAdminClient();
-    
-    // Ensure bucket exists (optional but helpful for first-time use)
+  const runSideEffects = async () => {
     try {
-      const { data: buckets } = await adminClient.storage.listBuckets();
-      const bucketExists = buckets?.some(b => b.name === 'issue-attachments');
-      if (!bucketExists) {
-        console.log('DEBUG: Creating missing bucket: issue-attachments');
-        await adminClient.storage.createBucket('issue-attachments', { public: true });
-      }
-    } catch (err) {
-      console.error('DEBUG: Error checking/creating bucket:', err);
-    }
+      const sideEffects: Promise<any>[] = []
 
-    for (const fileObj of files) {
-      const file = fileObj as File;
-      if (!file || !file.name || file.size === 0) {
-        console.log(`DEBUG: Skipping invalid/empty file object:`, file ? file.name : 'null');
-        continue;
-      }
-      
-      console.log(`DEBUG: Uploading file: ${file.name}, size: ${file.size}, type: ${file.type}`);
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
-      const filePath = `${data.id}/${fileName}`;
-      
-      const { error: uploadError } = await adminClient.storage
-        .from('issue-attachments')
-        .upload(filePath, file, {
-          contentType: file.type,
-          upsert: true
-        });
-        
-      if (!uploadError) {
-        const { data: { publicUrl } } = adminClient.storage
-          .from('issue-attachments')
-          .getPublicUrl(filePath);
+      // 2. Parallel File Uploads
+      const files = formData.getAll('attachments') as File[]
+      if (files.length > 0) {
+        const uploadPromises = files.filter(f => f && f.size > 0).map(async (file) => {
+          const fileExt = file.name.split('.').pop()
+          const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`
+          const filePath = `${data.id}/${fileName}`
           
-        console.log(`DEBUG: Successfully uploaded ${file.name} to ${publicUrl}`);
-        attachmentsMetadata.push({
-          name: file.name,
-          url: publicUrl,
-          type: file.type,
-          size: file.size
-        });
-      } else {
-        console.error('DEBUG: Error uploading file:', uploadError);
+          await adminClient.storage.from('issue-attachments').upload(filePath, file, { contentType: file.type, upsert: true })
+          const { data: { publicUrl } } = adminClient.storage.from('issue-attachments').getPublicUrl(filePath)
+          
+          return { name: file.name, url: publicUrl, type: file.type, size: file.size }
+        })
+
+        const metadata = await Promise.all(uploadPromises)
+        if (metadata.length > 0) {
+        const updateAttachmentPromise = adminClient.from('tickets').update({ attachments: metadata }).eq('id', data.id)
+        sideEffects.push(Promise.resolve(updateAttachmentPromise))
       }
     }
+
+    // 3. Side effects: Activity, Notifications, Auto-Membership
+    sideEffects.push(logActivity(supabase, profile.id, data.id, 'created', 'Issue created'))
     
-    // Update ticket with attachments metadata using adminClient to bypass restrictive RLS
-    if (attachmentsMetadata.length > 0) {
-      console.log(`DEBUG: Updating ticket ${data.id} with metadata:`, attachmentsMetadata);
-      const { error: updateError } = await adminClient
-        .from('tickets')
-        .update({ attachments: attachmentsMetadata })
-        .eq('id', data.id);
-        
-      if (updateError) {
-        console.error('DEBUG: Error updating ticket in DB:', updateError);
-      } else {
-        console.log('DEBUG: Ticket successfully updated with attachments');
-      }
-    } else {
-      console.log('DEBUG: No attachments metadata to update');
+    if (assigneeId) {
+      sideEffects.push(createNotification({
+        userId: assigneeId,
+        actorId: profile.id,
+        entityType: 'ticket',
+        entityId: data.id,
+        type: 'assignment',
+        message: `${profile.name} assigned you a new issue: ${title}`
+      }))
+      
+      // Auto-membership
+      const membershipPromise = adminClient
+        .from('project_members')
+        .upsert({ project_id: projectId, user_id: assigneeId }, { onConflict: 'project_id,user_id' })
+      sideEffects.push(Promise.resolve(membershipPromise))
+    }
+
+      await Promise.all(sideEffects)
+    } catch (err) {
+      console.error('[createIssue] Side effect error:', err)
     }
   }
 
-  // Log creation
-  await logActivity(supabase, profile.id, data.id, 'created', 'Issue created')
+  // Fire and forget side effects
+  runSideEffects()
 
-  // Notify Assignee
-  if (assigneeId) {
-    await createNotification({
-      userId: assigneeId,
-      actorId: profile.id,
-      entityType: 'ticket',
-      entityId: data.id,
-      type: 'assignment',
-      message: `${profile.name} assigned you a new issue: ${title}`
-    })
-  }
-
-  // Auto-Project Membership for Assignee
-  if (assigneeId) {
-    const adminClient = createAdminClient();
-    await adminClient
-      .from('project_members')
-      .upsert({ project_id: projectId, user_id: assigneeId }, { onConflict: 'project_id,user_id' });
-    
-    revalidateTag('project-members', 'max');
-  }
-
-  revalidatePath('/dashboard/issues', 'page')
+  // Granular revalidation only
+  revalidateTag('issues', 'max')
+  
   return { success: true, data }
 }
 
@@ -625,7 +570,7 @@ export async function updateIssue(ticketId: string, updates: {
       }
       
       await Promise.all(membershipUpserts);
-      revalidateTag('project-members', 'max');
+      revalidateTag('projects', 'max');
     }
   }
 
@@ -707,9 +652,10 @@ export async function deleteIssue(ticketId: string) {
     return { error: `Failed to delete issue: ${error.message}` }
   }
 
-  // Multi-layer revalidation: tags + specific project layout path
-  revalidateTag('issues', 'max')
-  revalidateTag('dashboard-stats', 'max')
+  function revalidateProjectDataTags(tags: string[] = ['projects', 'tickets']) {
+    tags.forEach(tag => revalidateTag(tag, 'max'));
+  }
+  revalidateProjectDataTags(['issues', 'dashboard-stats']);
 
   // Force hard re-render of the project layout if we know the project
   if (ticket?.project_id) {
