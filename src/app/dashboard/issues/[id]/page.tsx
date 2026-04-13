@@ -139,39 +139,9 @@ export default async function IssueDetailsPage({ params }: { params: { id: strin
               ticketId={id}
               initialTitle={ticket.title}
               initialDescription={ticket.description}
+              initialAttachments={ticket.attachments || []}
               canEdit={canEdit}
             />
-
-            {/* Attachments Section */}
-            {ticket.attachments && ticket.attachments.length > 0 && (
-              <div className="mt-8 pt-6 border-t border-gray-100/60">
-                <div className="flex items-center gap-2 mb-4">
-                  <Paperclip size={16} className="text-gray-400" />
-                  <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Attachments ({ticket.attachments.length})</h3>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {ticket.attachments.map((file: any, idx: number) => (
-                    <a
-                      key={idx}
-                      href={file.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-3 p-3 border border-gray-100 rounded-xl hover:bg-gray-50 hover:border-indigo-100 transition-all group/attachment bg-gray-50/30"
-                    >
-                      <div className="w-10 h-10 bg-white border border-gray-100 rounded-lg flex items-center justify-center text-indigo-500 group-hover/attachment:bg-indigo-50 group-hover/attachment:border-indigo-100 transition-all shadow-sm">
-                        <FileIcon size={18} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-xs font-bold text-gray-900 truncate">{file.name}</div>
-                        <div className="text-[10px] text-gray-400 font-extrabold uppercase tracking-widest">
-                          {file.type ? file.type.split('/')[1]?.toUpperCase() : 'FILE'} · {(file.size / 1024).toFixed(1)} KB
-                        </div>
-                      </div>
-                    </a>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Activity Section — fully real-time via CommentSection */}
