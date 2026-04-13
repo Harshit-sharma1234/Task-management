@@ -1,4 +1,5 @@
 import { Sidebar } from '@/components/dashboard/Sidebar';
+import { Header } from '@/components/dashboard/Header';
 import { getServerUser, getServerProfile } from '@/lib/auth-server';
 import { redirect } from 'next/navigation';
 import { PageTransition } from '@/components/dashboard/PageTransition';
@@ -41,6 +42,12 @@ export default async function DashboardLayout({
         } : null}
       />
       <div className="flex-1 flex flex-col min-w-0 bg-[#fbfbfb]">
+        <Header userId={user.id} email={user.email!} profileData={profile ? {
+          name: profile.name,
+          email: profile.email,
+          avatar_url: profile.avatar_url || null,
+          role: profile.roles?.role_name || ''
+        } : null} />
         <main className="flex-1 overflow-y-auto w-full">
           <PageTransition>
             {children}
