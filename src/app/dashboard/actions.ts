@@ -19,6 +19,50 @@ function revalidateProjectDataTags(tags: string[] = ['projects', 'tickets']) {
 
 import { getCachedUsers } from '../../lib/cache'
 
+/**
+ * Converts raw Postgres/Supabase errors into user-friendly messages.
+ */
+function friendlyDbError(error: any, context: 'project' | 'issue' | 'generic' = 'generic'): string {
+  const msg: string = error?.message || error?.details || JSON.stringify(error) || '';
+  const code: string = error?.code || '';
+
+  // Unique constraint violations
+  if (code === '23505' || msg.includes('duplicate key') || msg.includes('unique constraint')) {
+    if (msg.includes('project_name') || msg.includes('projects_project_name')) {
+      return 'A project with this name already exists. Please choose a different name.';
+    }
+    if (msg.includes('title') || msg.includes('tickets_title')) {
+      return 'An issue with this title already exists in this project. Please use a different title.';
+    }
+    if (context === 'project') return 'A project with this name already exists. Please choose a different name.';
+    if (context === 'issue') return 'An issue with this title already exists. Please use a different title.';
+    return 'This record already exists. Please check for duplicates and try again.';
+  }
+
+  // Foreign key violations (referencing a deleted/non-existent record)
+  if (code === '23503' || msg.includes('foreign key')) {
+    return 'One of the selected users or references no longer exists. Please refresh and try again.';
+  }
+
+  // Not-null violations
+  if (code === '23502' || msg.includes('null value')) {
+    return 'Some required fields are missing. Please fill in all required information.';
+  }
+
+  // Permission / RLS
+  if (code === '42501' || msg.includes('permission denied') || msg.includes('row-level security')) {
+    return 'You do not have permission to perform this action.';
+  }
+
+  // Network / timeout
+  if (msg.includes('timeout') || msg.includes('connection')) {
+    return 'Connection issue. Please check your network and try again.';
+  }
+
+  // Fallback — still better than raw SQL
+  return `Something went wrong. Please try again. (${msg.substring(0, 80)})`;
+}
+
 export async function fetchUsersForProject() {
     return await getCachedUsers()
 }
@@ -86,7 +130,7 @@ export async function createProject(formData: FormData) {
 
     if (projectError) {
         console.error('SUPABASE ERROR CREATING PROJECT:', projectError)
-        return { error: `Failed to create project: ${projectError.message || JSON.stringify(projectError)}` }
+        return { error: friendlyDbError(projectError, 'project') }
     }
 
     // Add members to the project_members table
