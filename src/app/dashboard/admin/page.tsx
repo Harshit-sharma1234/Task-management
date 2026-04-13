@@ -56,7 +56,7 @@ export default async function AdminDashboard() {
             </Suspense>
 
             {/* Main Content (Widgets) */}
-            <DashboardOverview userId={user.id} />
+            <DashboardOverview userId={user.id} userRole="Admin" />
         </div>
     )
 }
