@@ -9,65 +9,27 @@ import { baseLayout } from '@/lib/email-templates' // Re-import baseLayout logic
  * Custom template for Password Reset OTP
  */
 function passwordResetEmail(params: { otpCode: string; expiresInMinutes: number }): string {
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="margin:0;padding:0;background-color:#f8f9fc;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f8f9fc;padding:40px 20px;">
-    <tr>
-      <td align="center">
-        <table role="presentation" width="560" cellspacing="0" cellpadding="0" style="background-color:#ffffff;border-radius:16px;border:1px solid #e2e8f0;box-shadow:0 4px 24px rgba(0,0,0,0.04);">
-          <!-- Header -->
-          <tr>
-            <td style="padding:32px 40px 0;text-align:center;">
-              <div style="display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;background-color:#5e6ad2;border-radius:12px;margin-bottom:16px;">
-                <span style="color:#fff;font-size:20px;font-weight:800;">T</span>
-              </div>
-              <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:2px;">Tectome</div>
-            </td>
-          </tr>
-          <!-- Content -->
-          <tr>
-            <td style="padding:24px 40px 40px;">
-              <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#1a1a2e;text-align:center;">
-                Reset your password
-              </h1>
-              <p style="margin:0 0 24px;font-size:14px;color:#64748b;text-align:center;line-height:1.6;">
-                Use the following verification code to reset your password on Tectome. This code is valid for 5 minutes.
-              </p>
-              
-              <div style="background-color:#f8f9fc;border-radius:12px;border:1px solid #e8ecf1;padding:24px;text-align:center;margin-bottom:24px;">
-                <div style="font-size:32px;font-weight:800;letter-spacing:8px;color:#5e6ad2;margin-bottom:8px;">
-                  ${params.otpCode}
-                </div>
-                <div style="font-size:12px;color:#64748b;">
-                  Expires in ${params.expiresInMinutes} minutes
-                </div>
-              </div>
-              
-              <p style="margin:0;font-size:13px;color:#64748b;text-align:center;line-height:1.6;">
-                If you didn't request a password reset, you can safely ignore this email.
-              </p>
-            </td>
-          </tr>
-          <!-- Footer -->
-          <tr>
-            <td style="padding:20px 40px;border-top:1px solid #f1f5f9;text-align:center;">
-              <p style="margin:0;font-size:11px;color:#94a3b8;">
-                This is an automated message from Tectome. Please do not reply directly.
-              </p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
+  return baseLayout(`
+    <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#1a1a2e;text-align:center;">
+      Reset your password
+    </h1>
+    <p style="margin:0 0 24px;font-size:14px;color:#64748b;text-align:center;line-height:1.6;">
+      Use the following verification code to reset your password on Tectome. This code is valid for 5 minutes.
+    </p>
+    
+    <div style="background-color:#f8f9fc;border-radius:12px;border:1px solid #e8ecf1;padding:24px;text-align:center;margin-bottom:24px;">
+      <div style="font-size:32px;font-weight:800;letter-spacing:8px;color:#5e6ad2;margin-bottom:8px;">
+        ${params.otpCode}
+      </div>
+      <div style="font-size:12px;color:#64748b;">
+        Expires in ${params.expiresInMinutes} minutes
+      </div>
+    </div>
+    
+    <p style="margin:0;font-size:13px;color:#64748b;text-align:center;line-height:1.6;">
+      If you didn't request a password reset, you can safely ignore this email.
+    </p>
+  `);
 }
 
 export async function requestPasswordResetOTP(email: string) {
