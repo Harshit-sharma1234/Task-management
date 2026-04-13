@@ -9,7 +9,7 @@ const CARD_BG = '#ffffff';
 const TEXT_PRIMARY = '#1a1a2e';
 const TEXT_SECONDARY = '#64748b';
 
-function baseLayout(content: string): string {
+export function baseLayout(content: string): string {
   return `
 <!DOCTYPE html>
 <html>
