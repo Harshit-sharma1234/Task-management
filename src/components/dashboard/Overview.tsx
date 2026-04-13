@@ -18,6 +18,7 @@ import { Suspense, type ReactNode } from 'react'
 import { WidgetSkeleton, StatsSkeleton } from './OverviewSkeletons'
 import { markAsRead } from '@/app/dashboard/notifications/actions'
 import { ScratchpadWidget } from './ScratchpadWidget'
+import WidgetErrorBoundary from '@/components/dashboard/WidgetErrorBoundary'
 
 // Lazy load interactive elements
 const CreateProjectButton = dynamic(() => import('@/components/dashboard/CreateProjectButton').then(mod => mod.CreateProjectButton), { 
@@ -78,22 +79,32 @@ export default function DashboardOverview({ userId, userRole = '' }: DashboardOv
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Left Column (Primary Overview) */}
                 <div className="lg:col-span-2 flex flex-col gap-6">
-                    <Suspense fallback={<WidgetSkeleton />}>
-                        <ProjectOverviewList />
-                    </Suspense>
-                    <Suspense fallback={<WidgetSkeleton />}>
-                        <IssueOverviewList />
-                    </Suspense>
+                    <WidgetErrorBoundary name="Project Overview">
+                        <Suspense fallback={<WidgetSkeleton />}>
+                            <ProjectOverviewList />
+                        </Suspense>
+                    </WidgetErrorBoundary>
+                    
+                    <WidgetErrorBoundary name="Recent Issues">
+                        <Suspense fallback={<WidgetSkeleton />}>
+                            <IssueOverviewList />
+                        </Suspense>
+                    </WidgetErrorBoundary>
                 </div>
 
                 {/* Right Column (Focus Widgets) */}
                 <div className="flex flex-col gap-6">
-                    <Suspense fallback={<WidgetSkeleton rows={2} />}>
-                        <MyTasksWidget userId={userId} />
-                    </Suspense>
-                    <Suspense fallback={<WidgetSkeleton rows={3} />}>
-                        <ScratchpadServer userId={userId} />
-                    </Suspense>
+                    <WidgetErrorBoundary name="My Tasks">
+                        <Suspense fallback={<WidgetSkeleton rows={2} />}>
+                            <MyTasksWidget userId={userId} />
+                        </Suspense>
+                    </WidgetErrorBoundary>
+
+                    <WidgetErrorBoundary name="Scratchpad">
+                        <Suspense fallback={<WidgetSkeleton rows={3} />}>
+                            <ScratchpadServer userId={userId} />
+                        </Suspense>
+                    </WidgetErrorBoundary>
                 </div>
             </div>
         </div>
