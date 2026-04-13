@@ -14,7 +14,11 @@ export const getCachedUsers = unstable_cache(
       .order('name');
     
     if (error) {
-      console.error('[Cache] Error fetching users:', error);
+      console.error(`[Cache] Database error fetching user list: ${error.message}`, {
+        code: error.code,
+        hint: error.hint,
+        details: error.details
+      });
       return [];
     }
     return data || [];
@@ -32,26 +36,51 @@ export const getCachedUsers = unstable_cache(
 export const getCachedStats = unstable_cache(
   async () => {
     const supabase = createAdminClient();
-    const [projectsRes, ticketsRes, recentProjectsRes, doneProjectsRes, inProgressProjectsRes] = await Promise.all([
+    const [
+      projectsRes, 
+      ticketsRes, 
+      recentProjectsRes, 
+      doneProjectsRes, 
+      inProgressProjectsRes,
+      urgentTicketsRes,
+      allTicketsRes
+    ] = await Promise.all([
       supabase.from('projects').select('*', { count: 'exact', head: true }),
       supabase.from('tickets').select('*', { count: 'exact', head: true }),
       supabase.from('projects').select('id, project_name, description, created_at, status').order('created_at', { ascending: false }).limit(3),
       supabase.from('projects').select('*', { count: 'exact', head: true }).eq('status', 'done'),
-      supabase.from('projects').select('*', { count: 'exact', head: true }).eq('status', 'in_progress')
+      supabase.from('projects').select('*', { count: 'exact', head: true }).eq('status', 'in_progress'),
+      supabase.from('tickets').select('*', { count: 'exact', head: true }).eq('priority', 'urgent').neq('status', 'done'),
+      supabase.from('tickets').select('id, project_id, status')
     ]);
     
+    // Calculate progress stats for projects
+    const projectStats: Record<string, { total: number, done: number }> = {};
+    (allTicketsRes.data || []).forEach(ticket => {
+      if (!ticket.project_id) return;
+      if (!projectStats[ticket.project_id]) {
+        projectStats[ticket.project_id] = { total: 0, done: 0 };
+      }
+      projectStats[ticket.project_id].total++;
+      if (ticket.status === 'done') {
+        projectStats[ticket.project_id].done++;
+      }
+    });
+
     return {
       projectsCount: projectsRes.count || 0,
       tasksCount: ticketsRes.count || 0,
       recentProjects: recentProjectsRes.data || [],
       completedProjectsCount: doneProjectsRes.count || 0,
-      inProgressProjectsCount: inProgressProjectsRes.count || 0
+      inProgressProjectsCount: inProgressProjectsRes.count || 0,
+      urgentIssuesCount: urgentTicketsRes.count || 0,
+      projectStats
     };
   },
-  ['dashboard-stats-counts'],
+  ['dashboard-stats-counts-v2'],
   { 
-    revalidate: 60,  // Changed from 3600 to 60 to prevent stale overview data
-    tags: ['dashboard-stats'] 
+    revalidate: 60,
+    tags: ['dashboard-stats', 'projects', 'tickets'] 
   }
 );
 
@@ -70,7 +99,11 @@ export const getCachedUserProfile = (email: string) =>
         .maybeSingle(); // Better than .single() for caching potential nulls
       
       if (error) {
-        console.error(`[Cache] Error fetching profile for ${email}:`, error);
+        console.error(`[Cache] Database error fetching profile for ${email}: ${error.message}`, {
+          code: error.code,
+          hint: error.hint,
+          details: error.details
+        });
         return null;
       }
       return data;
@@ -352,6 +385,63 @@ export const getCachedMyTasksDetailed = (userId: string) =>
     {
       revalidate: 60,
       tags: ['tickets', 'projects', 'team-members', `user-tasks-${userId}`]
+    }
+  )();
+
+/**
+ * Cached fetch for upcoming deadlines (projects or tickets due within 7 days).
+ */
+export const getCachedUpcomingDeadlines = unstable_cache(
+  async () => {
+    const supabase = createAdminClient();
+    const now = new Date().toISOString();
+    const inThirtyDays = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+    // Check for target_date in projects
+    const { data: projects } = await supabase
+      .from('projects')
+      .select('id, project_name, target_date, status')
+      .neq('status', 'done')
+      .not('target_date', 'is', null)
+      .gte('target_date', now)
+      .lte('target_date', inThirtyDays)
+      .order('target_date')
+      .limit(5);
+
+    return projects || [];
+  },
+  ['upcoming-deadlines-v2'],
+  {
+    revalidate: 60,
+    tags: ['projects', 'tickets']
+  }
+);
+
+/**
+ * Cached fetch for recent unread notifications for a user.
+ */
+export const getCachedRecentNotifications = (userId: string, limit: number = 3) =>
+  unstable_cache(
+    async () => {
+      const supabase = createAdminClient();
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('id, message, created_at, type, is_read')
+        .eq('user_id', userId)
+        .eq('is_read', false)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      if (error) {
+        console.error(`[Cache] Error fetching recent notifications for ${userId}:`, error);
+        return [];
+      }
+      return data || [];
+    },
+    [`recent-notifications-${userId}-${limit}`],
+    {
+      revalidate: 30,
+      tags: [`notifications-${userId}`]
     }
   )();
 

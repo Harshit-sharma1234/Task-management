@@ -13,8 +13,10 @@ const geistMono = Geist_Mono({
 
 import type { Metadata } from 'next';
 
+import { getBaseUrl } from '@/lib/urls';
+
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://task-management.vercel.app'),
+  metadataBase: new URL(getBaseUrl()),
   alternates: {
     canonical: '/',
   },

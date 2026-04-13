@@ -1,7 +1,8 @@
 import { MetadataRoute } from 'next'
+import { getBaseUrl } from '@/lib/urls'
 
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://task-management.vercel.app'
+  const baseUrl = getBaseUrl()
 
   return {
     rules: {

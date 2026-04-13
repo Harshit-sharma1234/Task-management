@@ -1,6 +1,7 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Mail, Lock, Loader2, AlertCircle } from 'lucide-react';
 import { login } from './actions';
 
@@ -25,9 +26,20 @@ function SubmitButton({ isPending }: { isPending: boolean }) {
 
 export default function LoginForm({ initialMessage }: { initialMessage?: string }) {
   const [state, formAction, isPending] = useActionState(login, null);
+  const router = useRouter();
 
-  // Prioritize active action error over the initial searchParam message
-  const errorMessage = state?.error || initialMessage;
+  // Handle special onboarding redirect codes
+  useEffect(() => {
+    if (state?.error === 'onboarding_pending') {
+      router.push('/onboarding-pending');
+    } else if (state?.error === 'onboarding_rejected') {
+      router.push('/onboarding-rejected');
+    }
+  }, [state?.error, router]);
+
+  // Don't show onboarding status codes as error messages
+  const isOnboardingRedirect = state?.error === 'onboarding_pending' || state?.error === 'onboarding_rejected';
+  const errorMessage = isOnboardingRedirect ? null : (state?.error || initialMessage);
 
   return (
     <div className="space-y-6">
