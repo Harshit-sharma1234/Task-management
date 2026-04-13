@@ -30,14 +30,24 @@ export default async function PMDashboard() {
     const userName = user.user_metadata?.full_name || profile.name || user.email;
 
     return (
-        <div className="flex flex-col h-full w-full p-8 overflow-y-auto animate-in fade-in duration-500">
+        <div className="flex flex-col h-full w-full p-10 overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-1000">
             {/* Header Section */}
-            <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center justify-between mb-10">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Welcome back, {userName}</h1>
-                    <p className="text-sm text-gray-500 mt-1">Here's what's happening with your projects today</p>
+                    <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight leading-none">
+                        Welcome back, <span className="text-indigo-600">{userName}</span>
+                    </h1>
+                    <p className="text-[15px] font-medium text-slate-500 mt-2">
+                        Tracking project progress and team delivery.
+                    </p>
                 </div>
-                <CreateProjectButton variant="header" />
+                <div className="flex items-center gap-4">
+                    <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl shadow-sm">
+                        <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Project Manager</span>
+                    </div>
+                    <CreateProjectButton variant="header" />
+                </div>
             </div>
 
             {/* Stats Overview */}
