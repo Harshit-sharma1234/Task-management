@@ -674,8 +674,10 @@ export async function updateUserAvatar(userId: string, avatarUrl: string) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: 'Not authenticated' }
 
-    // 1. Try to find the existing row by ID OR Email
-    const { data: existingRows } = await supabase
+    const adminClient = createAdminClient()
+
+    // 1. Try to find the existing row by ID OR Email (using admin client to bypass RLS)
+    const { data: existingRows } = await adminClient
         .from('users')
         .select('id, email')
         .or(`id.eq.${userId},email.eq.${user.email}`)
@@ -684,28 +686,27 @@ export async function updateUserAvatar(userId: string, avatarUrl: string) {
 
     let error;
     if (targetRow) {
-        // 2. Perform an UPDATE on the existing row (using its actual ID)
-        const { error: updateError } = await supabase
+        // 2. Perform an UPDATE on the existing row
+        const { error: updateError } = await adminClient
             .from('users')
             .update({ 
                 avatar_url: avatarUrl,
-                id: userId, // Fix the ID if it was different
+                id: userId,
                 name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User'
             })
             .eq('email', user.email)
         error = updateError
     } else {
         // 3. Perform an INSERT if absolutely new
-        // Note: This needs a default for employee_id if it's required
-        const { error: insertError } = await supabase
+        const { error: insertError } = await adminClient
             .from('users')
             .insert({ 
                 id: userId, 
                 avatar_url: avatarUrl, 
                 email: user.email,
                 name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
-                employee_id: `EMP-${Date.now()}`, // Temporary fallback for required columns
-                role_id: 'f1e5cb69-a296-43c7-8905-00fc99e1f5aa' // Junior Developer
+                employee_id: `EMP-${Date.now()}`,
+                role_id: 'f1e5cb69-a296-43c7-8905-00fc99e1f5aa'
             })
         error = insertError
     }
@@ -715,10 +716,12 @@ export async function updateUserAvatar(userId: string, avatarUrl: string) {
         return { error: error.message }
     }
 
-    // Invalidate profile caches (and team list avatars if shown there)
+    // Invalidate all caches that include avatar data
     revalidateTag(`user-profile-${user.email}`, 'max')
     revalidateTag('team-members', 'max')
-    return { success: true }
+    revalidateTag('issues', 'max')
+    revalidatePath('/dashboard', 'layout')
+    return { success: true, avatarUrl }
 }
 
 export async function provisionEmployee(formData: FormData) {

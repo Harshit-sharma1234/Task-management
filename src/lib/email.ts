@@ -1,19 +1,20 @@
 import nodemailer from 'nodemailer';
 
 /**
- * Configure the SMTP transporter for Brevo.
+ * Configure the SMTP transporter for Gmail.
+ * Using Port 465 with SSL for maximum reliability.
  */
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
-  port: parseInt(process.env.SMTP_PORT || '587'),
-  secure: false, // true for 465, false for 587
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true, // Gmail uses SSL on 465
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASSWORD,
   },
 });
 
-const FROM_ADDRESS = process.env.EMAIL_FROM || 'Tectome <nainanikapil1@gmail.com>';
+const FROM_ADDRESS = process.env.EMAIL_FROM || 'Tectome <harahit004@gmail.com>';
 
 interface SendEmailParams {
   to: string | string[];
@@ -23,8 +24,7 @@ interface SendEmailParams {
 }
 
 /**
- * Send an email via Brevo SMTP with automatic retry (up to 3 attempts).
- * Used for onboarding notifications, approval emails, etc.
+ * Send an email via Gmail SMTP with automatic retry (up to 3 attempts).
  */
 export async function sendEmail(params: SendEmailParams) {
   const MAX_RETRIES = 3;
@@ -40,7 +40,7 @@ export async function sendEmail(params: SendEmailParams) {
         replyTo: params.replyTo,
       });
 
-      console.log('[Email] Sent successfully via Brevo:', info.messageId);
+      console.log('[Email] Sent successfully via Gmail:', info.messageId);
       return { success: true, id: info.messageId };
     } catch (err) {
       lastError = err as Error;
@@ -58,7 +58,6 @@ export async function sendEmail(params: SendEmailParams) {
 
 /**
  * Send onboarding notification emails to all Admin/PM users.
- * Fire-and-forget — failures are logged but don't block the signup flow.
  */
 export async function sendBulkEmails(recipients: string[], subject: string, html: string) {
   const results = await Promise.allSettled(

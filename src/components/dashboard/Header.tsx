@@ -3,45 +3,33 @@
 import { LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { UserDropdown } from './UserDropdown';
+import { useAvatarStore } from '@/lib/store/avatar';
 
 interface HeaderProps {
   userId: string;
   email: string;
+  profileData?: {
+    name: string;
+    email: string;
+    avatar_url: string | null;
+    role: string;
+  } | null;
 }
 
-export function Header({ userId, email }: HeaderProps) {
+export function Header({ userId, email, profileData }: HeaderProps) {
   const router = useRouter();
-  const [profile, setProfile] = useState<any>(null);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
   const supabase = useMemo(() => createClient(), [])
+  const globalAvatarUrl = useAvatarStore((s) => s.avatarUrl);
 
-  // Fetch profile autonomously if not provided via props (Layout Slimming)
-  useEffect(() => {
-    async function fetchProfile() {
-      const { data } = await supabase
-        .from('users')
-        .select('*, roles(role_name)')
-        .eq('email', email)
-        .single();
-      if (data) setProfile(data);
-    }
-    fetchProfile();
-  }, [email, supabase]);
-
-  const userProfile = useMemo(() => {
-    if (!profile) return null;
-    return {
-      name: profile.name,
-      email: profile.email,
-      avatar_url: profile.avatar_url,
-      role: Array.isArray(profile.roles) 
-        ? profile.roles[0]?.role_name 
-        : profile.roles?.role_name
-    };
-  }, [profile]);
+  // Merge: if avatar was updated globally (from Settings), use that; otherwise use server data
+  const userProfile = profileData ? {
+    ...profileData,
+    avatar_url: globalAvatarUrl !== undefined ? globalAvatarUrl : profileData.avatar_url
+  } : null;
 
   const handleSignOut = useCallback(async () => {
     setShowSignOutConfirm(false);
