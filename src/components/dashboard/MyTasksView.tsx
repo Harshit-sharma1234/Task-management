@@ -52,8 +52,6 @@ export function MyTasksView({ initialTickets, projects, users, currentUser }: My
       {/* Header Section */}
       <IssuesHeader 
         totalIssues={filteredTickets.length} 
-        projects={projects}
-        users={users}
         activeFilter={activeFilter}
         onFilterChange={setActiveFilter}
         onOpenModal={() => setIsModalOpen(true)}
