@@ -259,7 +259,7 @@ export const getCachedIssueUsers = unstable_cache(
     const supabase = createAdminClient();
     const { data, error } = await supabase
       .from('users')
-      .select('id, name, avatar_url, roles(role_name)')
+      .select('id, name, avatar_url, email')
       .order('name');
 
     if (error) {
