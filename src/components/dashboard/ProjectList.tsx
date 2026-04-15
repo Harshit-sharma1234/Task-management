@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, memo, useEffect } from 'react';
+import { useState, useMemo, memo, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Folder, Search, Trash2, Loader2 } from 'lucide-react';
 import dynamic from 'next/dynamic';
@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { deleteProject } from '@/app/dashboard/actions';
 import { AppRole } from '@/lib/roles';
 import { createClient } from '@/lib/supabase/client';
+import { useVirtualizer } from '@tanstack/react-virtual';
 
 // Heavy components that contain modals/complex logic should be lazy loaded
 const PrioritySelector = dynamic(() => import('@/components/dashboard/PrioritySelector').then(mod => mod.PrioritySelector), { ssr: false });
@@ -55,6 +56,7 @@ const ProjectRow = memo(({
 }) => {
     const router = useRouter();
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isInteractive, setIsInteractive] = useState(false);
 
     const canDelete = userRole === 'Admin' || userRole === 'Project Manager';
 
@@ -92,6 +94,8 @@ const ProjectRow = memo(({
     return (
         <div 
             className="grid grid-cols-[1fr_100px_140px_140px_140px_48px] items-center py-3.5 hover:bg-gray-50/50 transition-colors group text-sm relative hover:z-20 focus-within:z-20 border-b border-gray-100"
+            onMouseEnter={() => setIsInteractive(true)}
+            onFocus={() => setIsInteractive(true)}
         >
             {/* Name */}
             <div className="flex items-center gap-3 pl-5 min-w-0">
@@ -109,17 +113,37 @@ const ProjectRow = memo(({
             
             {/* Priority */}
             <div className="hidden md:flex items-center relative z-10">
-                <PrioritySelector projectId={project.id} currentPriority={project.priority} />
+                {isInteractive ? (
+                    <PrioritySelector projectId={project.id} currentPriority={project.priority} />
+                ) : (
+                    <span className="text-[10px] font-bold uppercase text-gray-400 tracking-tight">
+                        {(project.priority || 'no priority').replace('_', ' ')}
+                    </span>
+                )}
             </div>
             
             {/* Lead */}
             <div className="hidden sm:flex items-center gap-2 relative z-10">
-                <LeadSelector projectId={project.id} currentLeadId={project.lead_id} users={users} align="left" />
+                {isInteractive ? (
+                    <LeadSelector projectId={project.id} currentLeadId={project.lead_id} users={users} align="left" />
+                ) : (
+                    <span className="text-xs font-medium text-gray-600 truncate">
+                        {(project.lead_id && users.find(u => u.id === project.lead_id)?.name) || 'No lead'}
+                    </span>
+                )}
             </div>
             
             {/* Target date */}
             <div className="hidden lg:flex items-center justify-end pr-5 relative z-10">
-                <TargetDateSelector projectId={project.id} currentTargetDate={project.start_date || null} align="right" />
+                {isInteractive ? (
+                    <TargetDateSelector projectId={project.id} currentTargetDate={project.start_date || null} align="right" />
+                ) : (
+                    <span className="text-[10px] font-bold uppercase text-gray-400 tracking-tight">
+                        {project.start_date
+                            ? new Date(project.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                            : 'No date'}
+                    </span>
+                )}
             </div>
             
             {/* Status */}
@@ -162,6 +186,7 @@ export function ProjectList({ projects, users, userMap, userRole }: ProjectListP
     const [searchTerm, setSearchTerm] = useState('');
     const [localProjects, setLocalProjects] = useState<Project[]>(projects);
     const supabase = useMemo(() => createClient(), []);
+    const listScrollRef = useRef<HTMLElement>(null);
 
     // Keep state in sync with props
     useEffect(() => {
@@ -190,7 +215,7 @@ export function ProjectList({ projects, users, userMap, userRole }: ProjectListP
                         }
 
                         if (eventType === 'DELETE') {
-                            return prev.filter((p) => p.id === oldItem.id);
+                            return prev.filter((p) => p.id !== oldItem.id);
                         }
 
                         return prev;
@@ -214,6 +239,13 @@ export function ProjectList({ projects, users, userMap, userRole }: ProjectListP
             (project.lead_id && userMap[project.lead_id]?.toLowerCase().includes(term))
         );
     }, [localProjects, searchTerm, userMap]);
+
+    const rowVirtualizer = useVirtualizer({
+        count: filteredProjects.length,
+        getScrollElement: () => listScrollRef.current || null,
+        estimateSize: () => 58,
+        overscan: 8,
+    });
 
     return (
         <div className="flex flex-col h-full w-full">
@@ -241,7 +273,7 @@ export function ProjectList({ projects, users, userMap, userRole }: ProjectListP
             </header>
 
             {/* Main Content Grid */}
-            <main className="flex-1 p-8 overflow-y-auto">
+            <main ref={listScrollRef} className="flex-1 p-8 overflow-y-auto">
                 <div className="max-w-7xl mx-auto">
                     {filteredProjects.length === 0 ? (
                         <div className="bg-white border border-gray-100 rounded-xl p-16 shadow-sm flex flex-col items-center justify-center min-h-[400px]">
@@ -270,16 +302,29 @@ export function ProjectList({ projects, users, userMap, userRole }: ProjectListP
                             </div>
 
                             {/* List Body */}
-                            <div className="bg-white">
-                                {filteredProjects.map((project, index) => (
-                                    <ProjectRow 
-                                        key={project.id} 
-                                        project={project} 
-                                        users={users} 
-                                        isLast={index === filteredProjects.length - 1} 
-                                        userRole={userRole}
-                                    />
-                                ))}
+                            <div
+                                className="relative bg-white"
+                                style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
+                            >
+                                {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                                    const project = filteredProjects[virtualRow.index];
+                                    if (!project) return null;
+
+                                    return (
+                                        <div
+                                            key={project.id}
+                                            className="absolute left-0 top-0 w-full"
+                                            style={{ transform: `translateY(${virtualRow.start}px)` }}
+                                        >
+                                            <ProjectRow
+                                                project={project}
+                                                users={users}
+                                                isLast={virtualRow.index === filteredProjects.length - 1}
+                                                userRole={userRole}
+                                            />
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
                     )}
