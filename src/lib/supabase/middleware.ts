@@ -51,14 +51,24 @@ export async function updateSession(request: NextRequest) {
         return supabaseResponse
     }
 
+    const needsProfile = user && (
+        pathname === '/login' || 
+        pathname === '/signup' || 
+        pathname.startsWith('/dashboard')
+    );
+
+    let profile: any = null;
+    if (needsProfile) {
+        const { data } = await supabase
+            .from('users')
+            .select('onboarding_status, roles(role_name)')
+            .eq('email', user.email)
+            .maybeSingle();
+        profile = data;
+    }
+
     // If user is authenticated and on login or signup, check onboarding status first
     if (user && (pathname === '/login' || pathname === '/signup')) {
-        const { data: profile } = await supabase
-            .from('users')
-            .select('onboarding_status')
-            .eq('email', user.email)
-            .maybeSingle()
-
         if (profile?.onboarding_status === 'pending') {
             const url = request.nextUrl.clone()
             url.pathname = '/onboarding-pending'
@@ -77,18 +87,12 @@ export async function updateSession(request: NextRequest) {
 
     // Block pending/rejected users from accessing dashboard
     if (user && pathname.startsWith('/dashboard')) {
-        const { data: statusCheck } = await supabase
-            .from('users')
-            .select('onboarding_status')
-            .eq('email', user.email)
-            .maybeSingle()
-
-        if (statusCheck?.onboarding_status === 'pending') {
+        if (profile?.onboarding_status === 'pending') {
             const url = request.nextUrl.clone()
             url.pathname = '/onboarding-pending'
             return NextResponse.redirect(url)
         }
-        if (statusCheck?.onboarding_status === 'rejected') {
+        if (profile?.onboarding_status === 'rejected') {
             const url = request.nextUrl.clone()
             url.pathname = '/onboarding-rejected'
             return NextResponse.redirect(url)
@@ -97,15 +101,8 @@ export async function updateSession(request: NextRequest) {
 
     // Handle exact '/dashboard' routing (RBAC) to eliminate the Double Hop
     if (user && pathname === '/dashboard') {
-        const { data } = await supabase
-            .from('users')
-            .select('roles(role_name)')
-            .eq('email', user.email)
-            .single()
-
-        const roles = data?.roles as any
+        const roles = profile?.roles as any
         const roleName = (Array.isArray(roles) ? roles[0]?.role_name : roles?.role_name) as string | undefined
-
 
         let targetPath = '/dashboard'
         if (roleName) {
