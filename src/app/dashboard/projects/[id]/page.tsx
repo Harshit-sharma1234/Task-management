@@ -6,24 +6,7 @@ import { Metadata } from 'next';
 import { Suspense } from 'react';
 import { ProjectTabContentShimmer } from '@/components/dashboard/ProjectTabContentShimmer';
 import { getServerUser } from '@/lib/auth-server';
-import dynamic from 'next/dynamic';
-
-const ProjectOverview = dynamic(
-  () => import('@/components/dashboard/ProjectOverview').then(mod => mod.ProjectOverview),
-  { ssr: false, loading: () => <ProjectOverviewSkeleton /> }
-);
-
-const ProjectIssuesRealtimeTab = dynamic(
-  () => import('@/components/dashboard/ProjectIssuesRealtimeTab').then(mod => mod.ProjectIssuesRealtimeTab),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="p-8 bg-[#fbfbfb] min-h-full">
-        <IssueListSkeleton />
-      </div>
-    ),
-  }
-);
+import { ProjectOverview, ProjectIssuesRealtimeTab } from '@/components/dashboard/ProjectClientWrappers';
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
