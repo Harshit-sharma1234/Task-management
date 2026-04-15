@@ -13,25 +13,28 @@ export async function fetchEntityDetailAction(entityId: string, entityType: stri
             : entityType;
 
     if (normalizedType === 'ticket') {
-        const [ticketRes, commentsRes, logsRes] = await Promise.all([
-            supabase
-                .from('tickets')
-                .select(`
-                    *,
-                    projects (id, project_name),
-                    created_by_user: users!created_by(id, name, email, avatar_url),
-                    assigned_to_user: users!assignee_id(id, name, email, avatar_url)
-                `)
-                .eq('id', entityId)
-                .maybeSingle(),
+        // Fetch ticket data first
+        const ticketRes = await supabase
+            .from('tickets')
+            .select(`
+                *,
+                projects (id, project_name),
+                created_by_user: users!created_by(id, name, email, avatar_url),
+                assigned_to_user: users!assignee_id(id, name, email, avatar_url)
+            `)
+            .eq('id', entityId)
+            .maybeSingle();
+
+        // Fetch comments and logs separately to avoid relationship ambiguity
+        const [commentsRes, logsRes] = await Promise.all([
             supabase
                 .from('comments')
-                .select('*, users:user_id(id, name, email, avatar_url)')
+                .select('*')
                 .eq('ticket_id', entityId)
                 .order('created_at', { ascending: true }),
             supabase
                 .from('logs')
-                .select('*, users:user_id(id, name, avatar_url)')
+                .select('*')
                 .eq('ticket_id', entityId)
                 .order('created_at', { ascending: true })
         ]);
@@ -57,15 +60,36 @@ export async function fetchEntityDetailAction(entityId: string, entityType: stri
             }
         }
 
+        // Collect all user IDs from comments and logs
+        const commentUserIds = Array.from(new Set((commentsRes.data || []).map(c => c.user_id).filter(Boolean)));
+        const logUserIds = Array.from(new Set((logsRes.data || []).map(l => l.user_id).filter(Boolean)));
+        const allUserIds = Array.from(new Set([...commentUserIds, ...logUserIds]));
+
+        // Fetch users separately
+        let usersData: any[] = [];
+        if (allUserIds.length > 0) {
+            const { data: users } = await supabase
+                .from('users')
+                .select('id, name, email, avatar_url')
+                .in('id', allUserIds);
+            usersData = users || [];
+        }
+
+        // Create user lookup map
+        const userMap = new Map(usersData.map(u => [u.id, u]));
+
+        // Map activity with user data
         const activity = [
-            ...(commentsRes.data || []).map(c => {
-                const u = Array.isArray(c.users) ? c.users[0] : c.users;
-                return { ...c, users: u, activityType: 'comment' };
-            }),
-            ...(logsRes.data || []).map(l => {
-                const u = Array.isArray(l.users) ? l.users[0] : l.users;
-                return { ...l, users: u, activityType: 'log' };
-            }),
+            ...(commentsRes.data || []).map(c => ({
+                ...c,
+                users: userMap.get(c.user_id) || null,
+                activityType: 'comment' as const
+            })),
+            ...(logsRes.data || []).map(l => ({
+                ...l,
+                users: userMap.get(l.user_id) || null,
+                activityType: 'log' as const
+            })),
         ].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
         return { detail: detailData, activity, error: null };
