@@ -1,13 +1,29 @@
-import { createClient } from '@/lib/supabase/server';
 import { notFound, redirect } from 'next/navigation';
-import { ProjectOverview } from '@/components/dashboard/ProjectOverview';
 import { IssueListSkeleton } from '@/components/dashboard/issues/IssueListSkeleton';
 import { ProjectOverviewSkeleton } from '@/components/dashboard/ProjectOverviewSkeleton';
-import { ProjectIssuesRealtimeTab } from '@/components/dashboard/ProjectIssuesRealtimeTab';
 import { getProjectDetails, getProjectIssuesTickets, getProjectMetadata, getProjectResources } from './data';
 import { Metadata } from 'next';
 import { Suspense } from 'react';
 import { ProjectTabContentShimmer } from '@/components/dashboard/ProjectTabContentShimmer';
+import { getServerUser } from '@/lib/auth-server';
+import dynamic from 'next/dynamic';
+
+const ProjectOverview = dynamic(
+  () => import('@/components/dashboard/ProjectOverview').then(mod => mod.ProjectOverview),
+  { ssr: false, loading: () => <ProjectOverviewSkeleton /> }
+);
+
+const ProjectIssuesRealtimeTab = dynamic(
+  () => import('@/components/dashboard/ProjectIssuesRealtimeTab').then(mod => mod.ProjectIssuesRealtimeTab),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="p-8 bg-[#fbfbfb] min-h-full">
+        <IssueListSkeleton />
+      </div>
+    ),
+  }
+);
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
@@ -30,13 +46,11 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
   const { id } = await params;
   const { tab } = await searchParams;
   const activeTab = tab || 'overview';
-  
-  const supabase = await createClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getServerUser();
   if (!user) redirect('/login');
 
-  const { project, projectError, users, members, profile, allUsers } = await getProjectDetails(id, user.email!);
+  const { project, projectError, members, profile, allUsers } = await getProjectDetails(id, user.email!);
 
   if (projectError || !project) {
     console.error('Project fetch error:', projectError);
@@ -88,6 +102,8 @@ async function ProjectIssuesTab({
   projectName: string;
   currentUser: any;
 }) {
+  const INITIAL_LIMIT = 40;
+  const TOTAL_LIMIT = 120;
   const tickets = await getProjectIssuesTickets(projectId);
 
   return (
@@ -98,6 +114,8 @@ async function ProjectIssuesTab({
       initialTickets={tickets}
       users={users}
       currentUser={currentUser}
+      initialLimit={INITIAL_LIMIT}
+      totalLimit={TOTAL_LIMIT}
     />
   );
 }
