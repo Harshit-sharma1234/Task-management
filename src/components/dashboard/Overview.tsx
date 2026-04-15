@@ -296,19 +296,21 @@ async function MyTasksWidget({ userId }: { userId: string }) {
     return (
         <Widget title="My Tasks" count={tasks.length}>
             {tasks.length > 0 ? (
-                <div className="flex flex-col gap-4">
-                    {tasks.slice(0, 3).map((task: any) => (
-                        <div key={task.id} className="group/task cursor-pointer">
-                            <div className="flex items-center justify-between">
-                                <span className="text-xs font-semibold text-gray-700 truncate pr-2 group-hover/task:text-indigo-600 transition-colors">
-                                    {task.title}
-                                </span>
-                                <span className="text-[10px] font-bold text-gray-300 uppercase shrink-0">
-                                    {formatTime(task.created_at)}
-                                </span>
-                            </div>
-                        </div>
-                    ))}
+                <div className="max-h-[140px] overflow-y-auto pr-2 custom-scrollbar transition-all duration-200">
+                    <div className="flex flex-col gap-4">
+                        {tasks.map((task: any) => (
+                            <Link key={task.id} href={`/dashboard/issues/${task.id}`} className="group/task cursor-pointer">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs font-semibold text-gray-700 truncate pr-2 group-hover/task:text-indigo-600 transition-colors">
+                                        {task.title}
+                                    </span>
+                                    <span className="text-[10px] font-bold text-gray-300 uppercase shrink-0">
+                                        {formatTime(task.created_at)}
+                                    </span>
+                                </div>
+                            </Link>
+                        ))}
+                    </div>
                 </div>
             ) : (
                 <div className="text-center py-6 text-[10px] text-gray-300 font-bold uppercase tracking-widest">Inbox Zero</div>
