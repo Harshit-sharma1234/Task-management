@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { notFound, redirect } from 'next/navigation';
 import { ChevronRight, Paperclip, FileIcon } from 'lucide-react';
 import Link from 'next/link';
@@ -7,7 +8,7 @@ import { CommentSection } from '@/components/dashboard/issues/CommentSection';
 import { IssuePropertyControls } from '@/components/dashboard/issues/IssuePropertyControls';
 import { IssueHeaderActions } from '@/components/dashboard/issues/IssueHeaderActions';
 import { EditableIssueContent } from '@/components/dashboard/issues/EditableIssueContent';
-import { getCachedUserProfile, getCachedUsers } from '@/lib/cache';
+import { getCachedUserProfile, getCachedIssueUsers } from '@/lib/cache';
 import { IssueActivitySkeleton } from '@/components/dashboard/issues/IssueActivitySkeleton';
 
 async function IssueActivitySection({
@@ -17,7 +18,8 @@ async function IssueActivitySection({
   ticketId: string;
   currentUser: { id: string; name: string; email: string; avatar_url: string | null };
 }) {
-  const supabase = await createClient();
+  const supabase = await createClient(); // Still used for RLS-scoped comments/logs fetch if desired, but we'll use admin for profiles
+  const adminClient = createAdminClient();
 
   const [commentsResponse, logsResponse] = await Promise.all([
     supabase
@@ -32,31 +34,32 @@ async function IssueActivitySection({
       .order('created_at', { ascending: true }),
   ]);
 
-  // Collect user IDs from comments and logs
-  const commentUserIds = Array.from(new Set((commentsResponse.data || []).map(c => c.user_id).filter(Boolean)));
-  const logUserIds = Array.from(new Set((logsResponse.data || []).map(l => l.user_id).filter(Boolean)));
-  const allUserIds = Array.from(new Set([...commentUserIds, ...logUserIds]));
+  const comments = commentsResponse.data || [];
+  const logs = logsResponse.data || [];
 
-  // Fetch users separately
+  // Optimized user fetching for the activity feed
+  const uids = Array.from(new Set([
+    ...comments.map(c => c.user_id),
+    ...logs.map(l => l.user_id)
+  ].filter(Boolean)));
+
   let usersData: any[] = [];
-  if (allUserIds.length > 0) {
-    const { data: users } = await supabase
+  if (uids.length > 0) {
+    const { data } = await adminClient
       .from('users')
       .select('id, name, email, avatar_url')
-      .in('id', allUserIds);
-    usersData = users || [];
+      .in('id', uids);
+    usersData = data || [];
   }
 
-  // Create user lookup map
   const userMap = new Map(usersData.map(u => [u.id, u]));
 
-  // Normalize comments and logs with user data
-  const normalizedComments = (commentsResponse.data || []).map((c: any) => ({
+  const normalizedComments = comments.map((c: any) => ({
     ...c,
     users: userMap.get(c.user_id) || null,
   }));
 
-  const normalizedLogs = (logsResponse.data || []).map((l: any) => ({
+  const normalizedLogs = logs.map((l: any) => ({
     ...l,
     users: userMap.get(l.user_id) || null,
   }));
@@ -103,7 +106,7 @@ export default async function IssueDetailsPage({ params }: { params: { id: strin
       .eq('id', id)
       .single(),
     getCachedUserProfile(user.email!),
-    getCachedUsers()
+    getCachedIssueUsers()
   ]);
 
   const { data: ticket, error: ticketError } = ticketResponse;
