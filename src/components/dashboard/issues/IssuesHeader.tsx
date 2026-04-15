@@ -3,23 +3,15 @@
 import { useState } from 'react';
 import { Plus, Filter, SlidersHorizontal } from 'lucide-react';
 import { twMerge } from 'tailwind-merge';
-import { DisplayOptions } from './DisplayOptions';
 import { DisplaySettings } from '@/lib/utils/issue-display-utils';
+import dynamic from 'next/dynamic';
 
-interface Project {
-  id: string;
-  name: string;
-}
-
-interface User {
-  id: string;
-  name: string;
-}
+const DisplayOptions = dynamic(() => import('./DisplayOptions').then(mod => mod.DisplayOptions), {
+  ssr: false,
+});
 
 interface IssuesHeaderProps {
   totalIssues: number;
-  projects: Project[];
-  users: User[];
   activeFilter?: string;
   onFilterChange: (filter: string) => void;
   onOpenModal: () => void;
@@ -30,8 +22,6 @@ interface IssuesHeaderProps {
 
 export function IssuesHeader({ 
   totalIssues, 
-  projects, 
-  users, 
   activeFilter = 'all', 
   onFilterChange, 
   onOpenModal,
