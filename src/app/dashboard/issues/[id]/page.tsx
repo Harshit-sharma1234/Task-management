@@ -22,33 +22,44 @@ async function IssueActivitySection({
   const [commentsResponse, logsResponse] = await Promise.all([
     supabase
       .from('comments')
-      .select('id, comment, created_at, user_id, users(id, name, email, avatar_url)')
+      .select('id, comment, created_at, user_id')
       .eq('ticket_id', ticketId)
       .order('created_at', { ascending: true }),
     supabase
       .from('logs')
-      .select('id, action_type, message, created_at, users(id, name, avatar_url)')
+      .select('id, action_type, message, created_at, user_id')
       .eq('ticket_id', ticketId)
       .order('created_at', { ascending: true }),
   ]);
 
-  // Supabase join shape can come back as `users: [...]` (array) depending on the relationship.
-  // `CommentSection` expects `users` to be a single object for `initialComments`/`initialLogs`.
-  const normalizedComments = (commentsResponse.data || []).map((c: any) => {
-    const users = Array.isArray(c.users) ? c.users[0] : c.users;
-    return {
-      ...c,
-      users: users || { id: c.user_id, name: 'User', email: '', avatar_url: null },
-    };
-  });
+  // Collect user IDs from comments and logs
+  const commentUserIds = Array.from(new Set((commentsResponse.data || []).map(c => c.user_id).filter(Boolean)));
+  const logUserIds = Array.from(new Set((logsResponse.data || []).map(l => l.user_id).filter(Boolean)));
+  const allUserIds = Array.from(new Set([...commentUserIds, ...logUserIds]));
 
-  const normalizedLogs = (logsResponse.data || []).map((l: any) => {
-    const users = Array.isArray(l.users) ? l.users[0] : l.users;
-    return {
-      ...l,
-      users: users || { id: undefined, name: 'Unknown', avatar_url: null },
-    };
-  });
+  // Fetch users separately
+  let usersData: any[] = [];
+  if (allUserIds.length > 0) {
+    const { data: users } = await supabase
+      .from('users')
+      .select('id, name, email, avatar_url')
+      .in('id', allUserIds);
+    usersData = users || [];
+  }
+
+  // Create user lookup map
+  const userMap = new Map(usersData.map(u => [u.id, u]));
+
+  // Normalize comments and logs with user data
+  const normalizedComments = (commentsResponse.data || []).map((c: any) => ({
+    ...c,
+    users: userMap.get(c.user_id) || null,
+  }));
+
+  const normalizedLogs = (logsResponse.data || []).map((l: any) => ({
+    ...l,
+    users: userMap.get(l.user_id) || null,
+  }));
 
   return (
     <CommentSection

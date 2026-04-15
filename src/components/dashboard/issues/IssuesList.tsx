@@ -45,6 +45,7 @@ interface IssueRowProps {
 
 const IssueRow = memo(({ ticket, users, isSelected, onToggleSelection, currentUser, isMyTasks = false }: IssueRowProps) => {
   const router = useRouter();
+  const [isInteractive, setIsInteractive] = useState(false);
   const issueHref = `/dashboard/issues/${ticket.id}`;
   const prefetchIssue = useCallback(() => {
     router.prefetch(issueHref);
@@ -61,6 +62,8 @@ const IssueRow = memo(({ ticket, users, isSelected, onToggleSelection, currentUs
         "flex items-center justify-between px-4 py-3 transition-all group border-b border-gray-50 last:border-0 cursor-pointer h-[48px]",
         isSelected ? "bg-indigo-50/40 hover:bg-indigo-50/60" : "hover:bg-indigo-50/20"
       )}
+      onMouseEnter={() => setIsInteractive(true)}
+      onFocus={() => setIsInteractive(true)}
     >
       <div className="flex items-center gap-3 min-w-0">
         {/* Selection Checkbox */}
@@ -81,13 +84,19 @@ const IssueRow = memo(({ ticket, users, isSelected, onToggleSelection, currentUs
           className="hidden md:flex items-center shrink-0"
           onClick={(e) => e.stopPropagation()}
         >
-          <IssuePrioritySelector
-            issueId={ticket.id}
-            currentPriority={ticket.priority || 'no_priority'}
-            currentUser={currentUser}
-            assigneeId={ticket.assignee_id}
-            reviewerId={ticket.reviewer_id}
-          />
+          {isInteractive ? (
+            <IssuePrioritySelector
+              issueId={ticket.id}
+              currentPriority={ticket.priority || 'no_priority'}
+              currentUser={currentUser}
+              assigneeId={ticket.assignee_id}
+              reviewerId={ticket.reviewer_id}
+            />
+          ) : (
+            <span className="text-[10px] font-bold uppercase text-gray-400 tracking-tight">
+              {(ticket.priority || 'no_priority').replace('_', ' ')}
+            </span>
+          )}
         </div>
 
         <Link
@@ -104,14 +113,20 @@ const IssueRow = memo(({ ticket, users, isSelected, onToggleSelection, currentUs
           className="w-24 shrink-0"
           onClick={(e) => e.stopPropagation()}
         >
-          <IssueStatusSelector
-            issueId={ticket.id}
-            currentStatus={ticket.status || 'to_do'}
-            currentUser={currentUser}
-            assigneeId={ticket.assignee_id}
-            reviewerId={ticket.reviewer_id}
-            hideLabel={true}
-          />
+          {isInteractive ? (
+            <IssueStatusSelector
+              issueId={ticket.id}
+              currentStatus={ticket.status || 'to_do'}
+              currentUser={currentUser}
+              assigneeId={ticket.assignee_id}
+              reviewerId={ticket.reviewer_id}
+              hideLabel={true}
+            />
+          ) : (
+            <span className="text-[10px] font-bold uppercase text-gray-400 tracking-tight">
+              {(ticket.status || 'to_do').replace('_', ' ')}
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-2 min-w-0">
@@ -153,13 +168,21 @@ const IssueRow = memo(({ ticket, users, isSelected, onToggleSelection, currentUs
 
         {/* Assignee Selector */}
         <div className="flex items-center">
-          <IssueAssigneeSelector
-            issueId={ticket.id}
-            currentAssigneeId={ticket.assignee_id}
-            currentAssignee={ticket.assignees}
-            users={users}
-            currentUser={currentUser}
-          />
+          {isInteractive ? (
+            <IssueAssigneeSelector
+              issueId={ticket.id}
+              currentAssigneeId={ticket.assignee_id}
+              currentAssignee={ticket.assignees}
+              users={users}
+              currentUser={currentUser}
+            />
+          ) : (
+            <UserAvatar
+              name={ticket.assignees?.name || 'Unassigned'}
+              avatarUrl={ticket.assignees?.avatar_url}
+              size="sm"
+            />
+          )}
         </div>
 
         <span className="text-[11px] text-gray-400 font-bold uppercase tracking-tighter w-14 text-right">
