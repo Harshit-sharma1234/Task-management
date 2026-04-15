@@ -1,18 +1,17 @@
 import { Suspense } from 'react';
-import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { IssuesView } from '@/components/dashboard/issues/IssuesView';
 import { IssueListSkeleton } from '@/components/dashboard/issues/IssueListSkeleton';
 import { Metadata } from 'next';
-import { getUserProfile } from '@/lib/roles';
-import { getCachedIssueProjects, getCachedIssueUsers, getCachedIssuesList } from '@/lib/cache';
+import { getCachedIssueProjects, getCachedIssueUsers, getCachedIssuesList, getCachedUserProfile } from '@/lib/cache';
 
 export const metadata: Metadata = {
   title: 'Issues',
   description: 'View and manage all issues.',
 };
 
-const INITIAL_ISSUES_LIMIT = 120;
+const INITIAL_ISSUES_LIMIT = 40;
+const TOTAL_ISSUES_LIMIT = 120;
 
 import { getServerUser } from '@/lib/auth-server';
 
@@ -31,21 +30,18 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
       <IssueListContent
         filter={filter}
         userEmail={user.email!}
-        userId={user.id}
       />
     </Suspense>
   );
 }
 
-async function IssueListContent({ filter, userEmail, userId }: { filter: string; userEmail: string; userId: string }) {
-  const supabase = await createClient();
-  
+async function IssueListContent({ filter, userEmail }: { filter: string; userEmail: string }) {
   // Fetch all required data in parallel including user profile
   const [ticketsRes, cachedProjects, cachedUsers, currentUser] = await Promise.all([
     getCachedIssuesList(INITIAL_ISSUES_LIMIT),
     getCachedIssueProjects(),
     getCachedIssueUsers(),
-    getUserProfile(supabase, userEmail, userId)
+    getCachedUserProfile(userEmail)
   ]);
 
   const tickets = ticketsRes || [];
@@ -59,6 +55,8 @@ async function IssueListContent({ filter, userEmail, userId }: { filter: string;
       users={users}
       activeFilter={filter}
       currentUser={currentUser}
+      initialLimit={INITIAL_ISSUES_LIMIT}
+      totalLimit={TOTAL_ISSUES_LIMIT}
     />
   );
 }

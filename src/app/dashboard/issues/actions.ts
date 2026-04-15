@@ -297,14 +297,39 @@ export async function addComment(ticketId: string, comment: string) {
     return { error: 'User profile not found.' }
   }
 
+  const commentText = comment.trim()
+  if (!commentText) {
+    return { error: 'Comment cannot be empty' }
+  }
+
+  const { data: ticket, error: ticketError } = await supabase
+    .from('tickets')
+    .select('id, title, created_by, assignee_id, reviewer_id')
+    .eq('id', ticketId)
+    .single()
+
+  if (ticketError || !ticket) {
+    return { error: 'Ticket not found.' }
+  }
+
+  const roleInfo: any = profile.roles
+  const role = Array.isArray(roleInfo) ? roleInfo[0]?.role_name : roleInfo?.role_name
+  const isAdmin = role === 'Admin'
+  const isPM = role === 'Project Manager'
+  const isTicketAssignee = profile.id === ticket.assignee_id
+  const isTicketReviewer = profile.id === ticket.reviewer_id
+
+  if (!isAdmin && !isPM && !isTicketAssignee && !isTicketReviewer) {
+    return { error: 'Only the Assignee, Reviewer, Admin, or Project Manager can post comments on an issue!' }
+  }
+
   const { data, error } = await supabase
     .from('comments')
     .insert({
       ticket_id: ticketId,
-      comment: comment
+      comment: commentText
     })
-
-    .select('*, users(id, name, email, avatar_url)')
+    .select('id, comment, created_at, user_id')
     .single()
 
   if (error) {
@@ -322,55 +347,60 @@ export async function addComment(ticketId: string, comment: string) {
       // Log comment
       await logActivity(supabase, profile.id, ticketId, 'commented', 'Added a comment')
 
-      // Fetch ticket to get creator and assignee
-      const { data: ticket } = await supabase.from('tickets').select('title, created_by, assignee_id').eq('id', ticketId).single()
+      const notifyIds = new Set<string>()
+      if (ticket.created_by && ticket.created_by !== profile.id) notifyIds.add(ticket.created_by)
+      if (ticket.assignee_id && ticket.assignee_id !== profile.id) notifyIds.add(ticket.assignee_id)
 
-      if (ticket) {
-        const notifyIds = new Set<string>()
-        if (ticket.created_by && ticket.created_by !== profile.id) notifyIds.add(ticket.created_by)
-        if (ticket.assignee_id && ticket.assignee_id !== profile.id) notifyIds.add(ticket.assignee_id)
-
-        const notificationPromises = []
-        
-        const mentionedNames = await parseMentions(comment)
-        if (mentionedNames && mentionedNames.length > 0) {
-          const { data: mentionedUsers } = await supabase.from('users').select('id, name').in('name', mentionedNames)
-          if (mentionedUsers) {
-            for (const mUser of mentionedUsers) {
-              if (mUser.id !== profile.id) {
-                notificationPromises.push(createNotification({
-                  userId: mUser.id,
-                  actorId: profile.id,
-                  entityType: 'ticket',
-                  entityId: ticketId,
-                  type: 'mention',
-                  message: `${profile.name} mentioned you in: ${ticket.title}`
-                }))
-              }
+      const notificationPromises = []
+      
+      const mentionedNames = await parseMentions(commentText)
+      if (mentionedNames && mentionedNames.length > 0) {
+        const { data: mentionedUsers } = await supabase.from('users').select('id, name').in('name', mentionedNames)
+        if (mentionedUsers) {
+          for (const mUser of mentionedUsers) {
+            if (mUser.id !== profile.id) {
+              notificationPromises.push(createNotification({
+                userId: mUser.id,
+                actorId: profile.id,
+                entityType: 'ticket',
+                entityId: ticketId,
+                type: 'mention',
+                message: `${profile.name} mentioned you in: ${ticket.title}`
+              }))
             }
           }
         }
-
-        for (const rid of Array.from(notifyIds)) {
-          notificationPromises.push(createNotification({
-            userId: rid,
-            actorId: profile.id,
-            entityType: 'ticket',
-            entityId: ticketId,
-            type: 'comment',
-            message: `${profile.name} commented on: ${ticket.title}`
-          }))
-        }
-        
-        await Promise.all(notificationPromises)
       }
+
+      for (const rid of Array.from(notifyIds)) {
+        notificationPromises.push(createNotification({
+          userId: rid,
+          actorId: profile.id,
+          entityType: 'ticket',
+          entityId: ticketId,
+          type: 'comment',
+          message: `${profile.name} commented on: ${ticket.title}`
+        }))
+      }
+      
+      await Promise.all(notificationPromises)
     } catch (err) {
       console.error('Post-comment side effects error:', err)
     }
   })()
 
+  const responseData = {
+    ...data,
+    users: {
+      id: profile.id,
+      name: profile.name,
+      email: profile.email,
+      avatar_url: profile.avatar_url
+    }
+  }
+
   revalidatePath(`/dashboard/issues/${ticketId}`, 'page')
-  return { success: true, data }
+  return { success: true, data: responseData }
 }
 
 /**
@@ -406,8 +436,8 @@ export async function editComment(commentId: string, ticketId: string, newText: 
     .from('comments')
     .update({ comment: newText.trim() })
     .eq('id', commentId)
-    .select('id, comment, created_at, user_id, users(id, name, email, avatar_url)')
-    .single()
+    .select('id, comment, created_at, user_id')
+    .single();
 
   if (error) {
     console.error('SUPABASE ERROR EDITING COMMENT:', error)
