@@ -10,7 +10,6 @@ export interface UserProfile {
     email: string
     role_id: string | null
     avatar_url?: string | null
-    onboarding_status?: 'pending' | 'approved' | 'rejected'
     roles: {
         role_name: AppRole
     } | null

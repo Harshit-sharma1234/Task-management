@@ -164,7 +164,7 @@ export async function signup(prevState: any, formData: FormData) {
 
     const newUserId = authData.user.id
 
-    // ── Insert into public.users (pending, no role) ──
+    // ── Insert into public.users (minimal fields) ──
     const { error: dbError } = await adminClient
         .from('users')
         .insert({
@@ -172,9 +172,7 @@ export async function signup(prevState: any, formData: FormData) {
             auth_id: newUserId,
             email,
             name,
-            employee_id: employeeId,
-            role_id: null,
-            onboarding_status: 'pending'
+            employee_id: employeeId
         })
 
     if (dbError) {
@@ -188,74 +186,22 @@ export async function signup(prevState: any, formData: FormData) {
         return { error: 'Failed to create profile. Please try again.' }
     }
 
-    // ── Create onboarding request ──
-    const { error: reqError } = await adminClient
-        .from('onboarding_requests')
-        .insert({
-            user_id: newUserId,
-            status: 'pending'
-        })
-
-    if (reqError) {
-        console.error('[Signup] Onboarding request insert error:', reqError)
-        // Non-critical — the user row already has onboarding_status='pending'
-    }
-
-    // ── Notify Admin/PM users (fire-and-forget) ──
-    notifyAdmins(adminClient, { name, email, employeeId }).catch(err => {
-        console.error('[Signup] Email notification error (non-blocking):', err)
+    // ── Sign in the user immediately to establish session ──
+    const { createClient } = await import('@/lib/supabase/server')
+    const supabase = await createClient()
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password
     })
 
-    // ── Redirect to pending page ──
-    redirect('/onboarding-pending')
-}
-
-/**
- * Send notification emails to all users with Admin or PM role.
- * Runs asynchronously — does not block signup response.
- */
-async function notifyAdmins(
-    adminClient: ReturnType<typeof createAdminClient>,
-    employee: { name: string; email: string; employeeId: string }
-) {
-    // Fetch Admin and PM users
-    const { data: adminPmUsers } = await adminClient
-        .from('users')
-        .select('email, roles!inner(role_name)')
-        .in('roles.role_name', ['Admin', 'Project Manager'])
-
-    if (!adminPmUsers || adminPmUsers.length === 0) {
-        console.warn('[Signup] No Admin/PM users found to notify')
-        return
+    if (signInError) {
+        console.error('[Signup] Auto-login error:', signInError)
+        // Non-blocking for the signup itself, but user will have to manually login
+        return redirect('/login?message=Account created. Please log in.')
     }
 
-    const recipientEmails = adminPmUsers.map((u: any) => u.email).filter(Boolean) as string[]
-    const approvalUrl = `${APP_URL}/dashboard/onboarding`
-
-    const html = newSignupNotificationEmail({
-        employeeName: employee.name,
-        employeeEmail: employee.email,
-        employeeId: employee.employeeId,
-        approvalUrl
-    })
-
-    await sendBulkEmails(
-        recipientEmails,
-        `🆕 New Employee Signup: ${employee.name}`,
-        html
-    )
-
-    // Update notification_sent_at timestamp
-    const { data: userRow } = await adminClient
-        .from('users')
-        .select('id')
-        .eq('email', employee.email)
-        .maybeSingle()
-
-    if (userRow) {
-        await adminClient
-            .from('onboarding_requests')
-            .update({ notification_sent_at: new Date().toISOString() })
-            .eq('user_id', userRow.id)
-    }
+    // ── Redirect to workspace page ──
+    const { revalidatePath } = await import('next/cache')
+    revalidatePath('/', 'layout')
+    redirect('/workspace')
 }

@@ -39,92 +39,24 @@ export async function updateSession(request: NextRequest) {
 
     const pathname = request.nextUrl.pathname
 
-    // If user is not authenticated and trying to access dashboard, redirect to login
-    if (!user && pathname.startsWith('/dashboard')) {
+    // Protected routes that require authentication
+    const isProtectedRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/workspace')
+    
+    // Auth routes that should redirect to /workspace if already logged in
+    const isAuthRoute = pathname === '/login' || pathname === '/signup'
+
+    // If user is not authenticated and trying to access a protected route, redirect to login
+    if (!user && isProtectedRoute) {
         const url = request.nextUrl.clone()
         url.pathname = '/login'
         return NextResponse.redirect(url)
     }
 
-    // Allow unauthenticated access to onboarding status pages and signup
-    if (!user && (pathname === '/onboarding-pending' || pathname === '/onboarding-rejected' || pathname === '/signup')) {
-        return supabaseResponse
-    }
-
-    const needsProfile = user && (
-        pathname === '/login' || 
-        pathname === '/signup' || 
-        pathname.startsWith('/dashboard')
-    );
-
-    let profile: any = null;
-    if (needsProfile) {
-        const { data } = await supabase
-            .from('users')
-            .select('onboarding_status, roles(role_name)')
-            .eq('email', user.email)
-            .maybeSingle();
-        profile = data;
-    }
-
-    // If user is authenticated and on login or signup, check onboarding status first
-    if (user && (pathname === '/login' || pathname === '/signup')) {
-        if (profile?.onboarding_status === 'pending') {
-            const url = request.nextUrl.clone()
-            url.pathname = '/onboarding-pending'
-            return NextResponse.redirect(url)
-        }
-        if (profile?.onboarding_status === 'rejected') {
-            const url = request.nextUrl.clone()
-            url.pathname = '/onboarding-rejected'
-            return NextResponse.redirect(url)
-        }
-
+    // If user is authenticated and tries to access login/signup, redirect to /workspace
+    if (user && isAuthRoute) {
         const url = request.nextUrl.clone()
-        url.pathname = '/dashboard'
+        url.pathname = '/workspace'
         return NextResponse.redirect(url)
-    }
-
-    // Block pending/rejected users from accessing dashboard
-    if (user && pathname.startsWith('/dashboard')) {
-        if (profile?.onboarding_status === 'pending') {
-            const url = request.nextUrl.clone()
-            url.pathname = '/onboarding-pending'
-            return NextResponse.redirect(url)
-        }
-        if (profile?.onboarding_status === 'rejected') {
-            const url = request.nextUrl.clone()
-            url.pathname = '/onboarding-rejected'
-            return NextResponse.redirect(url)
-        }
-    }
-
-    // Handle exact '/dashboard' routing (RBAC) to eliminate the Double Hop
-    if (user && pathname === '/dashboard') {
-        const roles = profile?.roles as any
-        const roleName = (Array.isArray(roles) ? roles[0]?.role_name : roles?.role_name) as string | undefined
-
-        let targetPath = '/dashboard'
-        if (roleName) {
-            switch (roleName) {
-                case 'Admin':
-                    targetPath = '/dashboard/admin'
-                    break
-                case 'Project Manager':
-                    targetPath = '/dashboard/pm'
-                    break
-                case 'Senior Developer':
-                case 'Junior Developer':
-                    targetPath = '/dashboard/dev'
-                    break
-            }
-        }
-
-        if (targetPath !== '/dashboard') {
-            const url = request.nextUrl.clone()
-            url.pathname = targetPath
-            return NextResponse.redirect(url)
-        }
     }
 
     return supabaseResponse

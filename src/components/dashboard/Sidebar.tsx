@@ -22,7 +22,6 @@ interface SidebarProps {
   initialUnreadCount?: number;
   userId: string;
   userRole?: string;
-  pendingOnboardingCount?: number;
   profileData?: {
     name: string;
     email: string;
@@ -31,7 +30,7 @@ interface SidebarProps {
   } | null;
 }
 
-export function Sidebar({ initialUnreadCount, userId, userRole, pendingOnboardingCount = 0, profileData }: SidebarProps) {
+export function Sidebar({ initialUnreadCount, userId, userRole, profileData }: SidebarProps) {
   const isAdminOrPm = userRole === 'Admin' || userRole === 'Project Manager';
   const pathname = usePathname();
   const router = useRouter();
@@ -211,31 +210,6 @@ export function Sidebar({ initialUnreadCount, userId, userRole, pendingOnboardin
           } />
           <span className="text-sm font-semibold tracking-tight">Team</span>
         </Link>
-        {isAdminOrPm && (
-          <Link 
-            href="/dashboard/onboarding" 
-            prefetch={false}
-            onMouseEnter={() => handlePrefetch('/dashboard/onboarding')}
-            onFocus={() => handlePrefetch('/dashboard/onboarding')}
-            className={`flex items-center justify-between px-3 py-2 rounded-lg group transition-all duration-300 ${
-              pathname.startsWith('/dashboard/onboarding') 
-                ? 'bg-indigo-50/50 text-indigo-600 shadow-sm ring-1 ring-indigo-100/50' 
-                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <UserCheck size={18} strokeWidth={2} className={
-                pathname.startsWith('/dashboard/onboarding') ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'
-              } />
-              <span className="text-sm font-semibold tracking-tight">Onboarding</span>
-            </div>
-            {pendingOnboardingCount > 0 && (
-              <span className="bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center shadow-sm">
-                {pendingOnboardingCount > 99 ? '99+' : pendingOnboardingCount}
-              </span>
-            )}
-          </Link>
-        )}
         <Link 
           href="/dashboard/settings" 
           prefetch={false}
