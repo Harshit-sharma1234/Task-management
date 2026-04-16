@@ -55,120 +55,120 @@ const IssueRow = memo(({ ticket, users, isSelected, onToggleSelection, currentUs
     router.push(issueHref);
   };
 
-    // Priority Icon logic matching IssuePrioritySelector
-    const renderPriorityIcon = (priority: string) => {
-        switch (priority) {
-            case 'urgent':
-                return (
-                    <div className="flex gap-0.5 items-end h-3">
-                        <div className="w-1 h-3 bg-red-500 rounded-sm"></div>
-                        <div className="w-1 h-3 bg-red-500 rounded-sm"></div>
-                        <div className="w-1 h-3 bg-red-500 rounded-sm"></div>
-                    </div>
-                );
-            case 'high':
-                return (
-                    <div className="flex gap-0.5 items-end h-3">
-                        <div className="w-1 h-2 bg-red-400 rounded-sm"></div>
-                        <div className="w-1 h-2.5 bg-red-400 rounded-sm"></div>
-                        <div className="w-1 h-3 bg-red-400 rounded-sm"></div>
-                    </div>
-                );
-            case 'medium':
-                return (
-                    <div className="flex gap-0.5 items-end h-3">
-                        <div className="w-1 h-1.5 bg-yellow-400 rounded-sm"></div>
-                        <div className="w-1 h-2.5 bg-yellow-400 rounded-sm"></div>
-                        <div className="w-1 h-3 bg-yellow-100 rounded-sm"></div>
-                    </div>
-                );
-            case 'low':
-                return (
-                    <div className="flex gap-0.5 items-end h-3">
-                        <div className="w-1 h-1.5 bg-indigo-400 rounded-sm"></div>
-                        <div className="w-1 h-3 bg-indigo-100 rounded-sm"></div>
-                        <div className="w-1 h-3 bg-indigo-100 rounded-sm"></div>
-                    </div>
-                );
-            default:
-                return <div className="w-4 h-0.5 bg-gray-200 rounded-full"></div>;
-        }
-    };
+  // Priority Icon logic matching IssuePrioritySelector
+  const renderPriorityIcon = (priority: string) => {
+    switch (priority) {
+      case 'urgent':
+        return (
+          <div className="flex gap-0.5 items-end h-3">
+            <div className="w-1 h-3 bg-red-500 rounded-sm"></div>
+            <div className="w-1 h-3 bg-red-500 rounded-sm"></div>
+            <div className="w-1 h-3 bg-red-500 rounded-sm"></div>
+          </div>
+        );
+      case 'high':
+        return (
+          <div className="flex gap-0.5 items-end h-3">
+            <div className="w-1 h-2 bg-red-400 rounded-sm"></div>
+            <div className="w-1 h-2.5 bg-red-400 rounded-sm"></div>
+            <div className="w-1 h-3 bg-red-400 rounded-sm"></div>
+          </div>
+        );
+      case 'medium':
+        return (
+          <div className="flex gap-0.5 items-end h-3">
+            <div className="w-1 h-1.5 bg-yellow-400 rounded-sm"></div>
+            <div className="w-1 h-2.5 bg-yellow-400 rounded-sm"></div>
+            <div className="w-1 h-3 bg-yellow-100 rounded-sm"></div>
+          </div>
+        );
+      case 'low':
+        return (
+          <div className="flex gap-0.5 items-end h-3">
+            <div className="w-1 h-1.5 bg-indigo-400 rounded-sm"></div>
+            <div className="w-1 h-3 bg-indigo-100 rounded-sm"></div>
+            <div className="w-1 h-3 bg-indigo-100 rounded-sm"></div>
+          </div>
+        );
+      default:
+        return <div className="w-4 h-0.5 bg-gray-200 rounded-full"></div>;
+    }
+  };
 
-    return (
+  return (
+    <div
+      onClick={handleRowClick}
+      className={twMerge(
+        "flex items-center justify-between px-4 py-3 transition-all group border-b border-gray-50 last:border-0 cursor-pointer h-[48px]",
+        isSelected ? "bg-indigo-50/40 hover:bg-indigo-50/60" : "hover:bg-indigo-50/20"
+      )}
+      onMouseEnter={() => setIsInteractive(true)}
+      onFocus={() => setIsInteractive(true)}
+    >
+      <div className="flex items-center gap-3 min-w-0">
+        {/* Selection Checkbox */}
         <div
-            onClick={handleRowClick}
-            className={twMerge(
-                "flex items-center justify-between px-4 py-3 transition-all group border-b border-gray-50 last:border-0 cursor-pointer h-[48px]",
-                isSelected ? "bg-indigo-50/40 hover:bg-indigo-50/60" : "hover:bg-indigo-50/20"
-            )}
-            onMouseEnter={() => setIsInteractive(true)}
-            onFocus={() => setIsInteractive(true)}
+          onClick={(e) => onToggleSelection(e, ticket.id)}
+          className={twMerge(
+            "w-4 h-4 rounded border transition-all flex items-center justify-center shrink-0 cursor-default",
+            isSelected
+              ? "bg-indigo-600 border-indigo-600 shadow-sm opacity-100"
+              : "border-gray-200 bg-white opacity-0 group-hover:opacity-100 group-hover:border-indigo-400"
+          )}
         >
-            <div className="flex items-center gap-3 min-w-0">
-                {/* Selection Checkbox */}
-                <div
-                    onClick={(e) => onToggleSelection(e, ticket.id)}
-                    className={twMerge(
-                        "w-4 h-4 rounded border transition-all flex items-center justify-center shrink-0 cursor-default",
-                        isSelected
-                            ? "bg-indigo-600 border-indigo-600 shadow-sm opacity-100"
-                            : "border-gray-200 bg-white opacity-0 group-hover:opacity-100 group-hover:border-indigo-400"
-                    )}
-                >
-                    {isSelected && <Check size={10} className="text-white stroke-[4px]" />}
-                </div>
+          {isSelected && <Check size={10} className="text-white stroke-[4px]" />}
+        </div>
 
-                {/* Priority Selector */}
-                <div 
-                    className="hidden md:flex items-center shrink-0 w-8 justify-center"
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    {isInteractive ? (
-                        <IssuePrioritySelector
-                            issueId={ticket.id}
-                            currentPriority={ticket.priority || 'no_priority'}
-                            currentUser={currentUser}
-                            assigneeId={ticket.assignee_id}
-                            reviewerId={ticket.reviewer_id}
-                        />
-                    ) : (
-                        <div className="py-1">
-                            {renderPriorityIcon(ticket.priority || 'no_priority')}
-                        </div>
-                    )}
-                </div>
+        {/* Priority Selector */}
+        <div
+          className="hidden md:flex items-center shrink-0 w-8 justify-center"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {isInteractive ? (
+            <IssuePrioritySelector
+              issueId={ticket.id}
+              currentPriority={ticket.priority || 'no_priority'}
+              currentUser={currentUser}
+              assigneeId={ticket.assignee_id}
+              reviewerId={ticket.reviewer_id}
+            />
+          ) : (
+            <div className="py-1">
+              {renderPriorityIcon(ticket.priority || 'no_priority')}
+            </div>
+          )}
+        </div>
 
-                <Link
-                    href={issueHref}
-                    onMouseEnter={prefetchIssue}
-                    onFocus={prefetchIssue}
-                    className="text-[11px] font-bold text-gray-400 uppercase tracking-tighter shrink-0 w-14 hover:text-indigo-600 transition-colors"
-                >
-                    {ticket.projects?.project_name?.substring(0, 3).toUpperCase() || 'KAP'}-{ticket.id.substring(0, 2).toUpperCase()}
-                </Link>
+        <Link
+          href={issueHref}
+          onMouseEnter={prefetchIssue}
+          onFocus={prefetchIssue}
+          className="text-[11px] font-bold text-gray-400 uppercase tracking-tighter shrink-0 w-14 hover:text-indigo-600 transition-colors"
+        >
+          {ticket.projects?.project_name?.substring(0, 3).toUpperCase() || 'KAP'}-{ticket.id.substring(0, 2).toUpperCase()}
+        </Link>
 
-                {/* Status Selector */}
-                <div 
-                    className="w-8 shrink-0 flex justify-center"
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    {isInteractive ? (
-                        <IssueStatusSelector
-                            issueId={ticket.id}
-                            currentStatus={ticket.status || 'to_do'}
-                            currentUser={currentUser}
-                            assigneeId={ticket.assignee_id}
-                            reviewerId={ticket.reviewer_id}
-                            hideLabel={true}
-                        />
-                    ) : (
-                        <div className={twMerge(
-                            "w-2 h-2 rounded-full",
-                            statusIcons[ticket.status || 'to_do']?.color || 'bg-gray-400'
-                        )}></div>
-                    )}
-                </div>
+        {/* Status Selector */}
+        <div
+          className="w-8 shrink-0 flex justify-center"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {isInteractive ? (
+            <IssueStatusSelector
+              issueId={ticket.id}
+              currentStatus={ticket.status || 'to_do'}
+              currentUser={currentUser}
+              assigneeId={ticket.assignee_id}
+              reviewerId={ticket.reviewer_id}
+              hideLabel={true}
+            />
+          ) : (
+            <div className={twMerge(
+              "w-2 h-2 rounded-full",
+              statusIcons[ticket.status || 'to_do']?.color || 'bg-gray-400'
+            )}></div>
+          )}
+        </div>
 
         <div className="flex items-center gap-2 min-w-0">
           {isMyTasks === true && ticket.reviewer_id === currentUser?.id && ticket.assignee_id !== currentUser?.id && (
@@ -189,7 +189,7 @@ const IssueRow = memo(({ ticket, users, isSelected, onToggleSelection, currentUs
         </div>
       </div>
 
-      <div 
+      <div
         className="flex items-center gap-6 shrink-0"
         onClick={(e) => e.stopPropagation()}
       >
@@ -250,14 +250,14 @@ interface IssuesListProps {
   onOptimisticDelete?: (ids: string[]) => void;
 }
 
-export function IssuesList({ 
-  tickets, 
+export function IssuesList({
+  tickets,
   groupedData,
   displaySettings,
-  users = [], 
-  emptyMessage = "No issues found", 
-  onOpenModal, 
-  currentUser, 
+  users = [],
+  emptyMessage = "No issues found",
+  onOpenModal,
+  currentUser,
   isMyTasks = false,
   onOptimisticDelete
 }: IssuesListProps) {
@@ -292,16 +292,16 @@ export function IssuesList({
   // Flatten items for virtualization (Header + Tickets)
   const flatItems = useMemo(() => {
     const items: Array<{ type: 'header' | 'ticket'; data: any; sectionId?: string; sectionName?: string; isFirstInSection?: boolean; isLastInSection?: boolean }> = [];
-    
+
     if (!groupedData) return items;
 
     groupedData.forEach((group) => {
       items.push({ type: 'header', data: group.name, sectionId: group.id });
       if (!collapsedSections[group.id]) {
         group.tickets.forEach((ticket: any, idx: number) => {
-          items.push({ 
-            type: 'ticket', 
-            data: ticket, 
+          items.push({
+            type: 'ticket',
+            data: ticket,
             sectionId: group.id,
             isFirstInSection: idx === 0,
             isLastInSection: idx === group.tickets.length - 1
@@ -348,7 +348,7 @@ export function IssuesList({
       {virtualizer.getVirtualItems().map((virtualRow) => {
         const item = flatItems[virtualRow.index];
         if (!item) return null;
-        
+
         if (item.type === 'header') {
           const sectionId = item.sectionId || 'none';
           const groupName = item.data;
@@ -364,7 +364,10 @@ export function IssuesList({
             <div
               key={`header-${sectionId}`}
               onClick={() => toggleSection(sectionId)}
-              className="absolute top-0 left-0 w-full flex items-center gap-2 mb-3 cursor-pointer group select-none"
+              className={twMerge(
+                "absolute top-0 left-0 w-full flex items-center gap-2 cursor-pointer group select-none transition-colors hover:bg-gray-50/50 px-2 rounded-md",
+                virtualRow.index !== 0 && "mt-2"
+              )}
               style={{
                 height: `${virtualRow.size}px`,
                 transform: `translateY(${virtualRow.start}px)`,
@@ -378,7 +381,7 @@ export function IssuesList({
                 )}
               />
               {displaySettings.groupBy !== 'none' && (
-                 <div className={twMerge("w-2 h-2 rounded-full", statusColor)}></div>
+                <div className={twMerge("w-2 h-2 rounded-full", statusColor)}></div>
               )}
               <h2 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
                 {groupName}
@@ -398,7 +401,7 @@ export function IssuesList({
             key={ticket.id}
             className={twMerge(
               "absolute top-0 left-0 w-full transition-all duration-200 focus-within:z-40",
-              "focus-within:shadow-xl"
+              "focus-within:shadow-md focus-within:ring-1 focus-within:ring-indigo-50/50"
             )}
             style={{
               height: `${virtualRow.size}px`,
@@ -406,20 +409,18 @@ export function IssuesList({
             }}
           >
             <div className={twMerge(
-              "bg-white border-x transition-all duration-200 relative",
-              item.isFirstInSection && "rounded-t-xl border-t",
-              item.isLastInSection && "rounded-b-xl border-b shadow-sm mb-8",
-              isSelected ? "border-indigo-200" : "border-gray-100",
-              !item.isLastInSection && "border-b border-gray-50"
+              "bg-white transition-all duration-200 relative",
+              isSelected ? "bg-indigo-50/10" : "bg-white",
+              "border-b border-gray-100"
             )}>
-                <IssueRow
-                  ticket={item.data}
-                  users={users}
-                  isSelected={selectedIds.has(item.data.id)}
-                  onToggleSelection={toggleSelection}
-                  currentUser={currentUser}
-                  isMyTasks={displaySettings.groupBy === 'assignee'}
-                />
+              <IssueRow
+                ticket={item.data}
+                users={users}
+                isSelected={selectedIds.has(item.data.id)}
+                onToggleSelection={toggleSelection}
+                currentUser={currentUser}
+                isMyTasks={displaySettings.groupBy === 'assignee'}
+              />
             </div>
           </div>
         );

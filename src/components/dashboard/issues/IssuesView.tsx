@@ -200,7 +200,7 @@ export function IssuesView({
   }, [filteredTickets, displaySettings]);
 
   return (
-    <div className="flex flex-col h-full bg-[#fbfbfb]">
+    <div className="flex flex-col h-full bg-white">
       <IssuesHeader 
         totalIssues={filteredTickets.length} 
         activeFilter={activeFilter}
@@ -211,7 +211,7 @@ export function IssuesView({
       />
 
       <div className="flex-1 overflow-hidden">
-        <div ref={listScrollRef} className="h-full overflow-y-auto pt-6 px-8 w-full">
+        <div ref={listScrollRef} className="h-full overflow-y-auto px-8 w-full">
           {isHydratingMore && (
             <div className="mb-3 text-[11px] font-medium text-gray-400">Loading more issues...</div>
           )}
