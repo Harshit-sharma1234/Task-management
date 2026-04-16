@@ -13,7 +13,7 @@ import { insertProjectLog } from './logging/actions'
  * Granular revalidation for project-related data.
  * Corrected to use a single argument as per Next.js API.
  */
-function revalidateProjectDataTags(tags: string[] = ['projects', 'tickets']) {
+function revalidateProjectDataTags(tags: string[] = ['projects', 'tickets', 'project-resources']) {
     tags.forEach(tag => revalidateTag(tag, 'max'));
 }
 
@@ -804,6 +804,7 @@ export async function addProjectResource(projectId: string, title: string, url: 
         return { error: `Failed to add resource: ${error.message}` }
     }
 
+    revalidateProjectDataTags()
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
     return { success: true, data }
 }

@@ -131,7 +131,7 @@ const ProjectRow = memo(({
 
     return (
         <div 
-            className="grid grid-cols-[1fr_100px_140px_140px_140px_48px] items-center py-3 hover:bg-gray-50/50 transition-colors group text-sm relative hover:z-20 focus-within:z-20 border-b border-gray-100"
+            className="grid grid-cols-[1fr_100px_140px_140px_140px_48px] items-center py-2 hover:bg-gray-50/50 transition-colors group text-sm relative hover:z-20 focus-within:z-20 border-b border-gray-100"
             onMouseEnter={() => setIsInteractive(true)}
             onFocus={() => setIsInteractive(true)}
         >
@@ -154,7 +154,7 @@ const ProjectRow = memo(({
                 {isInteractive ? (
                     <PrioritySelector projectId={project.id} currentPriority={project.priority} />
                 ) : (
-                    <div className="py-1 px-1">
+                    <div className="py-1">
                         {renderPriorityIcon()}
                     </div>
                 )}
@@ -163,13 +163,17 @@ const ProjectRow = memo(({
             {/* Lead */}
             <div className="hidden sm:flex items-center relative z-10 pl-2">
                 {isInteractive ? (
-                    <LeadSelector projectId={project.id} currentLeadId={project.lead_id} users={users} align="left" />
+                    <LeadSelector projectId={project.id} currentLeadId={project.lead_id} users={users} showName={true} hideAvatar={true} align="left" />
                 ) : (
-                    <div className="py-1">
+                    <div className="py-0.5">
                         {leadUser ? (
-                            <UserAvatar name={leadUser.name} avatarUrl={leadUser.avatar_url} size="sm" />
+                            <span className="text-[11px] font-medium text-gray-700 truncate max-w-[130px]">
+                                {leadUser.name}
+                            </span>
                         ) : (
-                            <div className="w-6 h-6 rounded-full bg-gray-50 border border-dashed border-gray-200" title="No lead" />
+                            <span className="text-[11px] font-medium text-gray-400 italic">
+                                Unassigned
+                            </span>
                         )}
                     </div>
                 )}
@@ -285,7 +289,7 @@ export function ProjectList({ projects, users, userMap, userRole }: ProjectListP
     const rowVirtualizer = useVirtualizer({
         count: filteredProjects.length,
         getScrollElement: () => listScrollRef.current || null,
-        estimateSize: () => 58,
+        estimateSize: () => 50,
         overscan: 8,
     });
 
