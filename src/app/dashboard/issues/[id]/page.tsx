@@ -99,7 +99,6 @@ export default async function IssueDetailsPage({ params }: { params: { id: strin
         reviewer_id,
         created_by,
         created_at,
-        due_date,
         attachments,
         projects (id, project_name)
       `)
@@ -180,7 +179,6 @@ export default async function IssueDetailsPage({ params }: { params: { id: strin
             currentUserId={profile?.id || ''}
             currentUser={profile}
             projectName={ticketProjectName || 'N/A'}
-            dueDate={ticket.due_date || null}
             users={allUsers || []}
           />
         </div>

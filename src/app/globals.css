@@ -101,18 +101,17 @@ body {
 }
 /* Custom Premium Scrollbar */
 .custom-scrollbar::-webkit-scrollbar {
-  width: 5px;
+  width: 8px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: #f8fafc;
+  background: #f1f5f9;
   border-radius: 10px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 10px;
-  border: 1px solid #f8fafc;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {

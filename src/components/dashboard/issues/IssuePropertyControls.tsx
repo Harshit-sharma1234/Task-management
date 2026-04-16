@@ -20,7 +20,6 @@ interface IssuePropertyControlsProps {
   initialReviewerId: string | null;
   currentUserId: string;
   projectName: string;
-  dueDate: string | null;
   users: { id: string, name: string, avatar_url?: string | null }[];
   currentUser?: any;
 }
@@ -33,7 +32,6 @@ export function IssuePropertyControls({
   initialReviewerId,
   currentUserId,
   projectName,
-  dueDate,
   users,
   currentUser
 }: IssuePropertyControlsProps) {
@@ -133,19 +131,10 @@ export function IssuePropertyControls({
                 </div>
               </div>
             </div>
-            
-            {/* Due Date */}
-            <div className="px-1 py-0.5 group">
-              <div className="flex items-center gap-3 px-2 py-1.5 rounded-md hover:bg-gray-50 transition-colors">
-                <span className="text-[11px] font-medium text-gray-400 w-16 shrink-0">Due Date</span>
-                <div className="flex-1 px-1 text-[11px] font-medium text-gray-600">
-                  {dueDate ? new Date(dueDate).toLocaleDateString(undefined, { dateStyle: 'medium' }) : 'No due date'}
-                </div>
-              </div>
             </div>
-          </div>
         )}
       </div>
+
 
       {/* Project Section */}
       <div className="border border-gray-100 rounded-xl bg-white shadow-sm pb-1">
