@@ -26,32 +26,20 @@ export async function login(prevState: any, formData: FormData) {
     return { error: 'Could not authenticate user: ' + error.message }
   }
 
-  // Check if user exists in the users table with a role
+  // Check if user exists in the users table
   console.time('login-profile');
-  const profile = await getUserProfile(supabase, credentials.email, user?.id)
+  const { data: profile } = await supabase
+    .from('users')
+    .select('id')
+    .eq('email', credentials.email)
+    .maybeSingle();
   console.timeEnd('login-profile');
-
-  // Check onboarding status before anything else
-  if (profile?.onboarding_status === 'pending') {
-    await supabase.auth.signOut()
-    return { error: 'onboarding_pending' }
-  }
-  if (profile?.onboarding_status === 'rejected') {
-    await supabase.auth.signOut()
-    return { error: 'onboarding_rejected' }
-  }
 
   if (!profile) {
     await supabase.auth.signOut()
-    return { error: 'No authorized profile found for this email. Contact your admin.' }
-  }
-
-  const roleName = profile.roles?.role_name
-  if (!roleName) {
-    await supabase.auth.signOut()
-    return { error: 'No role assigned to your account. Contact your admin.' }
+    return { error: 'No profile found for this email. Please sign up.' }
   }
 
   revalidatePath('/', 'layout')
-  return redirect(getDashboardPath(roleName))
+  return redirect('/workspace')
 }

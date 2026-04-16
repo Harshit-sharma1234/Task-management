@@ -30,18 +30,7 @@ export default function LoginForm({ initialMessage }: { initialMessage?: string 
   const [showForgot, setShowForgot] = useState(false);
   const router = useRouter();
 
-  // Handle special onboarding redirect codes
-  useEffect(() => {
-    if (state?.error === 'onboarding_pending') {
-      router.push('/onboarding-pending');
-    } else if (state?.error === 'onboarding_rejected') {
-      router.push('/onboarding-rejected');
-    }
-  }, [state?.error, router]);
-
-  // Don't show onboarding status codes as error messages
-  const isOnboardingRedirect = state?.error === 'onboarding_pending' || state?.error === 'onboarding_rejected';
-  const errorMessage = isOnboardingRedirect ? null : (state?.error || initialMessage);
+  const errorMessage = state?.error || initialMessage;
 
   return (
     <div className="space-y-6">
