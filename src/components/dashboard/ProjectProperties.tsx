@@ -70,7 +70,7 @@ export const ProjectProperties = memo(({
             <div className="flex items-center gap-3 px-2 py-1.5 rounded-md hover:bg-gray-50 transition-colors">
               <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest min-w-[80px] shrink-0 group-hover:text-indigo-500 transition-colors">Lead</span>
               <div className="flex-1 flex justify-end">
-                <LeadSelector projectId={project.id} currentLeadId={project.lead_id} users={users} showEmail={true} align="right" />
+                <LeadSelector projectId={project.id} currentLeadId={project.lead_id} users={users} showEmail={false} showName={true} hideAvatar={true} align="right" />
               </div>
             </div>
           </div>

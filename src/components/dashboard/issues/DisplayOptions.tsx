@@ -50,7 +50,6 @@ export function DisplayOptions({ settings, onChange }: DisplayOptionsProps) {
     { id: 'assignee', label: 'Assignee' },
     { id: 'priority', label: 'Priority' },
     { id: 'project', label: 'Project' },
-    { id: 'due_date', label: 'Due date' },
     { id: 'created', label: 'Created' },
   ];
 
