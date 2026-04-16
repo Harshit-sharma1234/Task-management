@@ -76,7 +76,33 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        <style dangerouslySetInnerHTML={{ __html: `
+          #pre-hydrate-loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 0%;
+            height: 3px;
+            background: #5e6ad2;
+            z-index: 10000;
+            box-shadow: 0 0 12px rgba(94, 106, 210, 0.4);
+            animation: pre-hydrate-grow 2s ease-out forwards;
+          }
+          @keyframes pre-hydrate-grow {
+            from { width: 0%; }
+            to { width: 25%; }
+          }
+        `}} />
+      </head>
       <body className="min-h-full flex flex-col">
+        <div id="pre-hydrate-loader" />
+        <script dangerouslySetInnerHTML={{ __html: `
+          window.addEventListener('load', function() {
+            var loader = document.getElementById('pre-hydrate-loader');
+            if (loader) loader.style.display = 'none';
+          });
+        `}} />
         {children}
       </body>
     </html>
