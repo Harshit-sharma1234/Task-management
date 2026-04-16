@@ -9,6 +9,8 @@ import { deleteProject } from '@/app/dashboard/actions';
 import { AppRole } from '@/lib/roles';
 import { createClient } from '@/lib/supabase/client';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { ConfirmModal } from '../ui/ConfirmModal';
+import { toast } from 'sonner';
 
 // Heavy components that contain modals/complex logic should be lazy loaded
 const PrioritySelector = dynamic(() => import('@/components/dashboard/PrioritySelector').then(mod => mod.PrioritySelector), { ssr: false });
@@ -57,28 +59,25 @@ const ProjectRow = memo(({
     const router = useRouter();
     const [isDeleting, setIsDeleting] = useState(false);
     const [isInteractive, setIsInteractive] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
 
     const canDelete = userRole === 'Admin' || userRole === 'Project Manager';
 
-    const handleDelete = async (e: React.MouseEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-
-        if (!confirm(`Are you sure you want to delete "${project.project_name}"? This will delete all associated tickets and data.`)) {
-            return;
-        }
-
+    const handleDelete = async () => {
         setIsDeleting(true);
         try {
             const result = await deleteProject(project.id);
             if (result.error) {
-                alert(result.error);
+                toast.error(result.error);
+            } else {
+                toast.success('Project deleted successfully');
             }
         } catch (err) {
             console.error('Delete error:', err);
-            alert('An error occurred while deleting the project.');
+            toast.error('An error occurred while deleting the project.');
         } finally {
             setIsDeleting(false);
+            setShowDeleteModal(false);
         }
     };
 
@@ -163,7 +162,11 @@ const ProjectRow = memo(({
             <div className="flex items-center justify-end pr-5 relative z-10">
                 {canDelete && (
                     <button
-                        onClick={handleDelete}
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setShowDeleteModal(true);
+                        }}
                         disabled={isDeleting}
                         className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all duration-200 opacity-0 group-hover:opacity-100 disabled:opacity-50"
                         title="Delete project"
@@ -175,6 +178,16 @@ const ProjectRow = memo(({
                         )}
                     </button>
                 )}
+
+                <ConfirmModal
+                    isOpen={showDeleteModal}
+                    title="Delete Project"
+                    message={`Are you sure you want to delete "${project.project_name}"? This will permanently delete all associated tickets and data.`}
+                    confirmLabel={isDeleting ? 'Deleting...' : 'Delete Project'}
+                    isDestructive={true}
+                    onConfirm={handleDelete}
+                    onCancel={() => setShowDeleteModal(false)}
+                />
             </div>
         </div>
     );
