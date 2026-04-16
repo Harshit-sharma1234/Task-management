@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getProjectIssuesChunk } from './data'
 
-export async function loadProjectIssuesChunk(projectId: string, offset: number, limit: number) {
+export async function loadProjectIssuesChunk(projectId: string, offset: number, limit: number, activeFilter: string = 'all') {
   if (!projectId) return { error: 'Project ID is required' }
 
   const supabase = await createClient()
@@ -12,6 +12,6 @@ export async function loadProjectIssuesChunk(projectId: string, offset: number, 
     return { error: 'You must be logged in to view project issues' }
   }
 
-  const data = await getProjectIssuesChunk(projectId, offset, limit)
+  const data = await getProjectIssuesChunk(projectId, offset, limit, activeFilter)
   return { success: true, data }
 }

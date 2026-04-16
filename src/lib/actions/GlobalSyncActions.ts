@@ -10,22 +10,37 @@ import { getUserProfile } from '@/lib/roles';
  */
 export async function fetchGlobalSnapshot() {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) return { error: 'Not authenticated' };
 
-    const [projects, users, profile, unreadRes] = await Promise.all([
-        getCachedProjects(),
-        getCachedUsers(),
-        getUserProfile(supabase, user.email!),
-        supabase.from('notifications').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('is_read', false)
+    // 🚀 Launch non-auth dependent parallel requests immediately
+    const projectsPromise = getCachedProjects();
+    const usersPromise = getCachedUsers();
+    
+    // 🔒 Auth dependent requests (run alongside above)
+    const authPromise = supabase.auth.getUser().then(async ({ data: { user } }) => {
+        if (!user) return { user: null, profile: null, unreadCount: 0 };
+        
+        const [profile, unreadRes] = await Promise.all([
+            getUserProfile(supabase, user.email!),
+            supabase.from('notifications').select('id', { count: 'estimated', head: true }).eq('user_id', user.id).eq('is_read', false)
+        ]);
+
+        return { user, profile, unreadCount: unreadRes.count || 0 };
+    });
+
+    // 💥 Await everything together to eliminate the waterfall!
+    const [projects, team, authResult] = await Promise.all([
+        projectsPromise,
+        usersPromise,
+        authPromise
     ]);
+
+    if (!authResult.user) return { error: 'Not authenticated' };
 
     return {
         projects: projects || [],
-        team: users || [],
-        profile,
-        userId: user.id,
-        unreadCount: unreadRes.count || 0
+        team: team || [],
+        profile: authResult.profile,
+        userId: authResult.user.id,
+        unreadCount: authResult.unreadCount
     };
 }

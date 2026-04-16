@@ -187,6 +187,7 @@ export async function createProject(formData: FormData) {
 
     // Immediate Revalidation
     revalidateTag('projects', 'max')
+    revalidatePath('/dashboard')
     
     return { success: true, id: newProject.id }
 }
@@ -234,6 +235,7 @@ export async function updateProjectPriority(projectId: string, priority: string 
     revalidateProjectDataTags()
     revalidatePath('/dashboard/projects', 'page')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
+    revalidatePath('/dashboard')
     return { success: true }
 }
 
@@ -289,6 +291,7 @@ export async function updateProjectLead(projectId: string, leadId: string | null
     revalidateProjectDataTags()
     revalidatePath('/dashboard/projects', 'page')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
+    revalidatePath('/dashboard')
     return { success: true }
 }
 
@@ -336,6 +339,7 @@ export async function updateProjectTargetDate(projectId: string, startDate: stri
     revalidateProjectDataTags()
     revalidatePath('/dashboard/projects', 'page')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
+    revalidatePath('/dashboard')
     return { success: true }
 }
 
@@ -384,6 +388,7 @@ export async function updateProjectDueDate(projectId: string, dueDate: string | 
     revalidateProjectDataTags()
     revalidatePath('/dashboard/projects', 'page')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
+    revalidatePath('/dashboard')
     return { success: true }
 }
 
@@ -429,6 +434,7 @@ export async function updateProjectStatus(projectId: string, status: string | nu
     revalidateProjectDataTags()
     revalidatePath('/dashboard/projects', 'page')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
+    revalidatePath('/dashboard')
     return { success: true }
 }
 
@@ -473,6 +479,7 @@ export async function updateProjectDescription(projectId: string, description: s
     revalidateProjectDataTags()
     revalidatePath('/dashboard/projects', 'page')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
+    revalidatePath('/dashboard')
     return { success: true }
 }
 
@@ -569,8 +576,8 @@ export async function toggleProjectMember(projectId: string, userId: string) {
 
     revalidateProjectDataTags()
     revalidatePath('/dashboard/projects', 'page')
-    revalidateProjectDataTags()
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
+    revalidatePath('/dashboard')
     return { success: true }
 }
 
@@ -712,6 +719,7 @@ export async function updateUserAvatar(userId: string, avatarUrl: string) {
     revalidateTag('team-members', 'max')
     revalidateTag('issues', 'max')
     revalidatePath('/dashboard', 'layout')
+    revalidatePath('/dashboard')
     return { success: true, avatarUrl }
 }
 
@@ -777,6 +785,7 @@ export async function provisionEmployee(formData: FormData) {
     // Only invalidate cached team members list; no need to re-fetch on every navigation.
     revalidateTag('team-members', 'max')
     revalidatePath('/dashboard/admin', 'page')
+    revalidatePath('/dashboard')
     return { success: true, message: `Account created for ${name}. Temporary password: ${tempPassword}` }
 }
 
@@ -805,6 +814,7 @@ export async function addProjectResource(projectId: string, title: string, url: 
     }
 
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
+    revalidatePath('/dashboard')
     return { success: true, data }
 }
 
@@ -828,6 +838,7 @@ export async function deleteProjectResource(resourceId: string, projectId: strin
 
     revalidateProjectDataTags()
     revalidatePath(`/dashboard/projects/${projectId}`)
+    revalidatePath('/dashboard')
     return { success: true }
 }
 
