@@ -333,7 +333,7 @@ export function ProjectList({ projects, users, userMap, userRole }: ProjectListP
                             {!searchTerm && <CreateProjectButton variant="header" />}
                         </div>
                     ) : (
-                        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
                             {/* List Header */}
                             <div className="grid grid-cols-[1fr_100px_140px_140px_140px_48px] items-center border-b border-gray-100 bg-gray-50/50 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
                                 <div className="pl-5">Name</div>
@@ -355,7 +355,7 @@ export function ProjectList({ projects, users, userMap, userRole }: ProjectListP
                                     return (
                                         <div
                                             key={project.id}
-                                            className="absolute left-0 top-0 w-full"
+                                            className="absolute left-0 top-0 w-full focus-within:z-30"
                                             style={{ transform: `translateY(${virtualRow.start}px)` }}
                                         >
                                             <ProjectRow

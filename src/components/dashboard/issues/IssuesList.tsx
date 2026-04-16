@@ -397,8 +397,8 @@ export function IssuesList({
           <div
             key={ticket.id}
             className={twMerge(
-              "absolute top-0 left-0 w-full transition-all duration-200",
-              "z-[1] focus-within:z-50 focus-within:shadow-xl"
+              "absolute top-0 left-0 w-full transition-all duration-200 focus-within:z-40",
+              "focus-within:shadow-xl"
             )}
             style={{
               height: `${virtualRow.size}px`,
