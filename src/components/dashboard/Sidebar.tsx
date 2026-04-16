@@ -61,7 +61,7 @@ export function Sidebar({ initialUnreadCount, userId, userRole, pendingOnboardin
       const fetchInitialCount = async () => {
         const { count } = await supabase
           .from('notifications')
-          .select('*', { count: 'exact', head: true })
+          .select('*', { count: 'estimated', head: true })
           .eq('user_id', userId)
           .eq('is_read', false);
         setUnreadCount(count || 0);
@@ -88,7 +88,7 @@ export function Sidebar({ initialUnreadCount, userId, userRole, pendingOnboardin
         async () => {
           const { count: newCount } = await supabase
             .from('notifications')
-            .select('*', { count: 'exact', head: true })
+            .select('*', { count: 'estimated', head: true })
             .eq('user_id', userId)
             .eq('is_read', false);
           setUnreadCount(newCount || 0);

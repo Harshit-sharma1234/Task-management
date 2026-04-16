@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { IssuesList } from './issues/IssuesList';
 import { IssuesHeader } from './issues/IssuesHeader';
 import { loadProjectIssuesChunk } from '@/app/dashboard/projects/[id]/actions';
+import { useRouter } from 'next/navigation';
 import { 
   groupAndSortTickets, 
   DisplaySettings 
@@ -28,6 +29,7 @@ export function ProjectIssuesRealtimeTab({
   currentUser,
   initialLimit = 40,
   totalLimit = 120,
+  initialFilter = 'all',
 }: {
   projectId: string;
   projectName: string;
@@ -36,12 +38,14 @@ export function ProjectIssuesRealtimeTab({
   currentUser: any;
   initialLimit?: number;
   totalLimit?: number;
+  initialFilter?: string;
 }) {
+  const router = useRouter();
   const PAGE_SIZE = 40;
   const SCROLL_THRESHOLD_PX = 500;
   const [tickets, setTickets] = useState<any[]>(initialTickets || []);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [activeFilter, setActiveFilter] = useState('all');
+  const [activeFilter, setActiveFilter] = useState(initialFilter);
   const [isHydratingMore, setIsHydratingMore] = useState(false);
   const [hasMoreServerIssues, setHasMoreServerIssues] = useState(totalLimit > initialLimit);
   const deletedIdsRef = useRef<Set<string>>(new Set());
@@ -55,6 +59,12 @@ export function ProjectIssuesRealtimeTab({
     sortBy: 'created_at',
     showProperties: ['id', 'status', 'assignee', 'priority']
   });
+
+  const handleFilterChange = (newFilter: string) => {
+    setActiveFilter(newFilter);
+    // 🚀 Send filter strictly to backend (Step 1 requirement)
+    router.push(`/dashboard/projects/${projectId}?tab=issues&filter=${newFilter}`, { scroll: false });
+  };
   
   // Keep local tickets state in sync with server-side prop updates
   // This ensures that router.refresh() after create/delete updates the UI
@@ -69,7 +79,7 @@ export function ProjectIssuesRealtimeTab({
     setHasMoreServerIssues(totalLimit > nextOffsetRef.current);
     isFetchingMoreRef.current = false;
     setIsHydratingMore(false);
-  }, [initialTickets]);
+  }, [initialTickets, initialLimit, totalLimit, activeFilter]);
 
   const supabase = useMemo(() => createClient(), []);
   const pendingEventsRef = useRef<any[]>([]);
@@ -83,15 +93,8 @@ export function ProjectIssuesRealtimeTab({
   const usersByIdRef = useRef<Record<string, any>>(usersById);
   useEffect(() => { usersByIdRef.current = usersById; }, [usersById]);
 
-  const filteredTickets = useMemo(() => {
-    let result = tickets;
-    if (activeFilter === 'active') {
-      result = tickets.filter(t => t.status === 'in_progress' || t.status === 'to_do');
-    } else if (activeFilter === 'backlog') {
-      result = tickets.filter(t => t.status === 'backlog');
-    }
-    return result;
-  }, [tickets, activeFilter]);
+  // ✅ Filtering is now COMPLETELY handled by Database. No frontend filtering!
+  const filteredTickets = tickets;
 
   // Transform data based on display settings
   const groupedData = useMemo(() => {
@@ -212,7 +215,7 @@ export function ProjectIssuesRealtimeTab({
     isFetchingMoreRef.current = true;
     setIsHydratingMore(true);
     const limit = Math.min(PAGE_SIZE, remaining);
-    const result = await loadProjectIssuesChunk(projectId, nextOffsetRef.current, limit);
+    const result = await loadProjectIssuesChunk(projectId, nextOffsetRef.current, limit, activeFilter);
     setIsHydratingMore(false);
     isFetchingMoreRef.current = false;
 
@@ -260,7 +263,7 @@ export function ProjectIssuesRealtimeTab({
       <IssuesHeader 
         totalIssues={filteredTickets.length} 
         activeFilter={activeFilter}
-        onFilterChange={setActiveFilter}
+        onFilterChange={handleFilterChange}
         onOpenModal={() => setIsModalOpen(true)}
         displaySettings={displaySettings}
         onDisplaySettingsChange={setDisplaySettings}

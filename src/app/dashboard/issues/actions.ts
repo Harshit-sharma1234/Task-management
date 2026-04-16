@@ -119,6 +119,11 @@ export async function createIssue(formData: FormData) {
   // Granular revalidation only
   revalidateTag('issues', 'max')
   
+  if (projectId) {
+    revalidatePath(`/dashboard/projects/${projectId}`);
+  }
+  revalidatePath('/dashboard');
+  
   return { success: true, data }
 }
 
@@ -154,7 +159,7 @@ export async function updateIssueContent(formData: FormData) {
     getUserProfile(supabase, user.email!),
     supabase
       .from('tickets')
-      .select('id, title, description, created_by, assignee_id, attachments')
+      .select('id, title, description, created_by, assignee_id, attachments, project_id')
       .eq('id', ticketId)
       .single()
   ])
@@ -280,6 +285,10 @@ export async function updateIssueContent(formData: FormData) {
   Promise.all(postUpdatePromises).catch(err => console.error('Post-edit side effects error:', err))
 
   revalidatePath(`/dashboard/issues/${ticketId}`, 'page')
+  if (ticket.project_id) {
+    revalidatePath(`/dashboard/projects/${ticket.project_id}`);
+  }
+  revalidatePath('/dashboard');
   revalidateTag('issues', 'max')
   return { success: true, data }
 }
@@ -400,6 +409,7 @@ export async function addComment(ticketId: string, comment: string) {
   }
 
   revalidatePath(`/dashboard/issues/${ticketId}`, 'page')
+  revalidatePath('/dashboard')
   return { success: true, data: responseData }
 }
 
@@ -445,6 +455,7 @@ export async function editComment(commentId: string, ticketId: string, newText: 
   }
 
   revalidatePath(`/dashboard/issues/${ticketId}`, 'page')
+  revalidatePath('/dashboard')
   return { success: true, data }
 }
 
@@ -486,6 +497,7 @@ export async function deleteComment(commentId: string, ticketId: string) {
   }
 
   revalidatePath(`/dashboard/issues/${ticketId}`, 'page')
+  revalidatePath('/dashboard')
   return { success: true }
 }
 
@@ -507,7 +519,7 @@ export async function updateIssue(ticketId: string, updates: {
     getUserProfile(supabase, user.email!),
     supabase
       .from('tickets')
-      .select('id, title, status, priority, assignee_id, reviewer_id, created_by')
+      .select('id, title, status, priority, assignee_id, reviewer_id, created_by, project_id')
       .eq('id', ticketId)
       .single()
   ])
@@ -646,6 +658,10 @@ export async function updateIssue(ticketId: string, updates: {
   Promise.all(postUpdatePromises).catch(err => console.error('Post-update side effects error:', err))
 
   revalidatePath(`/dashboard/issues/${ticketId}`, 'page')
+  if (ticket.project_id) {
+    revalidatePath(`/dashboard/projects/${ticket.project_id}`);
+  }
+  revalidatePath('/dashboard');
   revalidateTag('issues', 'max')
   return { success: true, data }
 }
@@ -690,10 +706,12 @@ export async function deleteIssue(ticketId: string) {
   // Force hard re-render of the project layout if we know the project
   if (ticket?.project_id) {
     revalidatePath(`/dashboard/projects/${ticket.project_id}`, 'layout')
+    revalidatePath(`/dashboard/projects/${ticket.project_id}`);
   }
 
   // Also revalidate general issues page
   revalidatePath('/dashboard/issues', 'page')
+  revalidatePath('/dashboard');
 
   return { success: true }
 }
@@ -725,12 +743,19 @@ export async function bulkUpdateIssues(
     .from('tickets')
     .update({ ...updates, updated_at: new Date().toISOString() })
     .in('id', ticketIds)
-    .select('id')
+    .select('id, project_id')
 
   if (error) {
     console.error('SUPABASE ERROR BULK UPDATING TICKETS:', error)
     return { error: `Failed to bulk update: ${error.message}` }
   }
+
+  // Get unique project IDs to revalidate
+  const projectIds = Array.from(new Set(data?.map(t => t.project_id).filter(Boolean)));
+  for (const pid of projectIds) {
+    revalidatePath(`/dashboard/projects/${pid}`);
+  }
+  revalidatePath('/dashboard');
 
   revalidateTag('issues', 'max')
   return { success: true, updatedCount: data?.length || 0 }
@@ -752,6 +777,13 @@ export async function bulkDeleteIssues(ticketIds: string[]) {
 
   // Use admin client to bypass RLS for batch deletion
   const adminClient = createAdminClient()
+  
+  // Fetch project_ids BEFORE deletion so we can revalidate the specific project paths
+  const { data: ticketsToDelete } = await adminClient
+    .from('tickets')
+    .select('project_id')
+    .in('id', ticketIds)
+
   const { error } = await adminClient
     .from('tickets')
     .delete()
@@ -761,6 +793,15 @@ export async function bulkDeleteIssues(ticketIds: string[]) {
     console.error('SUPABASE ERROR BULK DELETING TICKETS:', error)
     return { error: `Failed to bulk delete: ${error.message}` }
   }
+
+  // Get unique project IDs to revalidate
+  const projectIds = Array.from(new Set(ticketsToDelete?.map(t => t.project_id).filter(Boolean)));
+  for (const pid of projectIds) {
+    revalidatePath(`/dashboard/projects/${pid}`);
+    revalidatePath(`/dashboard/projects/${pid}`, 'layout'); // Optional based on previous patterns
+  }
+  revalidatePath('/dashboard/issues', 'page');
+  revalidatePath('/dashboard');
 
   revalidateTag('issues', 'max')
   revalidateTag('dashboard-stats', 'max')
