@@ -4,30 +4,47 @@ import { Trash2 } from 'lucide-react';
 import { deleteIssue } from '@/app/dashboard/issues/actions';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { ConfirmModal } from '../../ui/ConfirmModal';
 
 export function DeleteIssueButton({ id }: { id: string }) {
   const router = useRouter();
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   const handleDelete = async () => {
-    if (confirm('Are you sure you want to delete this issue?')) {
-      const res = await deleteIssue(id);
-      if (res.success) {
-        toast.success('Issue deleted successfully');
-        // Use window.location as a fallback if router.push doesn't trigger refresh enough
-        window.location.href = '/dashboard/issues';
-      } else {
-        toast.error(res.error);
-      }
+    setIsDeleting(true);
+    const res = await deleteIssue(id);
+    if (res.success) {
+      toast.success('Issue deleted successfully');
+      // Use window.location as a fallback if router.push doesn't trigger refresh enough
+      window.location.href = '/dashboard/issues';
+    } else {
+      toast.error(res.error);
+      setIsDeleting(false);
+      setShowDeleteModal(false);
     }
   };
 
   return (
-    <button 
-      className="p-2 text-red-400 hover:bg-red-50 rounded-md transition-colors mr-2"
-      title="Delete Issue"
-      onClick={handleDelete}
-    >
-      <Trash2 size={16} />
-    </button>
+    <>
+      <button 
+        className="p-2 text-red-400 hover:bg-red-50 rounded-md transition-colors mr-2"
+        title="Delete Issue"
+        onClick={() => setShowDeleteModal(true)}
+      >
+        <Trash2 size={16} />
+      </button>
+
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        title="Delete Issue"
+        message="Are you sure you want to delete this issue? This action cannot be undone."
+        confirmLabel={isDeleting ? 'Deleting...' : 'Delete'}
+        isDestructive={true}
+        onConfirm={handleDelete}
+        onCancel={() => setShowDeleteModal(false)}
+      />
+    </>
   );
 }
