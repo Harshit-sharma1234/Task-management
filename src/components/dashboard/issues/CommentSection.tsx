@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { createClient } from '@/lib/supabase/client';
 import { useCommentsStore, Comment } from '@/lib/store/comments';
+import { ConfirmModal } from '../../ui/ConfirmModal';
 
 interface LogEntry {
   id: string;
@@ -48,6 +49,7 @@ export function CommentSection({ ticketId, initialComments, initialLogs = [], cu
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [isActionLoading, setIsActionLoading] = useState<string | null>(null);
+  const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
   const feedEndRef = useRef<HTMLDivElement>(null);
   const supabase = useMemo(() => createClient(), []);
 
@@ -174,8 +176,11 @@ export function CommentSection({ ticketId, initialComments, initialLogs = [], cu
     setIsActionLoading(null);
   };
 
-  const handleDelete = async (commentId: string) => {
-    if (isActionLoading || !confirm('Are you sure you want to delete this comment?')) return;
+  const handleDelete = async () => {
+    if (!commentToDelete || isActionLoading) return;
+    
+    const commentId = commentToDelete;
+    setCommentToDelete(null);
 
     // Optimistic delete
     const originalComment = comments.find(c => c.id === commentId);
@@ -244,7 +249,7 @@ export function CommentSection({ ticketId, initialComments, initialLogs = [], cu
                       <Pencil size={11} />
                     </button>
                     <button
-                      onClick={() => handleDelete(item.id)}
+                      onClick={() => setCommentToDelete(item.id)}
                       className="p-1 hover:bg-red-50 rounded text-gray-400 hover:text-red-600 transition-colors"
                       title="Delete comment"
                     >
@@ -338,6 +343,16 @@ export function CommentSection({ ticketId, initialComments, initialLogs = [], cu
           </div>
         </form>
       </div>
+
+      <ConfirmModal
+        isOpen={!!commentToDelete}
+        title="Delete Comment"
+        message="Are you sure you want to delete this comment? This action cannot be undone."
+        confirmLabel="Delete"
+        isDestructive={true}
+        onConfirm={handleDelete}
+        onCancel={() => setCommentToDelete(null)}
+      />
     </div>
   );
 }

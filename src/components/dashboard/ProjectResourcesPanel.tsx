@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { ExternalLink, Plus, Trash2 } from 'lucide-react';
 import { addProjectResource, deleteProjectResource } from '@/app/dashboard/actions';
 import { toast } from 'sonner';
+import { ConfirmModal } from '../ui/ConfirmModal';
 
 interface ProjectResourcesPanelProps {
   projectId: string;
@@ -16,6 +17,7 @@ export function ProjectResourcesPanel({ projectId, resources }: ProjectResources
   const [resourceTitle, setResourceTitle] = useState('');
   const [resourceUrl, setResourceUrl] = useState('');
   const [currentResources, setCurrentResources] = useState<any[]>(resources || []);
+  const [resourceToDelete, setResourceToDelete] = useState<any | null>(null);
   const [, startTransition] = useTransition();
   const supabase = useMemo(() => createClient(), []);
 
@@ -99,17 +101,7 @@ export function ProjectResourcesPanel({ projectId, resources }: ProjectResources
             </a>
             <button
               onClick={() => {
-                if (confirm('Delete this resource?')) {
-                  const removed = resource;
-                  setCurrentResources((prev) => prev.filter((r) => r.id !== removed.id));
-                  startTransition(async () => {
-                    const res = await deleteProjectResource(removed.id, projectId);
-                    if (res?.error) {
-                      toast.error(res.error);
-                      setCurrentResources((prev) => [removed, ...prev]);
-                    }
-                  });
-                }
+                setResourceToDelete(resource);
               }}
               className="p-1.5 text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover/res:opacity-100"
             >
@@ -166,6 +158,7 @@ export function ProjectResourcesPanel({ projectId, resources }: ProjectResources
                     return;
                   }
 
+                  toast.success('Resource added successfully');
                   const real = res?.data;
                   if (real?.id) {
                     setCurrentResources((prev) =>
@@ -189,6 +182,31 @@ export function ProjectResourcesPanel({ projectId, resources }: ProjectResources
           Add document or link...
         </button>
       )}
+
+      <ConfirmModal
+        isOpen={!!resourceToDelete}
+        title="Delete Resource"
+        message={`Are you sure you want to delete "${resourceToDelete?.title}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        isDestructive={true}
+        onConfirm={async () => {
+          if (!resourceToDelete) return;
+          const removed = resourceToDelete;
+          setResourceToDelete(null);
+          setCurrentResources((prev) => prev.filter((r) => r.id !== removed.id));
+          
+          startTransition(async () => {
+            const res = await deleteProjectResource(removed.id, projectId);
+            if (res?.error) {
+              toast.error(res.error);
+              setCurrentResources((prev) => [removed, ...prev]);
+            } else {
+              toast.success('Resource deleted');
+            }
+          });
+        }}
+        onCancel={() => setResourceToDelete(null)}
+      />
     </div>
   );
 }
