@@ -67,12 +67,20 @@ export function Header({ userId, email, profileData }: HeaderProps) {
 
       <header className="h-16 sticky top-0 z-50 glass-panel border-b border-gray-100/50 flex items-center justify-end px-8 shrink-0">
         <div className="flex items-center gap-6">
-          {userProfile && (
+          {userProfile ? (
             <div className="flex items-center gap-3">
               <UserDropdown 
                 profile={userProfile} 
                 onSignOut={() => setShowSignOutConfirm(true)} 
               />
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <div className="flex flex-col items-end gap-1">
+                <div className="h-3 w-20 bg-gray-100 rounded animate-pulse" />
+                <div className="h-2 w-12 bg-gray-50 rounded animate-pulse" />
+              </div>
+              <div className="h-8 w-8 bg-gray-100 rounded-lg animate-pulse" />
             </div>
           )}
         </div>

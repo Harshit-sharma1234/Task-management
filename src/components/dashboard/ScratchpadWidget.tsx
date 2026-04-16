@@ -61,6 +61,7 @@ export function ScratchpadWidget({ userId, initialContent }: { userId: string, i
       StarterKit,
       Underline
     ],
+    immediatelyRender: false,
     content: initialContent,
     editorProps: {
       attributes: {
