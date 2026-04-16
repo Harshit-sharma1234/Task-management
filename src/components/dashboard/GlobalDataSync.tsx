@@ -64,7 +64,7 @@ export function GlobalDataSync({ initialData }: GlobalDataSyncProps) {
             }, async () => {
                 const { count } = await supabase
                     .from('notifications')
-                    .select('*', { count: 'exact', head: true })
+                    .select('*', { count: 'estimated', head: true })
                     .eq('user_id', initialData.userId)
                     .eq('is_read', false);
                 setUnreadCount(count || 0);

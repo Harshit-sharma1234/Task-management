@@ -154,6 +154,7 @@ export async function approveOnboarding(requestId: string, roleId: string) {
     revalidateTag('team-members', 'max')
     revalidateTag('onboarding-requests', 'max')
     revalidatePath('/dashboard/onboarding', 'page')
+    revalidatePath('/dashboard')
 
     return { success: true, message: `${employeeData?.name || 'User'} has been approved as ${roleData?.role_name || 'Team Member'}.` }
 }
@@ -230,6 +231,7 @@ export async function rejectOnboarding(requestId: string, reason?: string) {
 
     revalidateTag('onboarding-requests', 'max')
     revalidatePath('/dashboard/onboarding', 'page')
+    revalidatePath('/dashboard')
 
     return { success: true }
 }
@@ -241,7 +243,7 @@ export async function fetchPendingOnboardingCount() {
     const adminClient = createAdminClient()
     const { count, error } = await adminClient
         .from('onboarding_requests')
-        .select('*', { count: 'exact', head: true })
+        .select('*', { count: 'estimated', head: true })
         .eq('status', 'pending')
 
     if (error) {

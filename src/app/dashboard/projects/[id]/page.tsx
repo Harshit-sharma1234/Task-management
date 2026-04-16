@@ -22,13 +22,18 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 interface PageProps {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; filter?: string }>;
 }
 
 export default async function ProjectDetailPage({ params, searchParams }: PageProps) {
   const { id } = await params;
-  const { tab } = await searchParams;
+  const { tab, filter } = await searchParams;
   const activeTab = tab || 'overview';
+  const activeFilter = filter || 'all';
+
+  // 🚀 Launch massive deep-fetches instantly, bypassing the Auth/Metadata waterfall
+  const ticketsPromise = activeTab === 'issues' ? getProjectIssuesTickets(id, activeFilter) : Promise.resolve([]);
+  const resourcesPromise = activeTab === 'overview' ? getProjectResources(id) : Promise.resolve([]);
 
   const user = await getServerUser();
   if (!user) redirect('/login');
@@ -57,6 +62,8 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
             users={allUsers || []} 
             projectName={project.project_name} 
             currentUser={profile}
+            ticketsPromise={ticketsPromise}
+            activeFilter={activeFilter}
           />
         </Suspense>
       ) : (
@@ -67,6 +74,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
             users={allUsers || []}
             currentMemberIds={currentMemberIds}
             currentUser={profile}
+            resourcesPromise={resourcesPromise}
           />
         </Suspense>
       )}
@@ -79,19 +87,24 @@ async function ProjectIssuesTab({
   users,
   projectName,
   currentUser,
+  ticketsPromise,
+  activeFilter,
 }: {
   projectId: string;
   users: any[];
   projectName: string;
   currentUser: any;
+  ticketsPromise: Promise<any[]>;
+  activeFilter: string;
 }) {
   const INITIAL_LIMIT = 40;
   const TOTAL_LIMIT = 120;
-  const tickets = await getProjectIssuesTickets(projectId);
+  // 💥 Wait for the already-resolving promise
+  const tickets = await ticketsPromise;
 
   return (
     <ProjectIssuesRealtimeTab
-      key={projectId}
+      key={projectId + activeFilter}
       projectId={projectId}
       projectName={projectName}
       initialTickets={tickets}
@@ -99,6 +112,7 @@ async function ProjectIssuesTab({
       currentUser={currentUser}
       initialLimit={INITIAL_LIMIT}
       totalLimit={TOTAL_LIMIT}
+      initialFilter={activeFilter}
     />
   );
 }
@@ -109,14 +123,17 @@ async function ProjectOverviewTab({
   users,
   currentMemberIds,
   currentUser,
+  resourcesPromise,
 }: {
   projectId: string;
   project: any;
   users: any[];
   currentMemberIds: string[];
   currentUser: any;
+  resourcesPromise: Promise<any[]>;
 }) {
-  const resources = await getProjectResources(projectId);
+  // 💥 Wait for the already-resolving promise
+  const resources = await resourcesPromise;
 
   return (
     <ProjectOverview
