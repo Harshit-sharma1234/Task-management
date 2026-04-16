@@ -58,15 +58,17 @@ export const getProjectDetails = cache(async (id: string, sessionEmail: string) 
     };
 });
 
+
 // Cache tickets list used by the "tab=issues" view.
 // Realtime in the client keeps it globally up-to-date.
-export async function getProjectIssuesTickets(projectId: string) {
+export const getProjectIssuesTickets = cache(async (projectId: string, activeFilter: string = 'all') => {
+  console.log("DB FILTER:", activeFilter);
   const INITIAL_LIMIT = 40;
 
   return unstable_cache(
     async () => {
       const adminClient = createAdminClient();
-      const { data, error } = await adminClient
+      let query = adminClient
         .from('tickets')
         .select(`
           id, 
@@ -83,9 +85,20 @@ export async function getProjectIssuesTickets(projectId: string) {
           assignees:users!assignee_id(id, name, avatar_url),
           reviewers:users!reviewer_id(id, name, avatar_url)
         `)
-        .eq('project_id', projectId)
-        .order('created_at', { ascending: false })
-        .limit(INITIAL_LIMIT);
+        .eq('project_id', projectId);
+
+      // ✅ Apply filter from UI at DB level
+      if (activeFilter && activeFilter !== 'all') {
+        if (activeFilter === 'active') {
+          query = query.in('status', ['in_progress', 'to_do']);
+        } else {
+          query = query.eq('status', activeFilter);
+        }
+      }
+
+      query = query.order('created_at', { ascending: false }).limit(INITIAL_LIMIT);
+
+      const { data, error } = await query;
 
       if (error) {
         console.error(`[Data] Error fetching tickets for project ${projectId}:`, error);
@@ -93,21 +106,21 @@ export async function getProjectIssuesTickets(projectId: string) {
       }
       return data || [];
     },
-    ['project-issues-initial', projectId],
+    ['project-issues-initial', projectId, activeFilter],
     {
       tags: ['issues', 'projects', `project:${projectId}`],
-      revalidate: 30,
+      revalidate: 30, // 30s revalidation; realtime handles instant client updates
     }
   )();
-}
+});
 
-export async function getProjectIssuesChunk(projectId: string, offset: number, limit: number) {
+export async function getProjectIssuesChunk(projectId: string, offset: number, limit: number, activeFilter: string = 'all') {
   const safeOffset = Number.isFinite(offset) && offset >= 0 ? Math.floor(offset) : 0;
   const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.min(Math.floor(limit), 100) : 0;
   if (safeLimit === 0) return [];
 
   const adminClient = createAdminClient();
-  const { data, error } = await adminClient
+  let query = adminClient
     .from('tickets')
     .select(`
       id, 
@@ -124,9 +137,22 @@ export async function getProjectIssuesChunk(projectId: string, offset: number, l
       assignees:users!assignee_id(id, name, avatar_url),
       reviewers:users!reviewer_id(id, name, avatar_url)
     `)
-    .eq('project_id', projectId)
+    .eq('project_id', projectId);
+
+  // ✅ Apply filter from UI at DB level
+  if (activeFilter && activeFilter !== 'all') {
+    if (activeFilter === 'active') {
+      query = query.in('status', ['in_progress', 'to_do']);
+    } else {
+      query = query.eq('status', activeFilter);
+    }
+  }
+
+  query = query
     .order('created_at', { ascending: false })
     .range(safeOffset, safeOffset + safeLimit - 1);
+
+  const { data, error } = await query;
 
   if (error) {
     console.error(`[Data] Error fetching tickets for project ${projectId}:`, error);

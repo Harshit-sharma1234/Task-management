@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getCachedUsers, getCachedUserProfile } from '@/lib/cache';
-import { revalidateTag } from 'next/cache';
+import { revalidateTag, revalidatePath } from 'next/cache';
 
 export async function fetchTeamData() {
     const supabase = await createClient();
@@ -89,6 +89,9 @@ export async function deleteMember(targetUserId: string) {
         return { error: `Auth Error: ${authError.message}` };
     }
 
+    revalidateTag('team-members', 'max');
+    revalidatePath('/dashboard/team');
+    revalidatePath('/dashboard');
     return { success: true };
 }
 
@@ -153,5 +156,8 @@ export async function updateUserRole(targetUserId: string, newRoleName: string) 
         return { error: `Database Error: ${dbError.message}` };
     }
 
+    revalidateTag('team-members', 'max');
+    revalidatePath('/dashboard/team');
+    revalidatePath('/dashboard');
     return { success: true };
 }
