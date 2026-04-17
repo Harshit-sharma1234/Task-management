@@ -24,7 +24,7 @@ async function IssueActivitySection({
   const [commentsResponse, logsResponse] = await Promise.all([
     supabase
       .from('comments')
-      .select('id, comment, created_at, user_id')
+      .select('id, comment, created_at, user_id, attachments')
       .eq('ticket_id', ticketId)
       .order('created_at', { ascending: true }),
     supabase
