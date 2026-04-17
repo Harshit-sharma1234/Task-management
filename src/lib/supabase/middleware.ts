@@ -40,22 +40,22 @@ export async function updateSession(request: NextRequest) {
     const pathname = request.nextUrl.pathname
 
     // Protected routes that require authentication
-    const isProtectedRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/workspace')
+    const isProtectedRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/workspace') || pathname.startsWith('/invite')
     
-    // Auth routes that should redirect to /workspace if already logged in
+    // Auth routes that should redirect if already logged in
     const isAuthRoute = pathname === '/login' || pathname === '/signup'
 
-    // If user is not authenticated and trying to access a protected route, redirect to login
+    // Guard 1: No session + protected route → /login
     if (!user && isProtectedRoute) {
         const url = request.nextUrl.clone()
         url.pathname = '/login'
         return NextResponse.redirect(url)
     }
 
-    // If user is authenticated and tries to access login/signup, redirect to /workspace
+    // Guard 2: Has session + auth route → /dashboard (login action handles workspace routing)
     if (user && isAuthRoute) {
         const url = request.nextUrl.clone()
-        url.pathname = '/workspace'
+        url.pathname = '/dashboard'
         return NextResponse.redirect(url)
     }
 
