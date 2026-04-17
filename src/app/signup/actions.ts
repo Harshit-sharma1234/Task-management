@@ -164,7 +164,7 @@ export async function signup(prevState: any, formData: FormData) {
 
     const newUserId = authData.user.id
 
-    // ── Insert into public.users (minimal fields) ──
+    // ── Insert into public.users (minimal fields — no role_id, no onboarding_status) ──
     const { error: dbError } = await adminClient
         .from('users')
         .insert({
@@ -186,22 +186,6 @@ export async function signup(prevState: any, formData: FormData) {
         return { error: 'Failed to create profile. Please try again.' }
     }
 
-    // ── Sign in the user immediately to establish session ──
-    const { createClient } = await import('@/lib/supabase/server')
-    const supabase = await createClient()
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password
-    })
-
-    if (signInError) {
-        console.error('[Signup] Auto-login error:', signInError)
-        // Non-blocking for the signup itself, but user will have to manually login
-        return redirect('/login?message=Account created. Please log in.')
-    }
-
-    // ── Redirect to workspace page ──
-    const { revalidatePath } = await import('next/cache')
-    revalidatePath('/', 'layout')
-    redirect('/workspace')
+    // ── Redirect to login (user must log in, then choose/create a workspace) ──
+    redirect('/login?message=Account created successfully! Please log in.')
 }
