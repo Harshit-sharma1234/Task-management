@@ -9,6 +9,7 @@ interface IssuesViewProps {
   users: any[];
   activeFilter: string;
   currentUser: any;
+  workspaceId: string;
   initialLimit?: number;
   totalLimit?: number;
 }
@@ -16,7 +17,7 @@ interface IssuesViewProps {
 import { useState, useMemo, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { createClient } from '@/lib/supabase/client';
-import { loadIssuesChunk } from '@/app/dashboard/issues/list-actions';
+import { loadIssuesChunk } from '@/app/dashboard/[workspace]/issues/list-actions';
 import { 
   groupAndSortTickets, 
   DisplaySettings 
@@ -37,6 +38,7 @@ export function IssuesView({
   users,
   activeFilter: initialFilter,
   currentUser,
+  workspaceId,
   initialLimit = 40,
   totalLimit = 120
 }: IssuesViewProps) {
@@ -78,7 +80,7 @@ export function IssuesView({
     isFetchingMoreRef.current = true;
     setIsHydratingMore(true);
     const limit = Math.min(PAGE_SIZE, remaining);
-    const result = await loadIssuesChunk(nextOffsetRef.current, limit);
+    const result = await loadIssuesChunk(nextOffsetRef.current, limit, workspaceId);
     setIsHydratingMore(false);
     isFetchingMoreRef.current = false;
 

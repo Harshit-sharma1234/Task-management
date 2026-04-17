@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Link as LinkIcon, Share2, MoreHorizontal, Check, Trash2, ExternalLink } from 'lucide-react';
-import { deleteIssue } from '@/app/dashboard/issues/actions';
+import { deleteIssue } from '@/app/dashboard/[workspace]/issues/actions';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 

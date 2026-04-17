@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useTransition } from 'react';
 import { Pencil, Check, X, Loader2, Paperclip, FileIcon, Trash2, Download } from 'lucide-react';
-import { updateIssueContent } from '@/app/dashboard/issues/actions';
+import { updateIssueContent } from '@/app/dashboard/[workspace]/issues/actions';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 

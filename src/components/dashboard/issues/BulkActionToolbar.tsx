@@ -12,7 +12,7 @@ import {
     Loader2
 } from 'lucide-react';
 import { useState } from 'react';
-import { bulkUpdateIssues, bulkDeleteIssues } from '@/app/dashboard/issues/actions';
+import { bulkUpdateIssues, bulkDeleteIssues } from '@/app/dashboard/[workspace]/issues/actions';
 import { toast } from 'sonner';
 
 interface BulkActionToolbarProps {
