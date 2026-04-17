@@ -11,7 +11,7 @@ import {
   FileText,
   Clock
 } from 'lucide-react';
-import { getProjectLogs } from '@/app/dashboard/logging/actions';
+import { getProjectLogs } from '@/app/dashboard/[workspace]/logging/actions';
 
 interface ProjectActivityProps {
   projectId: string;
