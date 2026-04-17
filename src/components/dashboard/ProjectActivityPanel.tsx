@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, memo } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { getProjectLogs } from '@/app/dashboard/logging/actions';
+import { getProjectLogs } from '@/app/dashboard/[workspace]/logging/actions';
 import { Shimmer } from '@/components/ui/Skeleton';
 
 interface ProjectActivityPanelProps {

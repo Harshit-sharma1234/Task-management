@@ -12,10 +12,11 @@ interface User {
 }
 
 interface CreateProjectButtonProps {
-  variant?: 'header' | 'empty-state'
+  variant?: 'header' | 'empty-state';
+  workspaceId?: string;
 }
 
-export function CreateProjectButton({ variant = 'header' }: CreateProjectButtonProps) {
+export function CreateProjectButton({ variant = 'header', workspaceId }: CreateProjectButtonProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [isOpen, setIsOpen] = useState(false)
@@ -42,12 +43,12 @@ export function CreateProjectButton({ variant = 'header' }: CreateProjectButtonP
   
   // Lazy fetch users when modal is opened to avoid blocking main page render
   useEffect(() => {
-    if (isOpen && users.length === 0) {
+    if (isOpen && users.length === 0 && workspaceId) {
       import('@/app/dashboard/actions').then(mod => {
-        mod.fetchUsersForProject().then(setUsers)
+        mod.fetchUsersForProject(workspaceId).then(setUsers)
       })
     }
-  }, [isOpen, users.length])
+  }, [isOpen, users.length, workspaceId])
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -185,10 +186,11 @@ export function CreateProjectButton({ variant = 'header' }: CreateProjectButtonP
               )}
 
               {/* Hidden fields to preserve server action contract */}
-              <input type="hidden" name="status" value={status} />
+               <input type="hidden" name="status" value={status} />
               <input type="hidden" name="priority" value={priority} />
               <input type="hidden" name="lead_id" value={leadId} />
               <input type="hidden" name="start_date" value={startDate} />
+              <input type="hidden" name="workspace_id" value={workspaceId} />
 
               <div className="space-y-3">
                 <input

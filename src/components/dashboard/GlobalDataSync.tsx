@@ -13,34 +13,39 @@ interface GlobalDataSyncProps {
         profile: any;
         userId: string;
         unreadCount: number;
+        activeWorkspaceId?: string;
     }
 }
 
 /**
  * GlobalDataSync handles the "Single Source of Truth" hydration strategy.
- * It hydrates the store either from initial props or a fallback fetch,
- * and maintains realtime listeners.
+ * Hydrates stores from server-provided initial data and maintains realtime listeners.
  */
 export function GlobalDataSync({ initialData }: GlobalDataSyncProps) {
     const hasHydrated = useRef(false);
-    const { setProjects, setTeam, setInitialLoadComplete, updateProject } = useGlobalStore();
+    const { setProjects, setTeam, setInitialLoadComplete, setActiveWorkspaceId, updateProject } = useGlobalStore();
     const { setTeamData } = useTeamStore();
     const { setUnreadCount } = useNotificationStore();
     const supabase = createClient();
 
-    // 1. IMMEDIATE HYDRATION (Sync)
-    // We do this outside useEffect if initialData is provided to prevent a frame of empty state
+    // IMMEDIATE HYDRATION
     if (initialData && !hasHydrated.current) {
         setProjects(initialData.projects);
         setTeam(initialData.team);
-        setTeamData(initialData.team, initialData.profile?.roles?.role_name === 'Admin', initialData.profile?.roles?.role_name || null);
+        setTeamData(
+            initialData.team, 
+            initialData.profile?.roles?.role_name === 'Admin', 
+            initialData.profile?.roles?.role_name || null
+        );
         setUnreadCount(initialData.unreadCount);
+        if (initialData.activeWorkspaceId) {
+            setActiveWorkspaceId(initialData.activeWorkspaceId);
+        }
         setInitialLoadComplete(true);
         hasHydrated.current = true;
     }
 
     useEffect(() => {
-        // Real-time Subscriptions logic stays here
         if (!initialData?.userId) return;
 
         // Projects Sync

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { IssuesList } from './issues/IssuesList';
 import { IssuesHeader } from './issues/IssuesHeader';
-import { loadProjectIssuesChunk } from '@/app/dashboard/projects/[id]/actions';
+import { loadProjectIssuesChunk } from '@/app/dashboard/[workspace]/projects/[id]/actions';
 import { useRouter } from 'next/navigation';
 import { 
   groupAndSortTickets, 
