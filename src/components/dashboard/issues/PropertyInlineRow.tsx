@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { updateIssue } from '@/app/dashboard/issues/actions';
+import { updateIssue } from '@/app/dashboard/[workspace]/issues/actions';
 import {
   CircleDot,
   Circle,

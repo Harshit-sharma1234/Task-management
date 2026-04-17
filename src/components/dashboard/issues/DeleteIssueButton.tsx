@@ -1,7 +1,7 @@
 'use client';
 
 import { Trash2 } from 'lucide-react';
-import { deleteIssue } from '@/app/dashboard/issues/actions';
+import { deleteIssue } from '@/app/dashboard/[workspace]/issues/actions';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';

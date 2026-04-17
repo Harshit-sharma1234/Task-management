@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Send, Loader2, Pencil, Trash2, Check, X } from 'lucide-react';
-import { addComment, editComment, deleteComment } from '@/app/dashboard/issues/actions';
+import { addComment, editComment, deleteComment } from '@/app/dashboard/[workspace]/issues/actions';
 import { toast } from 'sonner';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { createClient } from '@/lib/supabase/client';
