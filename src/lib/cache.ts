@@ -3,43 +3,49 @@ import { cache } from 'react';
 import { createAdminClient } from './supabase/admin';
 
 /**
- * Cached fetch for the total list of team members.
- * Revalidates every hour or when 'team-members' tag is invalidated.
+ * Cached fetch for the users belonging to a specific workspace.
  */
-export const getCachedUsers = cache(unstable_cache(
+export const getCachedUsers = (workspaceId: string) => cache(unstable_cache(
   async () => {
     const supabase = createAdminClient();
     const { data, error } = await supabase
-      .from('users')
-      .select('*, roles (role_name)')
-      .order('name');
+      .from('workspace_members')
+      .select(`
+        users(id, auth_id, email, name, employee_id, avatar_url),
+        roles(role_name)
+      `)
+      .eq('workspace_id', workspaceId);
 
     if (error) {
-      console.error(`[Cache] Database error fetching user list: ${error.message}`, {
-        code: error.code,
-        hint: error.hint,
-        details: error.details
-      });
+      console.error(`[Cache] Database error fetching user list for workspace ${workspaceId}: ${error.message}`);
       return [];
     }
-    return data || [];
+    return (data || []).map((m: any) => ({
+      ...m.users,
+      roles: m.roles
+    })).filter(u => u.id);
   },
-  ['team-members-list'],
+  ['workspace-members-list', workspaceId],
   {
-    revalidate: 3600, // 1 hour
-    tags: ['team-members', 'users']
+    revalidate: 3600,
+    tags: [`team-members-${workspaceId}`, 'users', `workspace-${workspaceId}`]
   }
-));
+))();
 
 /**
- * Cached fetch for global dashboard statistics (counts).
+ * Cached fetch for workspace-specific dashboard statistics (counts).
  */
-export const getCachedStats = cache(unstable_cache(
+export const getCachedStats = (workspaceId: string) => cache(unstable_cache(
   async () => {
     const supabase = createAdminClient();
     const [projectsRes, ticketsRes] = await Promise.all([
-      supabase.from('projects').select('id, project_name, description, created_at, status').order('created_at', { ascending: false }),
-      supabase.from('tickets').select('id, project_id, status, priority')
+      supabase.from('projects')
+        .select('id, project_name, description, created_at, status')
+        .eq('workspace_id', workspaceId)
+        .order('created_at', { ascending: false }),
+      supabase.from('tickets')
+        .select('id, project_id, status, priority')
+        .eq('workspace_id', workspaceId)
     ]);
 
     const projects = projectsRes.data || [];
@@ -76,18 +82,17 @@ export const getCachedStats = cache(unstable_cache(
       projectStats
     };
   },
-  ['dashboard-stats-counts-v2'],
+  ['dashboard-stats-counts-v3', workspaceId],
   {
     revalidate: 60,
-    tags: ['dashboard-stats', 'projects', 'tickets']
+    tags: ['dashboard-stats', 'projects', 'tickets', `workspace-${workspaceId}`]
   }
-
-));
+))();
 
 /**
- * Cached fetch for global dashboard statistics (counts), specific to a user.
+ * Cached fetch for global dashboard statistics (counts), specific to a user AND a workspace.
  */
-export const getCachedUserStatsV2 = (userId: string) =>
+export const getCachedUserStatsV2 = (userId: string, workspaceId: string) =>
   unstable_cache(
     async () => {
       const supabase = createAdminClient();
@@ -98,11 +103,11 @@ export const getCachedUserStatsV2 = (userId: string) =>
         allTicketsRes,
         projectMembersRes
       ] = await Promise.all([
-        supabase.from('tickets').select('id', { count: 'estimated', head: true }).or(`assignee_id.eq.${userId},reviewer_id.eq.${userId}`).eq('priority', 'urgent').neq('status', 'done'),
-        supabase.from('tickets').select('id', { count: 'estimated', head: true }).or(`assignee_id.eq.${userId},reviewer_id.eq.${userId}`).eq('status', 'done'),
-        supabase.from('tickets').select('id', { count: 'estimated', head: true }).or(`assignee_id.eq.${userId},reviewer_id.eq.${userId}`).in('status', ['in_progress', 'in_review']),
-        supabase.from('tickets').select('id', { count: 'estimated', head: true }).or(`assignee_id.eq.${userId},reviewer_id.eq.${userId}`),
-        supabase.from('project_members').select('id', { count: 'estimated', head: true }).eq('user_id', userId)
+        supabase.from('tickets').select('id', { count: 'estimated', head: true }).eq('workspace_id', workspaceId).or(`assignee_id.eq.${userId},reviewer_id.eq.${userId}`).eq('priority', 'urgent').neq('status', 'done'),
+        supabase.from('tickets').select('id', { count: 'estimated', head: true }).eq('workspace_id', workspaceId).or(`assignee_id.eq.${userId},reviewer_id.eq.${userId}`).eq('status', 'done'),
+        supabase.from('tickets').select('id', { count: 'estimated', head: true }).eq('workspace_id', workspaceId).or(`assignee_id.eq.${userId},reviewer_id.eq.${userId}`).in('status', ['in_progress', 'in_review']),
+        supabase.from('tickets').select('id', { count: 'estimated', head: true }).eq('workspace_id', workspaceId).or(`assignee_id.eq.${userId},reviewer_id.eq.${userId}`),
+        supabase.from('project_members').select('id, projects!inner(id)', { count: 'estimated', head: true }).eq('user_id', userId).eq('projects.workspace_id', workspaceId)
       ]);
 
       return {
@@ -113,16 +118,42 @@ export const getCachedUserStatsV2 = (userId: string) =>
         projectsAssignedCount: projectMembersRes.count || 0
       };
     },
-    [`dashboard-user-stats-${userId}-v2`],
+    [`dashboard-user-stats-${userId}-${workspaceId}`],
     {
       revalidate: 60,
-      tags: ['dashboard-stats', 'projects', 'tickets', `user-tasks-${userId}`]
+      tags: ['dashboard-stats', 'projects', 'tickets', `user-tasks-${userId}`, `workspace-${workspaceId}`]
+    }
+  )();
+
+/**
+ * Cached fetch for a specific workspace by its slug.
+ */
+export const getCachedWorkspaceBySlug = (slug: string) =>
+  unstable_cache(
+    async () => {
+      const supabase = createAdminClient();
+      const { data, error } = await supabase
+        .from('workspaces')
+        .select('id, name, slug')
+        .eq('slug', slug)
+        .maybeSingle();
+
+      if (error) {
+        console.error(`[Cache] Error fetching workspace by slug ${slug}:`, error);
+        return null;
+      }
+      return data;
+    },
+    [`workspace-by-slug-${slug}`],
+    {
+      revalidate: 3600,
+      tags: [`workspace-slug-${slug}`]
     }
   )();
 
 /**
  * Cached fetch for a specific user's profile.
- * Keyed by email.
+ * NOTE: No longer joins roles — role is determined per-workspace via workspace_members.
  */
 export const getCachedUserProfile = (email: string) =>
   unstable_cache(
@@ -130,9 +161,9 @@ export const getCachedUserProfile = (email: string) =>
       const supabase = createAdminClient();
       const { data, error } = await supabase
         .from('users')
-        .select('*, roles(role_name)')
+        .select('id, auth_id, email, name, employee_id, avatar_url')
         .eq('email', email)
-        .maybeSingle(); // Better than .single() for caching potential nulls
+        .maybeSingle();
 
       if (error) {
         console.error(`[Cache] Database error fetching profile for ${email}: ${error.message}`, {
@@ -152,35 +183,36 @@ export const getCachedUserProfile = (email: string) =>
   )();
 
 /**
- * Cached fetch for recent tickets.
+ * Cached fetch for recent tickets in a specific workspace.
  */
-export const getCachedRecentTickets = (limit: number = 10) =>
+export const getCachedRecentTickets = (limit: number = 10, workspaceId: string) =>
   unstable_cache(
     async () => {
       const supabase = createAdminClient();
       const { data, error } = await supabase
         .from('tickets')
         .select('id, title, status, priority, created_at, assignee_id, reviewer_id, projects(project_name)')
+        .eq('workspace_id', workspaceId)
         .order('created_at', { ascending: false })
         .limit(limit);
 
       if (error) {
-        console.error('[Cache] Error fetching recent tickets:', error);
+        console.error(`[Cache] Error fetching recent tickets for workspace ${workspaceId}:`, error);
         return [];
       }
       return data || [];
     },
-    [`recent-tickets-${limit}`],
+    [`recent-tickets-${limit}-${workspaceId}`],
     {
-      revalidate: 60, // Changed from 3600 to keep UI fresh
-      tags: ['tickets']
+      revalidate: 60,
+      tags: ['tickets', `workspace-${workspaceId}`]
     }
   )();
 
 /**
  * Cached fetch for a specific user's unread notification count.
  */
-export const getCachedUnreadCount = (userId: string) =>
+export const getCachedUnreadCount = (userId: string, workspaceId: string) =>
   unstable_cache(
     async () => {
       const supabase = createAdminClient();
@@ -188,112 +220,119 @@ export const getCachedUnreadCount = (userId: string) =>
         .from('notifications')
         .select('id', { count: 'estimated', head: true })
         .eq('user_id', userId)
-        .eq('is_read', false); // Note: check column name, usually is_read or read
+        .eq('workspace_id', workspaceId)
+        .eq('is_read', false);
 
       if (error) {
-        console.error(`[Cache] Error fetching unread count for ${userId}:`, error);
+        console.error(`[Cache] Error fetching unread count for ${userId} in workspace ${workspaceId}:`, error);
         return 0;
       }
       return count || 0;
     },
-    [`unread-notifications-${userId}`],
+    [`unread-notifications-${userId}-${workspaceId}`],
     {
       revalidate: 600,
-      tags: [`notifications-${userId}`]
+      tags: [`notifications-${userId}`, `workspace-${workspaceId}`]
     }
   )();
 
 /**
- * Cached fetch for all projects with specific columns.
+ * Cached fetch for all projects in a specific workspace.
  */
-export const getCachedProjects = cache(unstable_cache(
+export const getCachedProjects = (workspaceId: string) => cache(unstable_cache(
   async () => {
     const supabase = createAdminClient();
     const { data, error } = await supabase
       .from('projects')
       .select('id, project_name, description, status, priority, lead_id, start_date, created_at')
+      .eq('workspace_id', workspaceId)
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('[Cache] Error fetching projects:', error);
+      console.error(`[Cache] Error fetching projects for workspace ${workspaceId}:`, error);
       return [];
     }
     return data || [];
   },
-  ['projects-list'],
+  ['projects-list', workspaceId],
   {
     revalidate: 60,
-    tags: ['projects']
+    tags: ['projects', `workspace-${workspaceId}`]
   }
-
-));
+))();
 
 /**
- * Cached fetch for Issue page project dropdown (lightweight).
+ * Cached fetch for Issue page project dropdown (lightweight), specific to workspace.
  */
-export const getCachedIssueProjects = unstable_cache(
+export const getCachedIssueProjects = (workspaceId: string) => unstable_cache(
   async () => {
     const supabase = createAdminClient();
     const { data, error } = await supabase
       .from('projects')
       .select('id, project_name')
+      .eq('workspace_id', workspaceId)
       .order('project_name');
 
     if (error) {
-      console.error('[Cache] Error fetching issue projects:', error);
+      console.error(`[Cache] Error fetching issue projects for workspace ${workspaceId}:`, error);
       return [];
     }
     return data || [];
   },
-  ['issue-projects-list'],
+  ['issue-projects-list', workspaceId],
   {
     revalidate: 300, // 5 min
-    tags: ['projects'],
+    tags: ['projects', `workspace-${workspaceId}`],
   }
-);
+)();
 
 /**
- * Cached fetch for Issue page user dropdown (lightweight).
+ * Cached fetch for Issue page user dropdown (lightweight), specific to workspace.
  */
-export const getCachedIssueUsers = unstable_cache(
+export const getCachedIssueUsers = (workspaceId: string) => unstable_cache(
   async () => {
     const supabase = createAdminClient();
     const { data, error } = await supabase
-      .from('users')
-      .select('id, name, avatar_url, email')
-      .order('name');
+      .from('workspace_members')
+      .select('users(id, name, avatar_url, email)')
+      .eq('workspace_id', workspaceId);
 
     if (error) {
-      console.error('[Cache] Error fetching issue users:', error);
+      console.error(`[Cache] Error fetching issue users for workspace ${workspaceId}:`, error);
       return [];
     }
-    return data || [];
+    return (data || []).map((m: any) => m.users).filter(Boolean);
   },
-  ['issue-users-list'],
+  ['issue-users-list', workspaceId],
   {
     revalidate: 300, // 5 min
-    tags: ['team-members', 'users'],
+    tags: ['team-members', 'users', `workspace-${workspaceId}`],
   }
-);
+)();
 
 /**
- * Super lightweight fetch for user dropdowns to minimize payload size.
+ * Super lightweight fetch for user dropdowns to minimize payload size, scoped to workspace.
  */
-export const getCachedUsersMinimal = unstable_cache(
+export const getCachedUsersMinimal = (workspaceId: string) => unstable_cache(
   async () => {
     const supabase = createAdminClient();
-    const { data } = await supabase
-      .from('users')
-      .select('id, name')
-      .order('name');
-    return data || [];
+    const { data, error } = await supabase
+      .from('workspace_members')
+      .select('users(id, name)')
+      .eq('workspace_id', workspaceId);
+    
+    if (error) {
+      console.error(`[Cache] Error fetching minimal users for workspace ${workspaceId}:`, error);
+      return [];
+    }
+    return (data || []).map((m: any) => m.users).filter(Boolean).sort((a: any, b: any) => a.name.localeCompare(b.name));
   },
-  ['users-minimal-list'],
+  ['users-minimal-list', workspaceId],
   {
     revalidate: 600,
-    tags: ['team-members', 'users'],
+    tags: ['team-members', 'users', `workspace-${workspaceId}`],
   }
-);
+)();
 
 /**
  * Cached fetch for users relevant to a single project page.
@@ -345,62 +384,63 @@ export const getCachedProjectUsers = (projectId: string) =>
   )();
 
 /**
- * Cached fetch for Issues list page (global list).
- * Keeps repeat visits fast while realtime/mutations revalidate tags.
+ * Cached fetch for Issues list page (workspace-scoped).
  */
-export const getCachedIssuesList = (limit: number = 120) =>
+export const getCachedIssuesList = (workspaceId: string, limit: number = 120) =>
   unstable_cache(
     async () => {
       const supabase = createAdminClient();
       const { data, error } = await supabase
         .from('tickets')
         .select('id, title, status, priority, assignee_id, reviewer_id, created_at, projects(id, project_name), assignees:users!assignee_id(id, name, avatar_url)')
+        .eq('workspace_id', workspaceId)
         .order('created_at', { ascending: false })
         .limit(limit);
 
       if (error) {
-        console.error('[Cache] Error fetching issues list:', error);
+        console.error(`[Cache] Error fetching issues list for workspace ${workspaceId}:`, error);
         return [];
       }
       return data || [];
     },
-    ['issues-list', String(limit)],
+    ['issues-list', workspaceId, String(limit)],
     {
       revalidate: 30,
-      tags: ['issues', 'projects', 'team-members'],
+      tags: ['issues', 'projects', 'team-members', `workspace-${workspaceId}`],
     }
   )();
 
 /**
- * Cached fetch for tickets assigned to or reviewed by a specific user.
+ * Cached fetch for tickets assigned to or reviewed by a specific user, scoped to workspace.
  */
-export const getCachedUserTasks = (userId: string) =>
+export const getCachedUserTasks = (userId: string, workspaceId: string) =>
   unstable_cache(
     async () => {
       const supabase = createAdminClient();
       const { data, error } = await supabase
         .from('tickets')
         .select('id, title, status, priority, created_at, assignee_id, reviewer_id, projects(project_name)')
+        .eq('workspace_id', workspaceId)
         .or(`assignee_id.eq.${userId},reviewer_id.eq.${userId}`)
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error(`[Cache] Error fetching user tasks for ${userId}:`, error);
+        console.error(`[Cache] Error fetching user tasks for user ${userId} in workspace ${workspaceId}:`, error);
         return [];
       }
       return data || [];
     },
-    [`user-tasks-${userId}`],
+    [`user-tasks-${userId}-${workspaceId}`],
     {
       revalidate: 60,
-      tags: ['tickets', `user-tasks-${userId}`]
+      tags: ['tickets', `user-tasks-${userId}`, `workspace-${workspaceId}`]
     }
   )();
 
 /**
- * Cached fetch for My Tasks page with full detail relations.
+ * Cached fetch for My Tasks page with full detail relations, scoped to workspace.
  */
-export const getCachedMyTasksDetailed = (userId: string) =>
+export const getCachedMyTasksDetailed = (userId: string, workspaceId: string) =>
   unstable_cache(
     async () => {
       const supabase = createAdminClient();
@@ -421,33 +461,41 @@ export const getCachedMyTasksDetailed = (userId: string) =>
             assignees:users!assignee_id(id, name, avatar_url),
             reviewers:users!reviewer_id(id, name, avatar_url)
           `)
+          .eq('workspace_id', workspaceId)
           .or(`assignee_id.eq.${userId},reviewer_id.eq.${userId}`)
           .order('created_at', { ascending: false }),
-        supabase.from('projects').select('id, project_name').order('project_name'),
-        supabase.from('users').select('id, name, avatar_url, roles(role_name)').order('name')
+        supabase.from('projects')
+          .select('id, project_name')
+          .eq('workspace_id', workspaceId)
+          .order('project_name'),
+        supabase.from('workspace_members')
+          .select('users(id, name, avatar_url)')
+          .eq('workspace_id', workspaceId)
       ]);
 
       if (ticketsRes.error) {
-        console.error(`[Cache] Error fetching detailed user tasks for ${userId}:`, ticketsRes.error);
+        console.error(`[Cache] Error fetching detailed user tasks for ${userId} in workspace ${workspaceId}:`, ticketsRes.error);
       }
+
+      const users = (usersRes.data || []).map((m: any) => m.users).filter(Boolean);
 
       return {
         tickets: ticketsRes.data || [],
         projects: (projectsRes.data || []).map(p => ({ id: p.id, name: p.project_name })),
-        users: usersRes.data || []
+        users: users
       };
     },
-    [`my-tasks-full-${userId}`],
+    [`my-tasks-full-${userId}-${workspaceId}`],
     {
       revalidate: 60,
-      tags: ['tickets', 'projects', 'team-members', `user-tasks-${userId}`]
+      tags: ['tickets', 'projects', 'team-members', `user-tasks-${userId}`, `workspace-${workspaceId}`]
     }
   )();
 
 /**
- * Cached fetch for upcoming deadlines (projects or tickets due within 7 days).
+ * Cached fetch for upcoming deadlines (projects or tickets due within 30 days), scoped to workspace.
  */
-export const getCachedUpcomingDeadlines = unstable_cache(
+export const getCachedUpcomingDeadlines = (workspaceId: string) => unstable_cache(
   async () => {
     const supabase = createAdminClient();
     const now = new Date().toISOString();
@@ -457,6 +505,7 @@ export const getCachedUpcomingDeadlines = unstable_cache(
     const { data: projects } = await supabase
       .from('projects')
       .select('id, project_name, target_date, status')
+      .eq('workspace_id', workspaceId)
       .neq('status', 'done')
       .not('target_date', 'is', null)
       .gte('target_date', now)
@@ -466,12 +515,12 @@ export const getCachedUpcomingDeadlines = unstable_cache(
 
     return projects || [];
   },
-  ['upcoming-deadlines-v2'],
+  ['upcoming-deadlines-v3', workspaceId],
   {
     revalidate: 60,
-    tags: ['projects', 'tickets']
+    tags: ['projects', 'tickets', `workspace-${workspaceId}`]
   }
-);
+)();
 
 /**
  * Cached fetch for recent unread notifications for a user.
