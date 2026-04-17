@@ -20,7 +20,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { createIssue } from '@/app/dashboard/issues/actions';
+import { createIssue } from '@/app/dashboard/[workspace]/issues/actions';
 import { useRouter } from 'next/navigation';
 
 interface Project {
