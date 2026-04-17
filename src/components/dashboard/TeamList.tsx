@@ -4,7 +4,7 @@ import { useState, useMemo, memo } from 'react'
 import { Search, Trash2, Loader2 } from 'lucide-react'
 import { useTeamStore } from '@/lib/store/team'
 import { UserAvatar } from '@/components/ui/UserAvatar'
-import { deleteMember, updateUserRole } from '@/app/dashboard/team/actions'
+import { deleteMember, updateUserRole } from '@/app/dashboard/[workspace]/team/actions'
 import { toast } from 'sonner'
 import { DeleteMemberModal } from './DeleteMemberModal'
 
