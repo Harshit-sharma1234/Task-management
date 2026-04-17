@@ -8,9 +8,11 @@ import {
     Plus,
     Activity,
     Settings,
+    LayoutGrid,
 } from 'lucide-react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
+import { UserAvatar } from '@/components/ui/UserAvatar'
 import { cn, formatTime, formatTimeLong } from '@/lib/utils'
 import { STATUS_ICONS } from '@/lib/constants'
 import { getCachedStats, getCachedUsers, getCachedRecentTickets, getCachedProjects, getCachedUserTasks, getCachedUpcomingDeadlines, getCachedRecentNotifications, getCachedUserNote } from '@/lib/cache'
@@ -169,10 +171,17 @@ function StatCard({ label, value, icon: Icon, color, bg, delay }: any) {
 /**
  * ── WIDGET: PROJECT LIST ──
  */
+/**
+ * ── WIDGET: PROJECT LIST ──
+ */
 async function ProjectOverviewList() {
-    const stats = await getCachedStats();
+    const [stats, users] = await Promise.all([
+        getCachedStats(),
+        getCachedUsers()
+    ]);
     const recentProjects = stats.recentProjects || [];
     const projectStats = stats.projectStats || {};
+    const userMap = new Map(users.map(u => [u.id, u]));
 
     return (
         <Widget title="Project Overview" href="/dashboard/projects">
@@ -185,39 +194,54 @@ async function ProjectOverviewList() {
                     <CreateProjectButton variant="empty-state" />
                 </div>
             ) : (
-                <div className="divide-y divide-gray-50 -mx-6 -mb-6">
+                <div className="divide-y divide-gray-100/60 -mx-6 -mb-6">
                     {recentProjects.map((project: any) => {
                         const pStat = projectStats[project.id] || { total: 0, done: 0 };
-                        const progress = pStat.total > 0 ? Math.round((pStat.done / pStat.total) * 100) : 0;
+                        const lead = userMap.get(project.lead_id);
 
                         return (
                             <Link 
                                 key={project.id} 
                                 href={`/dashboard/projects/${project.id}`}
-                                className="px-6 py-5 hover:bg-slate-50/80 transition-all flex items-center justify-between group/project border-b border-gray-100 last:border-0"
+                                className="px-6 py-4 hover:bg-slate-50/80 transition-all flex items-center justify-between group/project border-b border-gray-100 last:border-0"
                             >
-                                <div className="flex items-center gap-4 flex-1">
-                                    <div className="bg-indigo-50 p-2.5 rounded-xl text-indigo-600 group-hover/project:bg-indigo-100 group-hover/project:scale-105 transition-all shadow-sm ring-1 ring-indigo-100/50">
-                                        <Folder size={18} />
+                                <div className="flex items-center gap-4 min-w-0 flex-1">
+                                    <div className="w-8 h-8 bg-indigo-50 flex items-center justify-center rounded-lg border border-indigo-100 group-hover/project:bg-indigo-100 group-hover/project:scale-105 transition-all shrink-0">
+                                        <Folder size={14} className="text-indigo-600" />
                                     </div>
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-2">
-                                            <h3 className="text-sm font-bold text-slate-800 group-hover/project:text-indigo-600 transition-colors tracking-tight">{project.project_name}</h3>
-                                            <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">
+                                    <div className="flex flex-col min-w-0">
+                                        <h3 className="text-[13px] font-bold text-slate-800 group-hover/project:text-indigo-600 transition-colors tracking-tight truncate">
+                                            {project.project_name}
+                                        </h3>
+                                        <div className="flex items-center gap-2 mt-0.5">
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                                                 {pStat.done}/{pStat.total} tasks
                                             </span>
+                                            <span className="w-1 h-1 rounded-full bg-slate-200" />
+                                            <div className="flex items-center gap-1.5">
+                                                <div className={cn("w-1.5 h-1.5 rounded-full",
+                                                    project.status === 'done' ? 'bg-green-500' :
+                                                    project.status === 'in_progress' ? 'bg-indigo-500' :
+                                                    project.status === 'cancelled' ? 'bg-red-500' :
+                                                    'bg-orange-500'
+                                                )} />
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase">
+                                                    {project.status ? project.status.replace('_', ' ') : 'backlog'}
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                                <div className="text-right flex items-center gap-2">
-                                    <div className={cn("w-1.5 h-1.5 rounded-full",
-                                        project.status === 'done' ? 'bg-green-500' :
-                                        project.status === 'in_progress' ? 'bg-indigo-500' :
-                                        project.status === 'cancelled' ? 'bg-red-500' :
-                                        'bg-orange-500'
-                                    )} />
-                                    <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">
-                                        {project.status ? project.status.replace('_', ' ') : 'backlog'}
+                                <div className="flex items-center gap-3 shrink-0">
+                                    {lead && (
+                                        <UserAvatar 
+                                            name={lead.name} 
+                                            avatarUrl={lead.avatar_url} 
+                                            size="xs" 
+                                        />
+                                    )}
+                                    <span className="text-[10px] font-bold text-slate-300 uppercase w-12 text-right">
+                                        {new Date(project.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                     </span>
                                 </div>
                             </Link>
@@ -234,6 +258,45 @@ async function ProjectOverviewList() {
  */
 async function IssueOverviewList() {
     const recentTickets = await getCachedRecentTickets(5);
+
+    const renderPriorityIcon = (priority: string) => {
+        switch (priority) {
+            case 'urgent':
+                return (
+                    <div className="flex gap-0.5 items-end h-3">
+                        <div className="w-1 h-3 bg-red-500 rounded-sm"></div>
+                        <div className="w-1 h-3 bg-red-500 rounded-sm"></div>
+                        <div className="w-1 h-3 bg-red-500 rounded-sm"></div>
+                    </div>
+                );
+            case 'high':
+                return (
+                    <div className="flex gap-0.5 items-end h-3">
+                        <div className="w-1 h-2 bg-red-400 rounded-sm"></div>
+                        <div className="w-1 h-2.5 bg-red-400 rounded-sm"></div>
+                        <div className="w-1 h-3 bg-red-400 rounded-sm"></div>
+                    </div>
+                );
+            case 'medium':
+                return (
+                    <div className="flex gap-0.5 items-end h-3">
+                        <div className="w-1 h-1.5 bg-yellow-400 rounded-sm"></div>
+                        <div className="w-1 h-2.5 bg-yellow-400 rounded-sm"></div>
+                        <div className="w-1 h-3 bg-yellow-100 rounded-sm"></div>
+                    </div>
+                );
+            case 'low':
+                return (
+                    <div className="flex gap-0.5 items-end h-3">
+                        <div className="w-1 h-1.5 bg-indigo-400 rounded-sm"></div>
+                        <div className="w-1 h-3 bg-indigo-100 rounded-sm"></div>
+                        <div className="w-1 h-3 bg-indigo-100 rounded-sm"></div>
+                    </div>
+                );
+            default:
+                return <div className="w-4 h-0.5 bg-slate-200 rounded-full"></div>;
+        }
+    };
     
     return (
         <Widget title="Recent Issues" href="/dashboard/issues">
@@ -243,37 +306,53 @@ async function IssueOverviewList() {
                     No urgent issues detected
                 </div>
             ) : (
-                <div className="divide-y divide-gray-50 -mx-5 -mb-5">
+                <div className="divide-y divide-gray-100/60 -mx-6 -mb-6">
                     {recentTickets.map((ticket: any) => {
                         const statusData = STATUS_ICONS[ticket.status] || STATUS_ICONS['to_do'];
-                        const StatusIcon = statusData.icon;
                         const statusColor = statusData.color;
 
                         return (
                             <Link 
                                 key={ticket.id} 
                                 href={`/dashboard/issues/${ticket.id}`}
-                                className="px-5 py-4 hover:bg-gray-50 transition-all flex items-center justify-between group/ticket border-b border-gray-50 last:border-0"
+                                className="px-6 py-4 hover:bg-slate-50/80 transition-all flex items-center justify-between group/ticket border-b border-gray-100 last:border-0"
                             >
-                                <div className="flex items-center gap-4 min-w-0">
-                                    <div className={cn("p-2 rounded-lg transition-all group-hover/ticket:scale-105", statusColor.replace('text-', 'bg-') + "/10", statusColor)}>
-                                        <StatusIcon size={18} />
+                                <div className="flex items-center gap-4 min-w-0 flex-1">
+                                    <div className="w-8 shrink-0 flex justify-center opacity-60 group-hover/ticket:opacity-100 transition-opacity">
+                                        {renderPriorityIcon(ticket.priority)}
                                     </div>
-                                    <div className="min-w-0">
-                                        <h3 className="text-sm font-semibold text-gray-900 group-hover/ticket:text-indigo-600 transition-colors uppercase tracking-tight truncate">
-                                            {ticket.title}
-                                        </h3>
-                                        <p className="text-[10px] text-gray-400 mt-0.5 truncate font-bold opacity-60 uppercase tracking-widest">
-                                            {ticket.projects?.project_name || 'No Project'}
-                                        </p>
+                                    <div className="flex flex-col min-w-0">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter shrink-0">
+                                                {ticket.projects?.project_name?.substring(0, 3).toUpperCase() || 'KAP'}-{ticket.id.substring(0, 2).toUpperCase()}
+                                            </span>
+                                            <h3 className="text-sm font-bold text-slate-800 group-hover/ticket:text-indigo-600 transition-colors truncate tracking-tight">
+                                                {ticket.title}
+                                            </h3>
+                                        </div>
+                                        <div className="flex items-center gap-2 mt-0.5">
+                                            <div className={cn("w-1.5 h-1.5 rounded-full shrink-0", statusColor.replace('text-', 'bg-'))} />
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase">
+                                                {ticket.status.replace('_', ' ')}
+                                            </span>
+                                            <span className="w-1 h-1 rounded-full bg-slate-200" />
+                                            <div className="flex items-center gap-1.5 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100/50">
+                                                <LayoutGrid size={10} className="text-slate-400" />
+                                                <span className="text-[9px] font-bold text-slate-500 uppercase truncate max-w-[120px]">
+                                                    {ticket.projects?.project_name || 'No Project'}
+                                                </span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                                <div className="text-right flex items-center gap-4 shrink-0">
-                                    <div className="hidden sm:block px-2 py-0.5 bg-gray-50 border border-gray-100 rounded text-[9px] font-bold text-gray-400 uppercase">
-                                        {ticket.status.replace('_', ' ')}
-                                    </div>
-                                    <span className="text-[10px] font-semibold text-gray-400 capitalize tracking-wide pr-2">
-                                        {formatTimeLong(ticket.created_at)}
+                                <div className="flex items-center gap-3 shrink-0 ml-4">
+                                    <UserAvatar 
+                                        name={ticket.assignees?.name || 'Unassigned'} 
+                                        avatarUrl={ticket.assignees?.avatar_url} 
+                                        size="xs" 
+                                    />
+                                    <span className="text-[10px] font-bold text-slate-300 uppercase w-12 text-right">
+                                        {new Date(ticket.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                     </span>
                                 </div>
                             </Link>
