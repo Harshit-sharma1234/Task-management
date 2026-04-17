@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, memo, useCallback, startTransition } from 'react';
-import { updateIssue } from '@/app/dashboard/issues/actions';
+import { updateIssue } from '@/app/dashboard/[workspace]/issues/actions';
 import { toast } from 'sonner';
 import { 
     SignalHigh,
