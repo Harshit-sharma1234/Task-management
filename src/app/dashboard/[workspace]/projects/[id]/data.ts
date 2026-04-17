@@ -1,0 +1,203 @@
+import { unstable_cache } from 'next/cache';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { getCachedUserProfile, getCachedIssueUsers } from '@/lib/cache';
+
+const getCachedProjectShell = (projectId: string) =>
+  unstable_cache(
+    async () => {
+      const adminClient = createAdminClient();
+    const { data, error } = await adminClient
+      .from('projects')
+      .select('id, project_name, description, status, priority, lead_id, start_date, workspace_id')
+      .eq('id', projectId)
+      .single();
+
+      return { data, error };
+    },
+    ['project-shell', projectId],
+    {
+      tags: ['project-shell', 'projects', `project:${projectId}`],
+    }
+  )();
+
+const getCachedProjectMembers = (projectId: string) =>
+  unstable_cache(
+    async () => {
+      const adminClient = createAdminClient();
+      const { data } = await adminClient.from('project_members').select('user_id').eq('project_id', projectId);
+      return data || [];
+    },
+    ['project-members', projectId],
+    {
+      tags: ['project-members', 'projects', `project:${projectId}`],
+    }
+  )();
+
+import { cache } from 'react';
+
+// Keep this as a regular async function because this flow depends on
+// request-auth context in page/layout. Individual sub-queries are cached.
+// NOTE: Do not wrap this in unstable_cache (uses request-bound auth flow).
+export const getProjectDetails = cache(async (id: string, sessionEmail: string, workspaceId: string) => {
+    const adminClient = createAdminClient();
+
+    const [projectRes, membersRes, profileRes, rawAllUsersRes] = await Promise.all([
+      getCachedProjectShell(id),
+      getCachedProjectMembers(id),
+      getCachedUserProfile(sessionEmail),
+      getCachedIssueUsers(workspaceId),
+    ]);
+
+    return {
+      project: projectRes.data,
+      projectError: projectRes.error,
+      users: [],
+      members: membersRes || [],
+      profile: profileRes,
+      allUsers: rawAllUsersRes || [],
+    };
+});
+
+
+// Cache tickets list used by the "tab=issues" view.
+// Realtime in the client keeps it globally up-to-date.
+export const getProjectIssuesTickets = cache(async (projectId: string, activeFilter: string = 'all') => {
+  console.log("DB FILTER:", activeFilter);
+  const INITIAL_LIMIT = 40;
+
+  return unstable_cache(
+    async () => {
+      const adminClient = createAdminClient();
+      let query = adminClient
+        .from('tickets')
+        .select(`
+          id, 
+          title, 
+          status, 
+          priority, 
+          assignee_id, 
+          reviewer_id, 
+          created_by, 
+          created_at, 
+          updated_at,
+          attachments, 
+          projects(id, project_name), 
+          assignees:users!assignee_id(id, name, avatar_url),
+          reviewers:users!reviewer_id(id, name, avatar_url)
+        `)
+        .eq('project_id', projectId);
+
+      // ✅ Apply filter from UI at DB level
+      if (activeFilter && activeFilter !== 'all') {
+        if (activeFilter === 'active') {
+          query = query.in('status', ['in_progress', 'to_do']);
+        } else {
+          query = query.eq('status', activeFilter);
+        }
+      }
+
+      query = query.order('created_at', { ascending: false }).limit(INITIAL_LIMIT);
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error(`[Data] Error fetching tickets for project ${projectId}:`, error);
+        return [];
+      }
+      return data || [];
+    },
+    ['project-issues-initial', projectId, activeFilter],
+    {
+      tags: ['issues', 'projects', `project:${projectId}`],
+      revalidate: 30, // 30s revalidation; realtime handles instant client updates
+    }
+  )();
+});
+
+export async function getProjectIssuesChunk(projectId: string, offset: number, limit: number, activeFilter: string = 'all') {
+  const safeOffset = Number.isFinite(offset) && offset >= 0 ? Math.floor(offset) : 0;
+  const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.min(Math.floor(limit), 100) : 0;
+  if (safeLimit === 0) return [];
+
+  const adminClient = createAdminClient();
+  let query = adminClient
+    .from('tickets')
+    .select(`
+      id, 
+      title, 
+      status, 
+      priority, 
+      assignee_id, 
+      reviewer_id, 
+      created_by, 
+      created_at, 
+      updated_at,
+      attachments, 
+      projects(id, project_name), 
+      assignees:users!assignee_id(id, name, avatar_url),
+      reviewers:users!reviewer_id(id, name, avatar_url)
+    `)
+    .eq('project_id', projectId);
+
+  // ✅ Apply filter from UI at DB level
+  if (activeFilter && activeFilter !== 'all') {
+    if (activeFilter === 'active') {
+      query = query.in('status', ['in_progress', 'to_do']);
+    } else {
+      query = query.eq('status', activeFilter);
+    }
+  }
+
+  query = query
+    .order('created_at', { ascending: false })
+    .range(safeOffset, safeOffset + safeLimit - 1);
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error(`[Data] Error fetching tickets for project ${projectId}:`, error);
+    return [];
+  }
+  return data || [];
+}
+
+// Cache resources used by the overview view.
+// Realtime in `ProjectOverview` keeps it globally up-to-date.
+export async function getProjectResources(projectId: string) {
+  return unstable_cache(
+    async () => {
+      const adminClient = createAdminClient();
+      const { data } = await adminClient
+        .from('project_resources')
+        .select('id, title, url')
+        .eq('project_id', projectId)
+        .order('created_at', { ascending: false });
+
+      return data || [];
+    },
+    ['project-resources', projectId],
+    {
+      tags: ['project-resources', 'projects', `project:${projectId}`],
+    }
+  )();
+}
+
+export async function getProjectMetadata(id: string) {
+  return unstable_cache(
+    async () => {
+      const adminClient = createAdminClient();
+      const { data } = await adminClient
+        .from('projects')
+        .select('project_name, description')
+        .eq('id', id)
+        .single();
+
+      return data;
+    },
+    ['project-metadata', id],
+    {
+      tags: ['projects', `project:${id}`],
+      revalidate: 3600, // 1 hour safety-net; also invalidated via 'projects' tag on mutation
+    }
+  )();
+}
