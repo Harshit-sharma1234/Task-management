@@ -16,7 +16,7 @@ import { STATUS_ICONS } from '@/lib/constants'
 import { getCachedStats, getCachedUsers, getCachedRecentTickets, getCachedProjects, getCachedUserTasks, getCachedUpcomingDeadlines, getCachedRecentNotifications, getCachedUserNote } from '@/lib/cache'
 import { Suspense, type ReactNode } from 'react'
 import { WidgetSkeleton, StatsSkeleton } from './OverviewSkeletons'
-import { markAsRead } from '@/app/dashboard/notifications/actions'
+import { markAsRead } from '@/app/dashboard/[workspace]/notifications/actions'
 import { ScratchpadWidget } from './ScratchpadWidget'
 import WidgetErrorBoundary from '@/components/dashboard/WidgetErrorBoundary'
 
@@ -70,10 +70,12 @@ function Widget({ title, href, count, children, className }: WidgetProps) {
  */
 interface DashboardOverviewProps {
     userId: string;
+    workspaceId: string;
+    workspaceSlug: string;
     userRole?: string;
 }
 
-export default function DashboardOverview({ userId, userRole = '' }: DashboardOverviewProps) {
+export default function DashboardOverview({ userId, workspaceId, workspaceSlug, userRole = '' }: DashboardOverviewProps) {
     return (
         <div className="w-full">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -81,13 +83,13 @@ export default function DashboardOverview({ userId, userRole = '' }: DashboardOv
                 <div className="lg:col-span-2 flex flex-col gap-6">
                     <WidgetErrorBoundary name="Project Overview">
                         <Suspense fallback={<WidgetSkeleton />}>
-                            <ProjectOverviewList />
+                            <ProjectOverviewList workspaceId={workspaceId} workspaceSlug={workspaceSlug} />
                         </Suspense>
                     </WidgetErrorBoundary>
                     
                     <WidgetErrorBoundary name="Recent Issues">
                         <Suspense fallback={<WidgetSkeleton />}>
-                            <IssueOverviewList />
+                            <IssueOverviewList workspaceId={workspaceId} workspaceSlug={workspaceSlug} />
                         </Suspense>
                     </WidgetErrorBoundary>
                 </div>
@@ -96,7 +98,7 @@ export default function DashboardOverview({ userId, userRole = '' }: DashboardOv
                 <div className="flex flex-col gap-6">
                     <WidgetErrorBoundary name="My Tasks">
                         <Suspense fallback={<WidgetSkeleton rows={2} />}>
-                            <MyTasksWidget userId={userId} />
+                            <MyTasksWidget userId={userId} workspaceId={workspaceId} workspaceSlug={workspaceSlug} />
                         </Suspense>
                     </WidgetErrorBoundary>
 
@@ -116,13 +118,14 @@ export default function DashboardOverview({ userId, userRole = '' }: DashboardOv
  */
 interface StatsCardsProps {
     userId?: string;
+    workspaceId: string;
 }
 
-async function StatsCards({ userId }: StatsCardsProps) {
+async function StatsCards({ userId, workspaceId }: StatsCardsProps) {
     if (userId) {
         // Fetch personalized stats
         const { getCachedUserStatsV2 } = await import('@/lib/cache');
-        const userStats = await getCachedUserStatsV2(userId);
+        const userStats = await getCachedUserStatsV2(userId, workspaceId);
         return (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                 <StatCard label="My Urgent Issues" value={userStats.urgentIssuesCount} icon={CircleDot} color="text-red-500" bg="bg-red-50" delay="delay-0" />
@@ -133,8 +136,8 @@ async function StatsCards({ userId }: StatsCardsProps) {
         );
     }
 
-    // Default to global stats
-    const stats = await getCachedStats();
+    // Default to workspace stats
+    const stats = await getCachedStats(workspaceId);
     
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -171,13 +174,13 @@ function StatCard({ label, value, icon: Icon, color, bg, delay }: any) {
 /**
  * ── WIDGET: PROJECT LIST ──
  */
-async function ProjectOverviewList() {
-    const stats = await getCachedStats();
+async function ProjectOverviewList({ workspaceId, workspaceSlug }: { workspaceId: string, workspaceSlug: string }) {
+    const stats = await getCachedStats(workspaceId);
     const recentProjects = stats.recentProjects || [];
     const projectStats = stats.projectStats || {};
 
     return (
-        <Widget title="Project Overview" href="/dashboard/projects">
+        <Widget title="Project Overview" href={`/dashboard/${workspaceSlug}/projects`}>
             {recentProjects.length === 0 ? (
                 <div className="p-12 flex flex-col items-center justify-center min-h-[200px] text-center">
                     <div className="bg-gray-50 p-4 rounded-full text-gray-300 mb-4 animate-bounce">
@@ -195,7 +198,7 @@ async function ProjectOverviewList() {
                         return (
                             <Link 
                                 key={project.id} 
-                                href={`/dashboard/projects/${project.id}`}
+                                href={`/dashboard/${workspaceSlug}/projects/${project.id}`}
                                 className="px-6 py-5 hover:bg-slate-50/80 transition-all flex items-center justify-between group/project border-b border-gray-100 last:border-0"
                             >
                                 <div className="flex items-center gap-4 flex-1">
@@ -234,11 +237,11 @@ async function ProjectOverviewList() {
 /**
  * ── WIDGET: ISSUE LIST ──
  */
-async function IssueOverviewList() {
-    const recentTickets = await getCachedRecentTickets(5);
+async function IssueOverviewList({ workspaceId, workspaceSlug }: { workspaceId: string, workspaceSlug: string }) {
+    const recentTickets = await getCachedRecentTickets(5, workspaceId);
     
     return (
-        <Widget title="Recent Issues" href="/dashboard/issues">
+        <Widget title="Recent Issues" href={`/dashboard/${workspaceSlug}/issues`}>
             {recentTickets.length === 0 ? (
                 <div className="p-12 flex flex-col items-center justify-center min-h-[200px] text-center text-gray-400 font-medium italic">
                     <CircleDot size={32} className="mb-4 opacity-20" />
@@ -254,7 +257,7 @@ async function IssueOverviewList() {
                         return (
                             <Link 
                                 key={ticket.id} 
-                                href={`/dashboard/issues/${ticket.id}`}
+                                href={`/dashboard/${workspaceSlug}/issues/${ticket.id}`}
                                 className="px-5 py-4 hover:bg-gray-50 transition-all flex items-center justify-between group/ticket border-b border-gray-50 last:border-0"
                             >
                                 <div className="flex items-center gap-4 min-w-0">
@@ -290,8 +293,8 @@ async function IssueOverviewList() {
 /**
  * ── WIDGET: MY TASKS ──
  */
-async function MyTasksWidget({ userId }: { userId: string }) {
-    const tasks = await getCachedUserTasks(userId);
+async function MyTasksWidget({ userId, workspaceId, workspaceSlug }: { userId: string, workspaceId: string, workspaceSlug: string }) {
+    const tasks = await getCachedUserTasks(userId, workspaceId);
     
     return (
         <Widget title="My Tasks" count={tasks.length}>
@@ -299,7 +302,7 @@ async function MyTasksWidget({ userId }: { userId: string }) {
                 <div className="max-h-[140px] overflow-y-auto pr-2 custom-scrollbar transition-all duration-200">
                     <div className="flex flex-col gap-4">
                         {tasks.map((task: any) => (
-                            <Link key={task.id} href={`/dashboard/issues/${task.id}`} className="group/task cursor-pointer">
+                            <Link key={task.id} href={`/dashboard/${workspaceSlug}/issues/${task.id}`} className="group/task cursor-pointer">
                                 <div className="flex items-center justify-between">
                                     <span className="text-xs font-semibold text-gray-700 truncate pr-2 group-hover/task:text-indigo-600 transition-colors">
                                         {task.title}
