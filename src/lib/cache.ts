@@ -47,7 +47,7 @@ export const getCachedStats = unstable_cache(
     ] = await Promise.all([
       supabase.from('projects').select('*', { count: 'exact', head: true }),
       supabase.from('tickets').select('*', { count: 'exact', head: true }),
-      supabase.from('projects').select('id, project_name, description, created_at, status').order('created_at', { ascending: false }).limit(3),
+      supabase.from('projects').select('id, project_name, description, created_at, status, priority, lead_id').order('created_at', { ascending: false }).limit(3),
       supabase.from('projects').select('*', { count: 'exact', head: true }).eq('status', 'done'),
       supabase.from('projects').select('*', { count: 'exact', head: true }).eq('status', 'in_progress'),
       supabase.from('tickets').select('*', { count: 'exact', head: true }).eq('priority', 'urgent').neq('status', 'done'),
@@ -160,7 +160,7 @@ export const getCachedRecentTickets = (limit: number = 10) =>
       const supabase = createAdminClient();
       const { data, error } = await supabase
         .from('tickets')
-        .select('id, title, status, priority, created_at, assignee_id, reviewer_id, projects(project_name)')
+        .select('id, title, status, priority, created_at, assignee_id, reviewer_id, projects(id, project_name), assignees:users!assignee_id(id, name, avatar_url)')
         .order('created_at', { ascending: false })
         .limit(limit);
       
@@ -259,7 +259,7 @@ export const getCachedIssueUsers = unstable_cache(
     const supabase = createAdminClient();
     const { data, error } = await supabase
       .from('users')
-      .select('id, name, avatar_url, email')
+      .select('id, name, avatar_url, email, roles(role_name)')
       .order('name');
 
     if (error) {

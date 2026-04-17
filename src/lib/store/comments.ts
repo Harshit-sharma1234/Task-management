@@ -11,6 +11,12 @@ export interface Comment {
     email: string;
     avatar_url?: string | null;
   };
+  attachments?: {
+    name: string;
+    url: string;
+    type: string;
+    size: number;
+  }[];
 }
 
 interface CommentsState {
