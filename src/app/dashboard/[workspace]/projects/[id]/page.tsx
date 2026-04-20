@@ -12,9 +12,9 @@ import { getCachedWorkspaceBySlug } from '@/lib/cache';
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
   const project = await getProjectMetadata(id);
-  
+
   if (!project) return { title: 'Project Not Found' };
-  
+
   return {
     title: project.project_name,
     description: project.description || `View tasks and details for ${project.project_name}`,
@@ -62,10 +62,10 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
             </div>
           }
         >
-          <ProjectIssuesTab 
-            projectId={id} 
-            users={allUsers || []} 
-            projectName={project.project_name} 
+          <ProjectIssuesTab
+            projectId={id}
+            users={allUsers || []}
+            projectName={project.project_name}
             currentUser={profile}
             ticketsPromise={ticketsPromise}
             activeFilter={activeFilter}

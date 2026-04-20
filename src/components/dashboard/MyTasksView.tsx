@@ -5,9 +5,9 @@ import dynamic from 'next/dynamic';
 import { IssuesHeader } from './issues/IssuesHeader';
 import { IssuesList } from './issues/IssuesList';
 import { IssuesBoard } from './issues/IssuesBoard';
-import { 
-  groupAndSortTickets, 
-  DisplaySettings 
+import {
+  groupAndSortTickets,
+  DisplaySettings
 } from '@/lib/utils/issue-display-utils';
 
 const AddIssueModal = dynamic(() => import('./issues/AddIssueModal').then(mod => mod.AddIssueModal), {
@@ -24,7 +24,7 @@ interface MyTasksViewProps {
 export function MyTasksView({ initialTickets, projects, users, currentUser }: MyTasksViewProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState('all');
-  
+
   const [displaySettings, setDisplaySettings] = useState<DisplaySettings>({
     viewMode: 'list',
     groupBy: 'status',
@@ -50,8 +50,8 @@ export function MyTasksView({ initialTickets, projects, users, currentUser }: My
   return (
     <div className="flex flex-col h-full bg-[#fbfbfb]">
       {/* Header Section */}
-      <IssuesHeader 
-        totalIssues={filteredTickets.length} 
+      <IssuesHeader
+        totalIssues={filteredTickets.length}
         activeFilter={activeFilter}
         onFilterChange={setActiveFilter}
         onOpenModal={() => setIsModalOpen(true)}
@@ -63,18 +63,18 @@ export function MyTasksView({ initialTickets, projects, users, currentUser }: My
       <div className="flex-1 overflow-hidden">
         <div className="h-full overflow-y-auto pt-6 px-8 w-full">
           {displaySettings.viewMode === 'list' ? (
-            <IssuesList 
-              tickets={filteredTickets} 
+            <IssuesList
+              tickets={filteredTickets}
               groupedData={groupedData}
               displaySettings={displaySettings}
-              users={users} 
+              users={users}
               onOpenModal={() => setIsModalOpen(true)}
               currentUser={currentUser}
               isMyTasks={true}
               emptyMessage="No tasks assigned to you"
             />
           ) : (
-            <IssuesBoard 
+            <IssuesBoard
               groupedData={groupedData}
               users={users}
               currentUser={currentUser}
@@ -86,9 +86,9 @@ export function MyTasksView({ initialTickets, projects, users, currentUser }: My
       </div>
 
       {isModalOpen && (
-        <AddIssueModal 
-          isOpen={isModalOpen} 
-          onClose={() => setIsModalOpen(false)} 
+        <AddIssueModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
           projects={projects}
           users={users}
         />

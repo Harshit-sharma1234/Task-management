@@ -22,7 +22,7 @@ export default async function MyTasksPage({ params }: { params: Promise<{ worksp
 
   const { workspace: workspaceSlug } = await params;
   const workspace = await getCachedWorkspaceBySlug(workspaceSlug);
-  
+
   if (!workspace) {
     redirect('/dashboard');
   }
@@ -31,10 +31,10 @@ export default async function MyTasksPage({ params }: { params: Promise<{ worksp
 
   return (
     <Suspense fallback={<IssueListSkeleton />}>
-      <MyTasksContent 
-        targetUserId={currentUser?.id || user.id} 
+      <MyTasksContent
+        targetUserId={currentUser?.id || user.id}
         workspaceId={workspace.id}
-        currentUser={currentUser} 
+        currentUser={currentUser}
       />
     </Suspense>
   );
@@ -53,7 +53,7 @@ async function MyTasksContent({
   const { tickets, projects, users } = await getCachedMyTasksDetailed(targetUserId, workspaceId);
 
   return (
-    <MyTasksView 
+    <MyTasksView
       initialTickets={tickets}
       projects={projects}
       users={users}
