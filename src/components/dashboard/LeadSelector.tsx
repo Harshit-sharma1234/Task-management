@@ -19,6 +19,8 @@ interface LeadSelectorProps {
     currentLeadId: string | null;
     users: User[];
     showEmail?: boolean;
+    showName?: boolean;
+    hideAvatar?: boolean;
     align?: 'left' | 'right';
 }
 
@@ -27,11 +29,13 @@ export { getBadgeColor, getInitials };
 
 import { SelectorHandle } from './StatusSelector';
 
-export const LeadSelector = memo(forwardRef<SelectorHandle, LeadSelectorProps>(({ 
-    projectId, 
-    currentLeadId, 
-    users, 
+export const LeadSelector = memo(forwardRef<SelectorHandle, LeadSelectorProps>(({
+    projectId,
+    currentLeadId,
+    users,
     showEmail = false,
+    showName = false,
+    hideAvatar = false,
     align = 'left'
 }, ref) => {
     const [isOpen, setIsOpen] = useState(false);
@@ -45,8 +49,8 @@ export const LeadSelector = memo(forwardRef<SelectorHandle, LeadSelectorProps>((
 
     // Filter users based on search
     const filteredUsers = useMemo(() => {
-        return users.filter(user => 
-            user.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        return users.filter(user =>
+            user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             user.email.toLowerCase().includes(searchQuery.toLowerCase())
         );
     }, [users, searchQuery]);
@@ -86,20 +90,22 @@ export const LeadSelector = memo(forwardRef<SelectorHandle, LeadSelectorProps>((
 
     return (
         <div className="relative flex items-center" ref={dropdownRef}>
-            <button 
+            <button
                 onClick={(e) => {
                     e.stopPropagation();
                     setIsOpen(!isOpen);
                 }}
                 className={`flex items-center gap-2 py-1 rounded-md hover:bg-gray-100/80 transition-colors text-gray-500 hover:text-gray-900 ${isPending ? 'opacity-50' : ''}`}
             >
-                <UserAvatar
-                    name={currentLead ? currentLead.name : 'Unassigned'}
-                    avatarUrl={currentLead?.avatar_url}
-                    size="sm"
-                />
-                {showEmail && (
-                    <span className="text-[11px] font-medium text-gray-700 truncate max-w-[200px]">
+                {!hideAvatar && (
+                    <UserAvatar
+                        name={currentLead ? currentLead.name : 'Unassigned'}
+                        avatarUrl={currentLead?.avatar_url}
+                        size="sm"
+                    />
+                )}
+                {(showEmail || showName) && (
+                    <span className="text-[11px] font-medium text-gray-700 truncate max-w-[130px]">
                         {leadLabel}
                     </span>
                 )}
@@ -109,7 +115,7 @@ export const LeadSelector = memo(forwardRef<SelectorHandle, LeadSelectorProps>((
                 <div className={`absolute ${align === 'left' ? 'left-0' : 'right-0'} top-full mt-2 w-64 bg-white border border-gray-100 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200`}>
                     <div className="p-2 border-b border-gray-50 flex items-center gap-2 bg-gray-50/50">
                         <Search size={14} className="text-gray-400 ml-2" />
-                        <input 
+                        <input
                             type="text"
                             placeholder="Assign lead..."
                             className="w-full bg-transparent border-none outline-none text-xs py-1"
@@ -118,7 +124,7 @@ export const LeadSelector = memo(forwardRef<SelectorHandle, LeadSelectorProps>((
                             autoFocus
                         />
                     </div>
-                    
+
                     <div className="flex flex-col max-h-64 overflow-y-auto p-1">
                         <button
                             onClick={(e) => {
@@ -144,7 +150,7 @@ export const LeadSelector = memo(forwardRef<SelectorHandle, LeadSelectorProps>((
 
                         {filteredUsers.map((u) => {
                             const isSelected = currentLeadId === u.id;
-                            
+
                             return (
                                 <button
                                     key={u.id}
