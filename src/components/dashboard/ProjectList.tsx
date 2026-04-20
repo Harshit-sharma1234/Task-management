@@ -41,6 +41,8 @@ interface ProjectListProps {
     userRole: AppRole | null;
 }
 
+import { UserAvatar } from '@/components/ui/UserAvatar';
+
 /**
  * Memoized row component to prevent re-renders of the entire 
  * project list when searching or filtering.
@@ -90,9 +92,45 @@ const ProjectRow = memo(({
         };
     }, [project.id, router]);
 
+    // Priority Icon logic consistent with PrioritySelector
+    const renderPriorityIcon = () => {
+        const priority = project.priority;
+        if (priority === 'urgent') return (
+            <div className="flex gap-0.5 items-end h-3" title="Urgent">
+                <div className="w-1 h-3 bg-red-500 rounded-sm"></div>
+                <div className="w-1 h-3 bg-red-500 rounded-sm"></div>
+                <div className="w-1 h-3 bg-red-500 rounded-sm"></div>
+            </div>
+        );
+        if (priority === 'high') return (
+            <div className="flex gap-0.5 items-end h-3" title="High">
+                <div className="w-1 h-2 bg-orange-500 rounded-sm"></div>
+                <div className="w-1 h-2.5 bg-orange-500 rounded-sm"></div>
+                <div className="w-1 h-3 bg-orange-500 rounded-sm"></div>
+            </div>
+        );
+        if (priority === 'medium') return (
+            <div className="flex gap-0.5 items-end h-3" title="Medium">
+                <div className="w-1 h-1.5 bg-indigo-400 rounded-sm"></div>
+                <div className="w-1 h-2.5 bg-indigo-400 rounded-sm"></div>
+                <div className="w-1 h-3 bg-gray-200 rounded-sm"></div>
+            </div>
+        );
+        if (priority === 'low') return (
+            <div className="flex gap-0.5 items-end h-3" title="Low">
+                <div className="w-1 h-1.5 bg-indigo-400 rounded-sm"></div>
+                <div className="w-1 h-3 bg-gray-200 rounded-sm"></div>
+                <div className="w-1 h-3 bg-gray-200 rounded-sm"></div>
+            </div>
+        );
+        return <div className="text-[10px] text-gray-300 font-bold tracking-tight">---</div>;
+    };
+
+    const leadUser = users.find(u => u.id === project.lead_id);
+
     return (
         <div 
-            className="grid grid-cols-[1fr_100px_140px_140px_140px_48px] items-center py-3.5 hover:bg-gray-50/50 transition-colors group text-sm relative hover:z-20 focus-within:z-20 border-b border-gray-100"
+            className="grid grid-cols-[1fr_100px_140px_140px_140px_48px] items-center py-2 hover:bg-gray-50/50 transition-colors group text-sm relative hover:z-20 focus-within:z-20 border-b border-gray-100"
             onMouseEnter={() => setIsInteractive(true)}
             onFocus={() => setIsInteractive(true)}
         >
@@ -111,24 +149,32 @@ const ProjectRow = memo(({
             </div>
             
             {/* Priority */}
-            <div className="hidden md:flex items-center relative z-10">
+            <div className="hidden md:flex items-center relative z-10 pl-2">
                 {isInteractive ? (
                     <PrioritySelector projectId={project.id} currentPriority={project.priority} />
                 ) : (
-                    <span className="text-[10px] font-bold uppercase text-gray-400 tracking-tight">
-                        {(project.priority || 'no priority').replace('_', ' ')}
-                    </span>
+                    <div className="py-1">
+                        {renderPriorityIcon()}
+                    </div>
                 )}
             </div>
             
             {/* Lead */}
-            <div className="hidden sm:flex items-center gap-2 relative z-10">
+            <div className="hidden sm:flex items-center relative z-10 pl-2">
                 {isInteractive ? (
-                    <LeadSelector projectId={project.id} currentLeadId={project.lead_id} users={users} align="left" />
+                    <LeadSelector projectId={project.id} currentLeadId={project.lead_id} users={users} showName={true} hideAvatar={true} align="left" />
                 ) : (
-                    <span className="text-xs font-medium text-gray-600 truncate">
-                        {(project.lead_id && users.find(u => u.id === project.lead_id)?.name) || 'No lead'}
-                    </span>
+                    <div className="py-0.5">
+                        {leadUser ? (
+                            <span className="text-[11px] font-medium text-gray-700 truncate max-w-[130px]">
+                                {leadUser.name}
+                            </span>
+                        ) : (
+                            <span className="text-[11px] font-medium text-gray-400 italic">
+                                Unassigned
+                            </span>
+                        )}
+                    </div>
                 )}
             </div>
             
@@ -256,7 +302,7 @@ export function ProjectList({ projects, users, userMap, userRole }: ProjectListP
     const rowVirtualizer = useVirtualizer({
         count: filteredProjects.length,
         getScrollElement: () => listScrollRef.current || null,
-        estimateSize: () => 58,
+        estimateSize: () => 50,
         overscan: 8,
     });
 
@@ -304,7 +350,7 @@ export function ProjectList({ projects, users, userMap, userRole }: ProjectListP
                             {!searchTerm && <CreateProjectButton variant="header" />}
                         </div>
                     ) : (
-                        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
                             {/* List Header */}
                             <div className="grid grid-cols-[1fr_100px_140px_140px_140px_48px] items-center border-b border-gray-100 bg-gray-50/50 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
                                 <div className="pl-5">Name</div>
@@ -326,7 +372,7 @@ export function ProjectList({ projects, users, userMap, userRole }: ProjectListP
                                     return (
                                         <div
                                             key={project.id}
-                                            className="absolute left-0 top-0 w-full"
+                                            className="absolute left-0 top-0 w-full focus-within:z-30"
                                             style={{ transform: `translateY(${virtualRow.start}px)` }}
                                         >
                                             <ProjectRow

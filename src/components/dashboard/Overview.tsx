@@ -21,7 +21,7 @@ import { ScratchpadWidget } from './ScratchpadWidget'
 import WidgetErrorBoundary from '@/components/dashboard/WidgetErrorBoundary'
 
 // Lazy load interactive elements
-const CreateProjectButton = dynamic(() => import('@/components/dashboard/CreateProjectButton').then(mod => mod.CreateProjectButton), { 
+const CreateProjectButton = dynamic(() => import('@/components/dashboard/CreateProjectButton').then(mod => mod.CreateProjectButton), {
     loading: () => <div className="h-10 w-32 bg-gray-100 animate-pulse rounded-md" />
 })
 
@@ -39,8 +39,8 @@ interface WidgetProps {
 
 function Widget({ title, href, count, children, className }: WidgetProps) {
     return (
-        <div className={cn("premium-card rounded-2xl p-6 relative overflow-hidden group", className)}>
-            <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+        <div className={cn("premium-card rounded-2xl p-6 relative group", className)}>
+            <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
             <div className="relative z-10">
                 <div className="flex justify-between items-center mb-6">
                     <div className="flex items-center gap-2.5">
@@ -57,9 +57,7 @@ function Widget({ title, href, count, children, className }: WidgetProps) {
                         </Link>
                     )}
                 </div>
-                <div className="animate-slide-up">
-                    {children}
-                </div>
+                {children}
             </div>
         </div>
     )
@@ -86,7 +84,7 @@ export default function DashboardOverview({ userId, workspaceId, workspaceSlug, 
                             <ProjectOverviewList workspaceId={workspaceId} workspaceSlug={workspaceSlug} />
                         </Suspense>
                     </WidgetErrorBoundary>
-                    
+
                     <WidgetErrorBoundary name="Recent Issues">
                         <Suspense fallback={<WidgetSkeleton />}>
                             <IssueOverviewList workspaceId={workspaceId} workspaceSlug={workspaceSlug} />
@@ -103,7 +101,7 @@ export default function DashboardOverview({ userId, workspaceId, workspaceSlug, 
                     </WidgetErrorBoundary>
 
                     <WidgetErrorBoundary name="Scratchpad">
-                        <Suspense fallback={<WidgetSkeleton rows={3} />}>
+                        <Suspense key="scratchpad-suspense" fallback={<WidgetSkeleton rows={3} />}>
                             <ScratchpadServer userId={userId} />
                         </Suspense>
                     </WidgetErrorBoundary>
@@ -138,7 +136,7 @@ async function StatsCards({ userId, workspaceId }: StatsCardsProps) {
 
     // Default to workspace stats
     const stats = await getCachedStats(workspaceId);
-    
+
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             <StatCard label="Urgent Issues" value={stats.urgentIssuesCount} icon={CircleDot} color="text-red-500" bg="bg-red-50" delay="delay-0" />
@@ -196,8 +194,8 @@ async function ProjectOverviewList({ workspaceId, workspaceSlug }: { workspaceId
                         const progress = pStat.total > 0 ? Math.round((pStat.done / pStat.total) * 100) : 0;
 
                         return (
-                            <Link 
-                                key={project.id} 
+                            <Link
+                                key={project.id}
                                 href={`/dashboard/${workspaceSlug}/projects/${project.id}`}
                                 className="px-6 py-5 hover:bg-slate-50/80 transition-all flex items-center justify-between group/project border-b border-gray-100 last:border-0"
                             >
@@ -217,9 +215,9 @@ async function ProjectOverviewList({ workspaceId, workspaceSlug }: { workspaceId
                                 <div className="text-right flex items-center gap-2">
                                     <div className={cn("w-1.5 h-1.5 rounded-full",
                                         project.status === 'done' ? 'bg-green-500' :
-                                        project.status === 'in_progress' ? 'bg-indigo-500' :
-                                        project.status === 'cancelled' ? 'bg-red-500' :
-                                        'bg-orange-500'
+                                            project.status === 'in_progress' ? 'bg-indigo-500' :
+                                                project.status === 'cancelled' ? 'bg-red-500' :
+                                                    'bg-orange-500'
                                     )} />
                                     <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">
                                         {project.status ? project.status.replace('_', ' ') : 'backlog'}
@@ -239,7 +237,7 @@ async function ProjectOverviewList({ workspaceId, workspaceSlug }: { workspaceId
  */
 async function IssueOverviewList({ workspaceId, workspaceSlug }: { workspaceId: string, workspaceSlug: string }) {
     const recentTickets = await getCachedRecentTickets(5, workspaceId);
-    
+
     return (
         <Widget title="Recent Issues" href={`/dashboard/${workspaceSlug}/issues`}>
             {recentTickets.length === 0 ? (
@@ -255,8 +253,8 @@ async function IssueOverviewList({ workspaceId, workspaceSlug }: { workspaceId: 
                         const statusColor = statusData.color;
 
                         return (
-                            <Link 
-                                key={ticket.id} 
+                            <Link
+                                key={ticket.id}
                                 href={`/dashboard/${workspaceSlug}/issues/${ticket.id}`}
                                 className="px-5 py-4 hover:bg-gray-50 transition-all flex items-center justify-between group/ticket border-b border-gray-50 last:border-0"
                             >
@@ -295,11 +293,11 @@ async function IssueOverviewList({ workspaceId, workspaceSlug }: { workspaceId: 
  */
 async function MyTasksWidget({ userId, workspaceId, workspaceSlug }: { userId: string, workspaceId: string, workspaceSlug: string }) {
     const tasks = await getCachedUserTasks(userId, workspaceId);
-    
+
     return (
-        <Widget title="My Tasks" count={tasks.length}>
+        <Widget title="My Tasks" count={tasks.length} href="/dashboard/my-tasks">
             {tasks.length > 0 ? (
-                <div className="max-h-[140px] overflow-y-auto pr-2 custom-scrollbar transition-all duration-200">
+                <div className="max-h-[180px] overflow-y-auto pr-3 custom-scrollbar transition-all duration-200">
                     <div className="flex flex-col gap-4">
                         {tasks.map((task: any) => (
                             <Link key={task.id} href={`/dashboard/${workspaceSlug}/issues/${task.id}`} className="group/task cursor-pointer">

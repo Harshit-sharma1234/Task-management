@@ -1,36 +1,94 @@
 import { Shimmer } from "@/components/ui/Skeleton";
 
+/**
+ * IssueListSkeleton provides a high-fidelity preview of the grouped Issues list.
+ * It matches section headers and row structure (48px height) to prevent layout shifts.
+ */
 export function IssueListSkeleton() {
   return (
-    <div className="flex flex-col h-full bg-white border-t border-gray-100 animate-fade-in">
-      {/* Search and Filters placeholder */}
-      <div className="px-4 py-3 border-b flex justify-between items-center h-14 shrink-0">
-        <Shimmer className="h-8 w-64 rounded-md" />
-        <div className="flex gap-2">
-          <Shimmer className="h-8 w-24 rounded-md" />
-          <Shimmer className="h-8 w-24 rounded-md" />
+    <div className="flex flex-col h-full bg-white animate-fade-in">
+      {/* Issues Sub-Header (Filters, Display, New Issue) */}
+      <div className="bg-white border-b border-gray-100 h-16 flex items-center justify-between px-8 sticky top-0 z-10 shrink-0">
+        <div className="flex items-center gap-2">
+          {[14, 10, 12].map((w, i) => (
+            <Shimmer key={i} className={`h-7 w-${w} rounded-md`} />
+          ))}
+        </div>
+        <div className="flex items-center gap-3">
+          <Shimmer className="h-8 w-20 rounded-md opacity-60" />
+          <Shimmer className="h-9 w-28 rounded-md" />
         </div>
       </div>
 
-      {/* List content shimmer rows */}
-      <div className="flex-1 overflow-hidden divide-y divide-gray-50">
-        {[...Array(12)].map((_, i) => (
-          <div key={i} className="px-4 py-3 flex items-center gap-4 transition-colors">
-            <div className="flex items-center gap-3 shrink-0">
-               <Shimmer className="h-5 w-5 rounded-md" />
-               <Shimmer className="h-4 w-4 rounded-md opacity-40 text-xs text-center" />
-            </div>
-            <div className="flex-1 flex items-center min-w-0">
-               <Shimmer className="h-5 w-full max-w-[400px] mb-1" />
-            </div>
-            <div className="flex items-center gap-6 shrink-0 opacity-60">
-               <Shimmer className="h-4 w-20 rounded-full" />
-               <Shimmer className="h-4 w-20 rounded-full" />
-               <Shimmer className="h-4 w-12" />
-               <Shimmer className="h-7 w-7 rounded-full" />
-            </div>
+      {/* Main List Area with Section Groups */}
+      <div className="flex-1 overflow-hidden px-8">
+        
+        {/* Section 1 (e.g., BACKLOG) */}
+        <div className="mb-6 pt-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Shimmer className="h-3 w-16 rounded opacity-40 ml-1" />
+            <Shimmer className="h-4 w-6 rounded-full opacity-20" />
           </div>
-        ))}
+          <div className="divide-y divide-gray-50 border-t border-gray-100">
+            {[...Array(2)].map((_, i) => <IssueRowSkeleton key={i} />)}
+          </div>
+        </div>
+
+        {/* Section 2 (e.g., TODO) */}
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Shimmer className="h-3 w-12 rounded opacity-40 ml-1" />
+            <Shimmer className="h-4 w-6 rounded-full opacity-20" />
+          </div>
+          <div className="divide-y divide-gray-50 border-t border-gray-100">
+            {[...Array(5)].map((_, i) => <IssueRowSkeleton key={i} />)}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * High-fidelity row skeleton matching the 48px grid-based IssueRow.
+ */
+function IssueRowSkeleton() {
+  return (
+    <div className="h-[48px] px-4 py-3 grid grid-cols-[40px_40px_70px_48px_1fr_140px_48px_80px] items-center">
+      {/* Selection Checkbox Mock */}
+      <Shimmer className="h-4 w-4 rounded shrink-0 opacity-10" />
+
+      {/* Priority Signal Bars */}
+      <div className="hidden md:flex items-center gap-0.5 justify-center opacity-40">
+        <Shimmer className="h-1.5 w-1 rounded-t-sm" />
+        <Shimmer className="h-2.5 w-1 rounded-t-sm" />
+        <Shimmer className="h-3.5 w-1 rounded-t-sm opacity-50" />
+      </div>
+
+      {/* Project ID Bar */}
+      <Shimmer className="h-3 w-12 rounded opacity-30" />
+
+      {/* Status Dot */}
+      <div className="flex justify-center">
+        <Shimmer className="h-2 w-2 rounded-full opacity-30" />
+      </div>
+
+      {/* Title Line */}
+      <Shimmer className="h-3 w-64 rounded opacity-60" />
+
+      {/* Project Pill */}
+      <div className="hidden lg:block">
+        <Shimmer className="h-6 w-24 rounded-md opacity-20" />
+      </div>
+      
+      {/* Avatar Circle */}
+      <div className="flex justify-center">
+        <Shimmer className="h-6 w-6 rounded-full opacity-50" />
+      </div>
+
+      {/* Date Shimmer */}
+      <div className="flex justify-end pr-2">
+        <Shimmer className="h-3 w-12 rounded opacity-30" />
       </div>
     </div>
   );

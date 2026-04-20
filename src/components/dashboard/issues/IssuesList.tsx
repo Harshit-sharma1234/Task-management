@@ -55,6 +55,46 @@ const IssueRow = memo(({ ticket, users, isSelected, onToggleSelection, currentUs
     router.push(issueHref);
   };
 
+  // Priority Icon logic matching IssuePrioritySelector
+  const renderPriorityIcon = (priority: string) => {
+    switch (priority) {
+      case 'urgent':
+        return (
+          <div className="flex gap-0.5 items-end h-3">
+            <div className="w-1 h-3 bg-red-500 rounded-sm"></div>
+            <div className="w-1 h-3 bg-red-500 rounded-sm"></div>
+            <div className="w-1 h-3 bg-red-500 rounded-sm"></div>
+          </div>
+        );
+      case 'high':
+        return (
+          <div className="flex gap-0.5 items-end h-3">
+            <div className="w-1 h-2 bg-red-400 rounded-sm"></div>
+            <div className="w-1 h-2.5 bg-red-400 rounded-sm"></div>
+            <div className="w-1 h-3 bg-red-400 rounded-sm"></div>
+          </div>
+        );
+      case 'medium':
+        return (
+          <div className="flex gap-0.5 items-end h-3">
+            <div className="w-1 h-1.5 bg-yellow-400 rounded-sm"></div>
+            <div className="w-1 h-2.5 bg-yellow-400 rounded-sm"></div>
+            <div className="w-1 h-3 bg-yellow-100 rounded-sm"></div>
+          </div>
+        );
+      case 'low':
+        return (
+          <div className="flex gap-0.5 items-end h-3">
+            <div className="w-1 h-1.5 bg-indigo-400 rounded-sm"></div>
+            <div className="w-1 h-3 bg-indigo-100 rounded-sm"></div>
+            <div className="w-1 h-3 bg-indigo-100 rounded-sm"></div>
+          </div>
+        );
+      default:
+        return <div className="w-4 h-0.5 bg-gray-200 rounded-full"></div>;
+    }
+  };
+
   return (
     <div
       onClick={handleRowClick}
@@ -80,8 +120,8 @@ const IssueRow = memo(({ ticket, users, isSelected, onToggleSelection, currentUs
         </div>
 
         {/* Priority Selector */}
-        <div 
-          className="hidden md:flex items-center shrink-0"
+        <div
+          className="hidden md:flex items-center shrink-0 w-8 justify-center"
           onClick={(e) => e.stopPropagation()}
         >
           {isInteractive ? (
@@ -93,9 +133,9 @@ const IssueRow = memo(({ ticket, users, isSelected, onToggleSelection, currentUs
               reviewerId={ticket.reviewer_id}
             />
           ) : (
-            <span className="text-[10px] font-bold uppercase text-gray-400 tracking-tight">
-              {(ticket.priority || 'no_priority').replace('_', ' ')}
-            </span>
+            <div className="py-1">
+              {renderPriorityIcon(ticket.priority || 'no_priority')}
+            </div>
           )}
         </div>
 
@@ -109,8 +149,8 @@ const IssueRow = memo(({ ticket, users, isSelected, onToggleSelection, currentUs
         </Link>
 
         {/* Status Selector */}
-        <div 
-          className="w-24 shrink-0"
+        <div
+          className="w-8 shrink-0 flex justify-center"
           onClick={(e) => e.stopPropagation()}
         >
           {isInteractive ? (
@@ -123,9 +163,10 @@ const IssueRow = memo(({ ticket, users, isSelected, onToggleSelection, currentUs
               hideLabel={true}
             />
           ) : (
-            <span className="text-[10px] font-bold uppercase text-gray-400 tracking-tight">
-              {(ticket.status || 'to_do').replace('_', ' ')}
-            </span>
+            <div className={twMerge(
+              "w-2 h-2 rounded-full",
+              statusIcons[ticket.status || 'to_do']?.color || 'bg-gray-400'
+            )}></div>
           )}
         </div>
 
@@ -148,7 +189,7 @@ const IssueRow = memo(({ ticket, users, isSelected, onToggleSelection, currentUs
         </div>
       </div>
 
-      <div 
+      <div
         className="flex items-center gap-6 shrink-0"
         onClick={(e) => e.stopPropagation()}
       >
@@ -209,14 +250,14 @@ interface IssuesListProps {
   onOptimisticDelete?: (ids: string[]) => void;
 }
 
-export function IssuesList({ 
-  tickets, 
+export function IssuesList({
+  tickets,
   groupedData,
   displaySettings,
-  users = [], 
-  emptyMessage = "No issues found", 
-  onOpenModal, 
-  currentUser, 
+  users = [],
+  emptyMessage = "No issues found",
+  onOpenModal,
+  currentUser,
   isMyTasks = false,
   onOptimisticDelete
 }: IssuesListProps) {
@@ -251,16 +292,16 @@ export function IssuesList({
   // Flatten items for virtualization (Header + Tickets)
   const flatItems = useMemo(() => {
     const items: Array<{ type: 'header' | 'ticket'; data: any; sectionId?: string; sectionName?: string; isFirstInSection?: boolean; isLastInSection?: boolean }> = [];
-    
+
     if (!groupedData) return items;
 
     groupedData.forEach((group) => {
       items.push({ type: 'header', data: group.name, sectionId: group.id });
       if (!collapsedSections[group.id]) {
         group.tickets.forEach((ticket: any, idx: number) => {
-          items.push({ 
-            type: 'ticket', 
-            data: ticket, 
+          items.push({
+            type: 'ticket',
+            data: ticket,
             sectionId: group.id,
             isFirstInSection: idx === 0,
             isLastInSection: idx === group.tickets.length - 1
@@ -307,7 +348,7 @@ export function IssuesList({
       {virtualizer.getVirtualItems().map((virtualRow) => {
         const item = flatItems[virtualRow.index];
         if (!item) return null;
-        
+
         if (item.type === 'header') {
           const sectionId = item.sectionId || 'none';
           const groupName = item.data;
@@ -323,7 +364,10 @@ export function IssuesList({
             <div
               key={`header-${sectionId}`}
               onClick={() => toggleSection(sectionId)}
-              className="absolute top-0 left-0 w-full flex items-center gap-2 mb-3 cursor-pointer group select-none"
+              className={twMerge(
+                "absolute top-0 left-0 w-full flex items-center gap-2 cursor-pointer group select-none transition-colors hover:bg-gray-50/50 px-2 rounded-md",
+                virtualRow.index !== 0 && "mt-2"
+              )}
               style={{
                 height: `${virtualRow.size}px`,
                 transform: `translateY(${virtualRow.start}px)`,
@@ -337,7 +381,7 @@ export function IssuesList({
                 )}
               />
               {displaySettings.groupBy !== 'none' && (
-                 <div className={twMerge("w-2 h-2 rounded-full", statusColor)}></div>
+                <div className={twMerge("w-2 h-2 rounded-full", statusColor)}></div>
               )}
               <h2 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
                 {groupName}
@@ -356,8 +400,8 @@ export function IssuesList({
           <div
             key={ticket.id}
             className={twMerge(
-              "absolute top-0 left-0 w-full transition-all duration-200",
-              "z-[1] focus-within:z-50 focus-within:shadow-xl"
+              "absolute top-0 left-0 w-full transition-all duration-200 focus-within:z-40",
+              "focus-within:shadow-md focus-within:ring-1 focus-within:ring-indigo-50/50"
             )}
             style={{
               height: `${virtualRow.size}px`,
@@ -365,20 +409,18 @@ export function IssuesList({
             }}
           >
             <div className={twMerge(
-              "bg-white border-x transition-all duration-200 relative",
-              item.isFirstInSection && "rounded-t-xl border-t",
-              item.isLastInSection && "rounded-b-xl border-b shadow-sm mb-8",
-              isSelected ? "border-indigo-200" : "border-gray-100",
-              !item.isLastInSection && "border-b border-gray-50"
+              "bg-white transition-all duration-200 relative",
+              isSelected ? "bg-indigo-50/10" : "bg-white",
+              "border-b border-gray-100"
             )}>
-                <IssueRow
-                  ticket={item.data}
-                  users={users}
-                  isSelected={selectedIds.has(item.data.id)}
-                  onToggleSelection={toggleSelection}
-                  currentUser={currentUser}
-                  isMyTasks={displaySettings.groupBy === 'assignee'}
-                />
+              <IssueRow
+                ticket={item.data}
+                users={users}
+                isSelected={selectedIds.has(item.data.id)}
+                onToggleSelection={toggleSelection}
+                currentUser={currentUser}
+                isMyTasks={displaySettings.groupBy === 'assignee'}
+              />
             </div>
           </div>
         );
