@@ -16,9 +16,10 @@ interface HeaderProps {
     avatar_url: string | null;
     role: string;
   } | null;
+  workspaceSlug?: string;
 }
 
-export function Header({ userId, email, profileData }: HeaderProps) {
+export function Header({ userId, email, profileData, workspaceSlug }: HeaderProps) {
   const router = useRouter();
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
@@ -72,6 +73,7 @@ export function Header({ userId, email, profileData }: HeaderProps) {
               <UserDropdown 
                 profile={userProfile} 
                 onSignOut={() => setShowSignOutConfirm(true)} 
+                workspaceSlug={workspaceSlug}
               />
             </div>
           ) : (
