@@ -6,9 +6,9 @@ import { IssuesList } from './issues/IssuesList';
 import { IssuesHeader } from './issues/IssuesHeader';
 import { loadProjectIssuesChunk } from '@/app/dashboard/[workspace]/projects/[id]/actions';
 import { useRouter } from 'next/navigation';
-import { 
-  groupAndSortTickets, 
-  DisplaySettings 
+import {
+  groupAndSortTickets,
+  DisplaySettings
 } from '@/lib/utils/issue-display-utils';
 import dynamic from 'next/dynamic';
 
@@ -52,7 +52,7 @@ export function ProjectIssuesRealtimeTab({
   const listScrollRef = useRef<HTMLDivElement>(null);
   const nextOffsetRef = useRef(initialLimit);
   const isFetchingMoreRef = useRef(false);
-  
+
   const [displaySettings, setDisplaySettings] = useState<DisplaySettings>({
     viewMode: 'list',
     groupBy: 'status',
@@ -65,12 +65,12 @@ export function ProjectIssuesRealtimeTab({
     // 🚀 Send filter strictly to backend (Step 1 requirement)
     router.push(`/dashboard/projects/${projectId}?tab=issues&filter=${newFilter}`, { scroll: false });
   };
-  
+
   // Keep local tickets state in sync with server-side prop updates
   // This ensures that router.refresh() after create/delete updates the UI
   useEffect(() => {
     if (!initialTickets) return;
-    
+
     // Filter out any IDs that were recently deleted optimistically
     // to prevent stale server data from "restoring" them.
     const validTickets = initialTickets.filter(t => !deletedIdsRef.current.has(t.id));
@@ -165,12 +165,12 @@ export function ProjectIssuesRealtimeTab({
           // Manual filtering for the current project
           const nextRow = payload.new as any;
           const oldRow = payload.old as any;
-          
+
           // For INSERT/UPDATE, check the project_id
           if (nextRow && nextRow.project_id && nextRow.project_id !== projectId) {
             return;
           }
-          
+
           // For DELETE, if we don't have project_id in oldRow, 
           // we check if the ID exists in our current tickets list
           if (payload.eventType === 'DELETE' && oldRow?.id) {
@@ -260,8 +260,8 @@ export function ProjectIssuesRealtimeTab({
 
   return (
     <div className="flex flex-col h-full bg-[#fbfbfb]">
-      <IssuesHeader 
-        totalIssues={filteredTickets.length} 
+      <IssuesHeader
+        totalIssues={filteredTickets.length}
         activeFilter={activeFilter}
         onFilterChange={handleFilterChange}
         onOpenModal={() => setIsModalOpen(true)}
@@ -276,11 +276,11 @@ export function ProjectIssuesRealtimeTab({
             <div className="mb-3 text-[11px] font-medium text-gray-400">Loading more issues...</div>
           )}
           {displaySettings.viewMode === 'list' ? (
-            <IssuesList 
-              tickets={filteredTickets} 
+            <IssuesList
+              tickets={filteredTickets}
               groupedData={groupedData}
               displaySettings={displaySettings}
-              users={users} 
+              users={users}
               onOpenModal={() => setIsModalOpen(true)}
               currentUser={currentUser}
               onOptimisticDelete={(ids) => {
@@ -290,7 +290,7 @@ export function ProjectIssuesRealtimeTab({
               emptyMessage={`No issues found for ${projectName}`}
             />
           ) : (
-            <IssuesBoard 
+            <IssuesBoard
               groupedData={groupedData}
               users={users}
               currentUser={currentUser}
@@ -302,9 +302,9 @@ export function ProjectIssuesRealtimeTab({
       </div>
 
       {isModalOpen && (
-        <AddIssueModal 
-          isOpen={isModalOpen} 
-          onClose={() => setIsModalOpen(false)} 
+        <AddIssueModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
           projects={[{ id: projectId, name: projectName }]}
           users={users}
         />

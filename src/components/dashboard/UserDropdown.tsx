@@ -21,9 +21,10 @@ interface UserDropdownProps {
         role?: string;
     };
     onSignOut: () => void;
+    workspaceSlug?: string;
 }
 
-export function UserDropdown({ profile, onSignOut }: UserDropdownProps) {
+export function UserDropdown({ profile, onSignOut, workspaceSlug }: UserDropdownProps) {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -120,7 +121,7 @@ export function UserDropdown({ profile, onSignOut }: UserDropdownProps) {
                     {/* Actions Group */}
                     <div className="p-2.5">
                         <Link 
-                            href="/dashboard/settings"
+                            href={workspaceSlug ? `/dashboard/${workspaceSlug}/settings` : "/dashboard/settings"}
                             onClick={() => setIsOpen(false)}
                             className="flex items-center justify-between w-full px-3.5 py-3 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-indigo-600 transition-all group/item"
                         >

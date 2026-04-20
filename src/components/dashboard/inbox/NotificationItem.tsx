@@ -36,15 +36,14 @@ export function NotificationItem({ notification, onMarkRead, showId = true }: No
   }[notification.type];
 
   // Map entity to dashboard link
-  const link = notification.entity_type === 'ticket' 
+  const link = notification.entity_type === 'ticket'
     ? `/dashboard/issues/${notification.entity_id}`
     : `/dashboard/projects/${notification.entity_id}`;
 
   return (
-    <div 
-      className={`group relative flex items-start gap-4 p-5 transition-all border-b border-gray-50 hover:bg-gray-50/50 ${
-        !notification.is_read ? 'bg-white shadow-[0_0_15px_rgba(79,70,229,0.03)]' : ''
-      }`}
+    <div
+      className={`group relative flex items-start gap-4 p-5 transition-all border-b border-gray-50 hover:bg-gray-50/50 ${!notification.is_read ? 'bg-white shadow-[0_0_15px_rgba(79,70,229,0.03)]' : ''
+        }`}
     >
       {/* Unread Indicator */}
       {!notification.is_read && (
@@ -63,9 +62,9 @@ export function NotificationItem({ notification, onMarkRead, showId = true }: No
           <div className="flex items-center gap-2">
             <span className="text-sm font-bold text-gray-900">{notification.actor.name}</span>
             {showId && (
-                <span className="text-[10px] font-mono text-gray-400 bg-gray-50 px-1 rounded uppercase">
-                    {notification.entity_type === 'ticket' ? 'KAP-' : 'PRJ-'}{notification.entity_id.slice(0, 4)}
-                </span>
+              <span className="text-[10px] font-mono text-gray-400 bg-gray-50 px-1 rounded uppercase">
+                {notification.entity_type === 'ticket' ? 'KAP-' : 'PRJ-'}{notification.entity_id.slice(0, 4)}
+              </span>
             )}
             <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
               {typeLabel}
@@ -73,27 +72,26 @@ export function NotificationItem({ notification, onMarkRead, showId = true }: No
           </div>
           <div className="flex items-center gap-3">
             <span className="text-[11px] text-gray-400 font-medium">
-                {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
+              {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
             </span>
           </div>
         </div>
 
         <Link href={link} className="block group/link">
-          <p className={`text-sm leading-relaxed mb-2 ${
-            !notification.is_read ? 'text-gray-900 font-medium' : 'text-gray-600'
-          }`}>
+          <p className={`text-sm leading-relaxed mb-2 ${!notification.is_read ? 'text-gray-900 font-medium' : 'text-gray-600'
+            }`}>
             {notification.message}
           </p>
         </Link>
 
         <div className="flex items-center gap-4">
-          <Link 
+          <Link
             href={link}
             className="text-[11px] font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded transition-colors"
           >
             View {notification.entity_type}
           </Link>
-          
+
           {!notification.is_read && (
             <button
               onClick={() => onMarkRead(notification.id)}

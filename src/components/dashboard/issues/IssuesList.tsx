@@ -41,12 +41,23 @@ interface IssueRowProps {
   onToggleSelection: (e: React.MouseEvent, id: string) => void;
   currentUser: any;
   isMyTasks?: boolean;
+  workspaceSlug?: string;
 }
 
-const IssueRow = memo(({ ticket, users, isSelected, onToggleSelection, currentUser, isMyTasks = false }: IssueRowProps) => {
+const IssueRow = memo(({ 
+  ticket, 
+  users, 
+  isSelected, 
+  onToggleSelection, 
+  currentUser, 
+  isMyTasks = false,
+  workspaceSlug
+}: IssueRowProps) => {
   const router = useRouter();
   const [isInteractive, setIsInteractive] = useState(false);
-  const issueHref = `/dashboard/issues/${ticket.id}`;
+  const issueHref = workspaceSlug 
+    ? `/dashboard/${workspaceSlug}/issues/${ticket.id}`
+    : `/dashboard/issues/${ticket.id}`;
   const prefetchIssue = useCallback(() => {
     router.prefetch(issueHref);
   }, [router, issueHref]);
@@ -195,7 +206,9 @@ const IssueRow = memo(({ ticket, users, isSelected, onToggleSelection, currentUs
       >
         {/* Project Link */}
         <Link
-          href={ticket.projects?.id ? `/dashboard/projects/${ticket.projects.id}` : '#'}
+          href={ticket.projects?.id 
+            ? (workspaceSlug ? `/dashboard/${workspaceSlug}/projects/${ticket.projects.id}` : `/dashboard/projects/${ticket.projects.id}`)
+            : '#'}
           onClick={(e) => !ticket.projects?.id && e.preventDefault()}
           className="flex items-center gap-2 px-2 py-1 bg-gray-50 rounded-md border border-gray-100 hover:bg-gray-100 hover:border-gray-200 transition-all cursor-pointer group/project"
         >
@@ -247,6 +260,7 @@ interface IssuesListProps {
   onOpenModal?: () => void;
   currentUser?: any;
   isMyTasks?: boolean;
+  workspaceSlug?: string;
   onOptimisticDelete?: (ids: string[]) => void;
 }
 
@@ -259,6 +273,7 @@ export function IssuesList({
   onOpenModal,
   currentUser,
   isMyTasks = false,
+  workspaceSlug,
   onOptimisticDelete
 }: IssuesListProps) {
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
@@ -420,6 +435,7 @@ export function IssuesList({
                 onToggleSelection={toggleSelection}
                 currentUser={currentUser}
                 isMyTasks={displaySettings.groupBy === 'assignee'}
+                workspaceSlug={workspaceSlug}
               />
             </div>
           </div>
