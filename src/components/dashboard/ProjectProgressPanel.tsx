@@ -15,6 +15,7 @@ interface ProjectProgressPanelProps {
 export const ProjectProgressPanel = memo(({ projectId, users }: ProjectProgressPanelProps) => {
   const [tickets, setTickets] = useState<Array<{ id: string; status: string | null; assignee_id: string | null }>>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(true);
   const [activeTab, setActiveTab] = useState<'Assignees' | 'Labels'>('Assignees');
   const supabase = useMemo(() => createClient(), []);
 
@@ -64,7 +65,7 @@ export const ProjectProgressPanel = memo(({ projectId, users }: ProjectProgressP
           } else if (payload.eventType === 'UPDATE') {
             if (!payload.new?.id) return;
             const nextAssigneeId = payload.new.assignee_id ?? null;
-            setTickets(prev => prev.map(t => 
+            setTickets(prev => prev.map(t =>
               t.id === payload.new.id
                 ? { ...t, status: payload.new.status ?? null, assignee_id: nextAssigneeId }
                 : t
@@ -115,103 +116,115 @@ export const ProjectProgressPanel = memo(({ projectId, users }: ProjectProgressP
   }, [tickets, assigneeUsers]);
 
   return (
-    <div className="space-y-4 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-      <div className="flex items-center justify-between">
-        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+    <div className="space-y-4 bg-white p-4 rounded-xl border border-gray-100 shadow-sm transition-all duration-200">
+      <div
+        className="flex items-center justify-between cursor-pointer group select-none"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest group-hover:text-gray-600 transition-colors">
           Progress
         </h3>
-        <ChevronDown size={14} className="text-gray-400" />
+        <ChevronDown
+          size={14}
+          className={twMerge(
+            "text-gray-400 transition-transform duration-200 group-hover:text-gray-600",
+            !isExpanded && "-rotate-90"
+          )}
+        />
       </div>
-      
-      <div className="space-y-5">
-        <div className="grid grid-cols-2 gap-4">
-           <div className="space-y-0.5">
-             <div className="flex items-center gap-2 text-[10px] text-gray-400 font-bold uppercase tracking-wider">
-               <div className="w-1.5 h-1.5 bg-gray-300 rounded-sm"></div>
-               <span>Scope</span>
-             </div>
-             {isLoading ? (
-               <Shimmer className="h-6 w-10 rounded-sm" />
-             ) : (
-               <span className="text-xl font-bold text-gray-900 tracking-tight">{scopeCount}</span>
-             )}
-           </div>
-           <div className="space-y-0.5">
-             <div className="flex items-center gap-2 text-[10px] text-indigo-400 font-bold uppercase tracking-wider">
-               <div className="w-1.5 h-1.5 bg-indigo-500 rounded-sm"></div>
-               <span>Completed</span>
-             </div>
-             {isLoading ? (
-               <Shimmer className="h-6 w-10 rounded-sm" />
-             ) : (
-               <span className="text-xl font-bold text-gray-900 tracking-tight">{doneCount}</span>
-             )}
-           </div>
-        </div>
 
-        <div className="flex p-0.5 bg-gray-50 rounded-lg border border-gray-100">
-          <button 
-            onClick={() => setActiveTab('Assignees')}
-            className={twMerge(
-              "flex-1 py-1.5 text-[11px] font-bold rounded transition-all",
-              activeTab === 'Assignees' ? "bg-white text-gray-900 shadow-sm" : "text-gray-400 hover:text-gray-600"
-            )}
-          >
-            Assignees
-          </button>
-          <button 
-            onClick={() => setActiveTab('Labels')}
-            className={twMerge(
-              "flex-1 py-1.5 text-[11px] font-bold rounded transition-all",
-              activeTab === 'Labels' ? "bg-white text-gray-900 shadow-sm" : "text-gray-400 hover:text-gray-600"
-            )}
-          >
-            Labels
-          </button>
-        </div>
+      {isExpanded && (
+        <div className="space-y-5 animate-in fade-in slide-in-from-top-1 duration-200">
 
-        {activeTab === 'Assignees' && (
-          <div className="space-y-4 pt-1">
-            {isLoading ? (
-              <div className="space-y-3">
-                {[...Array(4)].map((_, i) => (
-                  <div key={i} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <Shimmer className="w-6 h-6 rounded-full" />
-                      <Shimmer className="h-4 w-28 rounded-sm" />
-                    </div>
-                    <Shimmer className="h-3 w-8 rounded-sm" />
-                  </div>
-                ))}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2 text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                <div className="w-1.5 h-1.5 bg-gray-300 rounded-sm"></div>
+                <span>Scope</span>
               </div>
-            ) : sortedAssignees.length === 0 ? (
-              <p className="text-[11px] text-gray-400 text-center py-2">No assignees yet</p>
-            ) : (
-              <div className="space-y-3">
-                {sortedAssignees.map((stat: any) => (
-                  <div key={stat.id} className="flex items-center justify-between group">
-                    <div className="flex items-center gap-2.5">
-                      <UserAvatar name={stat.name} avatarUrl={stat.avatar_url} size="sm" />
-                      <span className="text-[11px] font-semibold text-gray-600 group-hover:text-gray-900 transition-colors truncate max-w-[160px]">
-                        {stat.email}
+              {isLoading ? (
+                <Shimmer className="h-6 w-10 rounded-sm" />
+              ) : (
+                <span className="text-xl font-bold text-gray-900 tracking-tight">{scopeCount}</span>
+              )}
+            </div>
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2 text-[10px] text-indigo-400 font-bold uppercase tracking-wider">
+                <div className="w-1.5 h-1.5 bg-indigo-500 rounded-sm"></div>
+                <span>Completed</span>
+              </div>
+              {isLoading ? (
+                <Shimmer className="h-6 w-10 rounded-sm" />
+              ) : (
+                <span className="text-xl font-bold text-gray-900 tracking-tight">{doneCount}</span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex p-0.5 bg-gray-50 rounded-lg border border-gray-100">
+            <button
+              onClick={() => setActiveTab('Assignees')}
+              className={twMerge(
+                "flex-1 py-1.5 text-[11px] font-bold rounded transition-all",
+                activeTab === 'Assignees' ? "bg-white text-gray-900 shadow-sm" : "text-gray-400 hover:text-gray-600"
+              )}
+            >
+              Assignees
+            </button>
+            <button
+              onClick={() => setActiveTab('Labels')}
+              className={twMerge(
+                "flex-1 py-1.5 text-[11px] font-bold rounded transition-all",
+                activeTab === 'Labels' ? "bg-white text-gray-900 shadow-sm" : "text-gray-400 hover:text-gray-600"
+              )}
+            >
+              Labels
+            </button>
+          </div>
+
+          {activeTab === 'Assignees' && (
+            <div className="space-y-4 pt-1">
+              {isLoading ? (
+                <div className="space-y-3">
+                  {[...Array(4)].map((_, i) => (
+                    <div key={i} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <Shimmer className="w-6 h-6 rounded-full" />
+                        <Shimmer className="h-4 w-28 rounded-sm" />
+                      </div>
+                      <Shimmer className="h-3 w-8 rounded-sm" />
+                    </div>
+                  ))}
+                </div>
+              ) : sortedAssignees.length === 0 ? (
+                <p className="text-[11px] text-gray-400 text-center py-2">No assignees yet</p>
+              ) : (
+                <div className="space-y-3">
+                  {sortedAssignees.map((stat: any) => (
+                    <div key={stat.id} className="flex items-center justify-between group">
+                      <div className="flex items-center gap-2.5">
+                        <UserAvatar name={stat.name} avatarUrl={stat.avatar_url} size="sm" />
+                        <span className="text-[11px] font-semibold text-gray-600 group-hover:text-gray-900 transition-colors truncate max-w-[160px]">
+                          {stat.email}
+                        </span>
+                      </div>
+                      <span className="text-[11px] font-bold text-gray-400 group-hover:text-indigo-600 transition-all">
+                        {stat.count}
                       </span>
                     </div>
-                    <span className="text-[11px] font-bold text-gray-400 group-hover:text-indigo-600 transition-all">
-                      {stat.count}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
-        {activeTab === 'Labels' && (
-          <div className="py-4 text-center">
-            <p className="text-[11px] text-gray-400">No labels defined for this project.</p>
-          </div>
-        )}
-      </div>
+          {activeTab === 'Labels' && (
+            <div className="py-4 text-center">
+              <p className="text-[11px] text-gray-400">No labels defined for this project.</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 });

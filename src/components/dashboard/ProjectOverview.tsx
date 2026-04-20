@@ -94,7 +94,7 @@ export function ProjectOverview({ project, users, currentMemberIds, currentUser,
             <span className="text-gray-400 font-medium tracking-tight">Properties</span>
             <StatusSelector projectId={project.id} currentStatus={project.status} />
             <PrioritySelector projectId={project.id} currentPriority={project.priority} showLabel={true} />
-            <LeadSelector projectId={project.id} currentLeadId={project.lead_id} users={users} showEmail={true} />
+            <LeadSelector projectId={project.id} currentLeadId={project.lead_id} users={users} showEmail={false} showName={true} hideAvatar={true} />
             <MemberSelector projectId={project.id} users={users} currentMemberIds={currentMemberIds} showEmails={true} />
             <TargetDateSelector projectId={project.id} currentTargetDate={project.target_date || project.start_date || null} />
           </div>
