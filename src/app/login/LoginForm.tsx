@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Mail, Lock, Loader2, AlertCircle } from 'lucide-react';
 import { login } from './actions';
 import { ForgotPasswordFlow } from './ForgotPasswordFlow';
+import { createClient } from '@/lib/supabase/client';
 
 function SubmitButton({ isPending }: { isPending: boolean }) {
   return (

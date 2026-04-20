@@ -1,22 +1,27 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { UserCircle, Shield, Plus, Lock, Mail } from 'lucide-react'
+import { UserCircle, Shield, Plus, Lock, Mail, Building, Trash2, AlertTriangle } from 'lucide-react'
 import { updateUserPassword, updateUserAvatar, updateUserEmail } from '@/app/dashboard/actions'
+import { deleteWorkspaceAction, updateWorkspaceAction } from './actions'
 import { createClient } from '@/lib/supabase/client'
 import Image from 'next/image'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { useSettingsStore } from '@/lib/store/settings'
 import { useAvatarStore } from '@/lib/store/avatar'
+import { DeleteWorkspaceModal } from '@/components/dashboard/DeleteWorkspaceModal'
+import { toast } from 'sonner'
 
-export function SettingsTabs({ user }: { user: { id: string, name: string, email: string, avatar_url: string | null } }) {
+export function SettingsTabs({ user }: { user: { id: string, name: string, email: string, avatar_url: string | null, workspacerole: string, activeWorkspace: { id: string, name: string, slug: string } } }) {
     const setUserData = useSettingsStore((s) => s.setUserData)
     const setGlobalAvatar = useAvatarStore((s) => s.setAvatarUrl)
-    const [activeTab, setActiveTab] = useState<'profile' | 'security'>('profile')
+    const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'workspace'>('profile')
     const fileInputRef = useRef<HTMLInputElement>(null)
     const [previewUrl, setPreviewUrl] = useState<string | null>(user.avatar_url)
     const [selectedFile, setSelectedFile] = useState<File | null>(null)
     const [isUploading, setIsUploading] = useState(false)
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+    const isAdmin = user.workspacerole === 'Admin'
 
     // Password Update State
     const [isChangingPassword, setIsChangingPassword] = useState(false)
@@ -33,6 +38,12 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
     const [isSavingEmail, setIsSavingEmail] = useState(false)
     const [emailError, setEmailError] = useState('')
     const [emailSuccess, setEmailSuccess] = useState(false)
+
+    // Workspace State
+    const [workspaceName, setWorkspaceName] = useState(user.activeWorkspace?.name || '')
+    const [isSavingWorkspaceName, setIsSavingWorkspaceName] = useState(false)
+    const [workspaceSuccess, setWorkspaceSuccess] = useState(false)
+    const [workspaceError, setWorkspaceError] = useState('')
 
     const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
@@ -146,6 +157,34 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
         setIsSavingEmail(false)
     }
 
+    const handleWorkspaceNameSubmit = async () => {
+        if (!workspaceName || workspaceName.trim().length < 2) {
+            setWorkspaceError('Workspace name must be at least 2 characters')
+            return
+        }
+        
+        setIsSavingWorkspaceName(true)
+        setWorkspaceError('')
+        setWorkspaceSuccess(false)
+        
+        const result = await updateWorkspaceAction(user.activeWorkspace.id, workspaceName)
+        
+        if (result.error) {
+            setWorkspaceError(result.error)
+        } else {
+            setWorkspaceSuccess(true)
+            // Update local state and re-sync
+            setUserData({ 
+                ...user, 
+                activeWorkspace: { 
+                    ...user.activeWorkspace, 
+                    name: workspaceName 
+                } 
+            })
+            setTimeout(() => setWorkspaceSuccess(false), 3000)
+        }
+        setIsSavingWorkspaceName(false)
+    }
 
 
     return (
@@ -181,6 +220,20 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
                             <Shield size={18} className="shrink-0" />
                             <span className="truncate">Security & Access</span>
                         </button>
+
+                        {isAdmin && (
+                            <button 
+                                onClick={() => setActiveTab('workspace')}
+                                className={`w-full flex items-center gap-2.5 px-3 py-3 rounded-xl text-[12px] font-bold transition-all duration-200 whitespace-nowrap overflow-hidden ${
+                                    activeTab === 'workspace' 
+                                    ? 'bg-white shadow-[0_2px_15px_rgba(0,0,0,0.06)] text-indigo-600 border border-gray-100/50 translate-x-1' 
+                                    : 'text-gray-400 hover:text-gray-900 hover:bg-gray-100/50'
+                                }`}
+                            >
+                                <Building size={18} className="shrink-0" />
+                                <span className="truncate">Workspace Settings</span>
+                            </button>
+                        )}
                     </nav>
                 </div>
 
@@ -350,6 +403,92 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
                                 </div>
                             </div>
                         </div>
+                    </div>
+                ) : activeTab === 'workspace' ? (
+                    <div className="p-10 animate-in fade-in slide-in-from-right-4 duration-500">
+                        <div className="mb-10">
+                            <h3 className="text-2xl font-bold text-gray-900 leading-tight">Workspace Settings</h3>
+                            <p className="text-sm text-gray-500 mt-1">Manage workspace-wide configuration.</p>
+                        </div>
+
+                        <div className="space-y-12">
+                             {/* General Settings */}
+                             <div className="space-y-6">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Workspace Name</label>
+                                    <div className="flex flex-col gap-3">
+                                        <div className="flex items-center gap-3">
+                                            <div className="relative flex-1 group">
+                                                <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                                                    <Building size={16} className="text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
+                                                </div>
+                                                <input 
+                                                    type="text"
+                                                    value={workspaceName}
+                                                    onChange={(e) => setWorkspaceName(e.target.value)}
+                                                    className="w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-[15px] font-medium text-gray-900 focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 outline-none transition-all shadow-inner"
+                                                    placeholder="Enter workspace name"
+                                                />
+                                            </div>
+                                            <button 
+                                                onClick={handleWorkspaceNameSubmit}
+                                                disabled={isSavingWorkspaceName || workspaceName === user.activeWorkspace.name}
+                                                className="px-6 py-3.5 bg-indigo-600 text-white text-[13px] font-bold rounded-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/20 active:scale-95 disabled:bg-gray-200 disabled:shadow-none disabled:text-gray-400 disabled:cursor-not-allowed"
+                                            >
+                                                {isSavingWorkspaceName ? 'Saving...' : 'Update'}
+                                            </button>
+                                        </div>
+                                        {workspaceError && <p className="text-[11px] text-red-500 font-bold pl-1">{workspaceError}</p>}
+                                        {workspaceSuccess && <p className="text-[11px] text-emerald-500 font-bold pl-1">Workspace name updated!</p>}
+                                    </div>
+                                </div>
+                                <div className="space-y-1.5 pt-2">
+                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Workspace Slug</label>
+                                    <div className="flex items-center gap-3 p-4 bg-gray-50/50 border border-gray-100 rounded-2xl text-[13px] font-mono text-gray-400">
+                                        {user.activeWorkspace?.slug}
+                                        <span className="ml-auto text-[10px] font-bold uppercase tracking-wider text-gray-300">Read-Only</span>
+                                    </div>
+                                </div>
+                             </div>
+
+                             {/* Danger Zone */}
+                             <div className="pt-10 border-t border-red-50">
+                                <div className="flex items-center gap-2 mb-6">
+                                    <AlertTriangle size={18} className="text-red-500" />
+                                    <h4 className="text-sm font-bold text-red-600 uppercase tracking-widest">Danger Zone</h4>
+                                </div>
+                                
+                                <div className="bg-red-50/30 border border-red-100 rounded-[24px] p-8">
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                                        <div className="max-w-md">
+                                            <h5 className="text-base font-bold text-gray-900 mb-1">Delete this workspace</h5>
+                                            <p className="text-sm text-gray-500 leading-relaxed">
+                                                Once you delete a workspace, there is no going back. Please be certain. 
+                                                All projects, issues, and team data will be permanently wiped.
+                                            </p>
+                                        </div>
+                                        <button 
+                                            onClick={() => setIsDeleteModalOpen(true)}
+                                            className="px-6 py-3.5 bg-white border border-red-200 text-red-600 text-[13px] font-bold rounded-2xl hover:bg-red-600 hover:text-white hover:border-red-600 transition-all shadow-sm active:scale-95 shrink-0"
+                                        >
+                                            Delete Workspace
+                                        </button>
+                                    </div>
+                                </div>
+                             </div>
+                        </div>
+
+                        <DeleteWorkspaceModal
+                            isOpen={isDeleteModalOpen}
+                            onClose={() => setIsDeleteModalOpen(false)}
+                            workspaceName={user.activeWorkspace.name}
+                            onConfirm={async () => {
+                                const result = await deleteWorkspaceAction(user.activeWorkspace.id);
+                                if (result?.error) {
+                                    toast.error(result.error);
+                                }
+                            }}
+                        />
                     </div>
                 ) : (
                     <div className="p-10 animate-in fade-in slide-in-from-right-4 duration-500">

@@ -34,7 +34,7 @@ export function TeamClientWrapper({ workspaceId }: { workspaceId: string }) {
   return (
     <div className="p-8 max-w-7xl mx-auto flex flex-col gap-6 w-full h-full">
       {/* Header */}
-      <TeamHeader isAdmin={isAdmin} />
+      <TeamHeader isAdmin={isAdmin} currentUserRole={currentUserRole} workspaceId={workspaceId} />
 
       {/* Team List with Search */}
       <TeamList isAdmin={isAdmin} currentUserRole={currentUserRole} />
