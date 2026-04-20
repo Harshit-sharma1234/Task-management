@@ -10,6 +10,7 @@ interface IssuesViewProps {
   activeFilter: string;
   currentUser: any;
   workspaceId: string;
+  workspaceSlug: string;
   initialLimit?: number;
   totalLimit?: number;
 }
@@ -18,9 +19,9 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { createClient } from '@/lib/supabase/client';
 import { loadIssuesChunk } from '@/app/dashboard/[workspace]/issues/list-actions';
-import { 
-  groupAndSortTickets, 
-  DisplaySettings 
+import {
+  groupAndSortTickets,
+  DisplaySettings
 } from '@/lib/utils/issue-display-utils';
 
 const AddIssueModal = dynamic(() => import('./AddIssueModal').then(mod => mod.AddIssueModal), {
@@ -39,6 +40,7 @@ export function IssuesView({
   activeFilter: initialFilter,
   currentUser,
   workspaceId,
+  workspaceSlug,
   initialLimit = 40,
   totalLimit = 120
 }: IssuesViewProps) {
@@ -203,8 +205,8 @@ export function IssuesView({
 
   return (
     <div className="flex flex-col h-full bg-white">
-      <IssuesHeader 
-        totalIssues={filteredTickets.length} 
+      <IssuesHeader
+        totalIssues={filteredTickets.length}
         activeFilter={activeFilter}
         onFilterChange={setActiveFilter}
         onOpenModal={() => setIsModalOpen(true)}
@@ -218,25 +220,27 @@ export function IssuesView({
             <div className="mb-3 text-[11px] font-medium text-gray-400">Loading more issues...</div>
           )}
           {displaySettings.viewMode === 'list' ? (
-            <IssuesList 
+            <IssuesList
               tickets={filteredTickets}
               groupedData={groupedData}
               displaySettings={displaySettings}
-              users={users} 
+              users={users}
               onOpenModal={() => setIsModalOpen(true)}
               currentUser={currentUser}
               isMyTasks={false}
+              workspaceSlug={workspaceSlug}
               onOptimisticDelete={(ids) => {
                 ids.forEach(id => deletedIdsRef.current.add(id));
                 setTickets(prev => prev.filter(t => !ids.includes(t.id)));
               }}
             />
           ) : (
-            <IssuesBoard 
+            <IssuesBoard
               groupedData={groupedData}
               users={users}
               currentUser={currentUser}
               displaySettings={displaySettings}
+              workspaceSlug={workspaceSlug}
               onOpenModal={() => setIsModalOpen(true)}
             />
           )}
@@ -244,9 +248,9 @@ export function IssuesView({
       </div>
 
       {isModalOpen && (
-        <AddIssueModal 
-          isOpen={isModalOpen} 
-          onClose={() => setIsModalOpen(false)} 
+        <AddIssueModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
           projects={projects}
           users={users}
         />
