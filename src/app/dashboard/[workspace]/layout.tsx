@@ -21,10 +21,10 @@ export default async function WorkspaceDashboardLayout({
 
   const adminClient = createAdminClient();
 
-  // 1. Get internal user ID
+  // 1. Get internal user profile (single source of truth for dashboard)
   const { data: userProfile } = await adminClient
     .from('users')
-    .select('id')
+    .select('id, name, avatar_url')
     .eq('auth_id', user.id)
     .single();
 
@@ -91,9 +91,9 @@ export default async function WorkspaceDashboardLayout({
     team,
     profile: { 
       id: userProfile.id,
-      name: user.user_metadata?.full_name || user.email,
+      name: userProfile.name || user.user_metadata?.full_name || user.email,
       email: user.email!,
-      avatar_url: user.user_metadata?.avatar_url || null,
+      avatar_url: userProfile.avatar_url || user.user_metadata?.avatar_url || null,
       roles: { role_name: roleName },
     },
     userId: user.id,

@@ -164,16 +164,16 @@ export async function signup(prevState: any, formData: FormData) {
 
     const newUserId = authData.user.id
 
-    // ── Insert into public.users (minimal fields — no role_id, no onboarding_status) ──
+    // ── Upsert into public.users (avoids collision with the auto-sync trigger) ──
     const { error: dbError } = await adminClient
         .from('users')
-        .insert({
+        .upsert({
             id: newUserId,
             auth_id: newUserId,
             email,
             name,
             employee_id: employeeId
-        })
+        }, { onConflict: 'id' })
 
     if (dbError) {
         console.error('[Signup] DB insert error:', dbError)
