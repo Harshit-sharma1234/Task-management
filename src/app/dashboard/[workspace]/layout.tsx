@@ -121,12 +121,17 @@ export default async function WorkspaceDashboardLayout({
         }}
       />
       <div className="flex-1 flex flex-col min-w-0 bg-[#fbfbfb]">
-        <Header userId={user.id} email={user.email!} profileData={{
-          name: snapshot.profile.name || '',
-          email: snapshot.profile.email,
-          avatar_url: snapshot.profile.avatar_url,
-          role: roleName,
-        }} />
+        <Header 
+          userId={user.id} 
+          email={user.email!} 
+          workspaceSlug={workspaceSlug}
+          profileData={{
+            name: snapshot.profile.name || '',
+            email: snapshot.profile.email,
+            avatar_url: snapshot.profile.avatar_url,
+            role: roleName,
+          }} 
+        />
         <main className="flex-1 overflow-y-auto w-full">
           {children}
         </main>
