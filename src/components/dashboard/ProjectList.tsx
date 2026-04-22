@@ -4,7 +4,7 @@ import { useState, useMemo, memo, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Folder, Search, Trash2, Loader2 } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { deleteProject } from '@/app/dashboard/actions';
 import { AppRole } from '@/lib/roles';
 import { createClient } from '@/lib/supabase/client';
@@ -59,6 +59,8 @@ const ProjectRow = memo(({
     userRole: AppRole | null;
 }) => {
     const router = useRouter();
+    const params = useParams();
+    const workspaceSlug = params?.workspace as string;
     const [isDeleting, setIsDeleting] = useState(false);
     const [isInteractive, setIsInteractive] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -84,13 +86,13 @@ const ProjectRow = memo(({
     };
 
     const prefetchProject = useMemo(() => {
-        const overviewHref = `/dashboard/projects/${project.id}`;
-        const issuesHref = `/dashboard/projects/${project.id}?tab=issues`;
+        const overviewHref = `/dashboard/${workspaceSlug}/projects/${project.id}`;
+        const issuesHref = `/dashboard/${workspaceSlug}/projects/${project.id}?tab=issues`;
         return () => {
             router.prefetch(overviewHref);
             router.prefetch(issuesHref);
         };
-    }, [project.id, router]);
+    }, [project.id, router, workspaceSlug]);
 
     // Priority Icon logic consistent with PrioritySelector
     const renderPriorityIcon = () => {
@@ -138,7 +140,7 @@ const ProjectRow = memo(({
             <div className="flex items-center gap-3 pl-5 min-w-0">
                 <Folder size={15} className="text-gray-400 group-hover:text-gray-600 shrink-0" />
                 <Link 
-                    href={`/dashboard/projects/${project.id}`}
+                    href={`/dashboard/${workspaceSlug}/projects/${project.id}`}
                     prefetch={true}
                     onMouseEnter={prefetchProject}
                     onFocus={prefetchProject}

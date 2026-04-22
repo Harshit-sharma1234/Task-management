@@ -37,6 +37,9 @@ export default function LoginForm({ initialMessage }: { initialMessage?: string 
       provider,
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
+        queryParams: {
+          scope: 'openid email profile'
+        }
       },
     });
   };
