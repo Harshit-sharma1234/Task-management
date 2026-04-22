@@ -371,7 +371,7 @@ async function MyTasksWidget({ userId, workspaceId, workspaceSlug }: { userId: s
     const tasks = await getCachedUserTasks(userId, workspaceId);
 
     return (
-        <Widget title="My Tasks" count={tasks.length} href="/dashboard/my-tasks">
+        <Widget title="My Tasks" count={tasks.length} href={`/dashboard/${workspaceSlug}/my-tasks`}>
             {tasks.length > 0 ? (
                 <div className="max-h-[180px] overflow-y-auto pr-3 custom-scrollbar transition-all duration-200">
                     <div className="flex flex-col gap-4">
