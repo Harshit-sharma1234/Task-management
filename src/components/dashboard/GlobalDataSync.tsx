@@ -35,7 +35,8 @@ export function GlobalDataSync({ initialData }: GlobalDataSyncProps) {
         setTeamData(
             initialData.team, 
             initialData.profile?.roles?.role_name === 'Admin', 
-            initialData.profile?.roles?.role_name || null
+            initialData.profile?.roles?.role_name || null,
+            initialData.activeWorkspaceId || ''
         );
         setUnreadCount(initialData.unreadCount);
         if (initialData.activeWorkspaceId) {
