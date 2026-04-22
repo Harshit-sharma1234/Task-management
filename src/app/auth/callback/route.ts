@@ -18,43 +18,47 @@ export async function GET(request: Request) {
       if (user) {
         const adminClient = createAdminClient()
         
-        // 1. Get internal user profile (already synced by trigger)
+        // 1. Get internal user profile
         const { data: userProfile } = await adminClient
           .from('users')
           .select('id, last_workspace_id')
           .eq('auth_id', user.id)
           .maybeSingle()
 
-        if (userProfile) {
-          // 2. Refresh last visited workspace
-          const lastWorkspaceId = (userProfile as any).last_workspace_id
-
-          // 3. Get memberships
-          const { data: memberships } = await adminClient
-            .from('workspace_members')
-            .select('workspace_id, role_id, workspaces(slug), roles(role_name)')
-            .eq('user_id', userProfile.id)
-
-          if (memberships && memberships.length > 0) {
-            // Determine target workspace
-            let target = memberships[0]
-            if (lastWorkspaceId) {
-              const matched = memberships.find((m: any) => m.workspace_id === lastWorkspaceId)
-              if (matched) target = matched
-            }
-
-            const slug = (target as any).workspaces?.slug
-            const roleName = (target as any).roles?.role_name || 'Junior Developer'
-            const rolePath = getRolePath(roleName)
-
-            return NextResponse.redirect(`${origin}/dashboard/${slug}/${rolePath}`)
-          }
-          
-          // No memberships yet, send to onboarding
-          return NextResponse.redirect(`${origin}/workspace`)
+        if (!userProfile) {
+          // IMPORTANT: Block new users who haven't signed up via OTP flow
+          await supabase.auth.signOut()
+          return NextResponse.redirect(`${origin}/login?message=No account found for this email. Please sign up with your work email first.`)
         }
+
+        // 2. Refresh last visited workspace
+        const lastWorkspaceId = (userProfile as any).last_workspace_id
+
+        // 3. Get memberships
+        const { data: memberships } = await adminClient
+          .from('workspace_members')
+          .select('workspace_id, role_id, workspaces(slug), roles(role_name)')
+          .eq('user_id', userProfile.id)
+
+        if (memberships && memberships.length > 0) {
+          // Determine target workspace
+          let target = memberships[0]
+          if (lastWorkspaceId) {
+            const matched = memberships.find((m: any) => m.workspace_id === lastWorkspaceId)
+            if (matched) target = matched
+          }
+
+          const slug = (target as any).workspaces?.slug
+          const roleName = (target as any).roles?.role_name || 'Junior Developer'
+          const rolePath = getRolePath(roleName)
+
+          return NextResponse.redirect(`${origin}/dashboard/${slug}/${rolePath}`)
+        }
+        
+        // No memberships yet, send to onboarding
+        return NextResponse.redirect(`${origin}/workspace`)
       }
-      
+
       const forwardedHost = request.headers.get('x-forwarded-host') 
       const isLocalEnv = process.env.NODE_ENV === 'development'
       if (isLocalEnv) {
