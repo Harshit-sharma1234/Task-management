@@ -292,7 +292,7 @@ export async function updateIssueContent(formData: FormData) {
   return { success: true, data }
 }
 
-export async function addComment(ticketId: string, comment: string) {
+export async function addComment(ticketId: string, comment: string, formData?: FormData) {
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
 
@@ -306,7 +306,7 @@ export async function addComment(ticketId: string, comment: string) {
   }
 
   const commentText = comment.trim()
-  if (!commentText) {
+  if (!commentText && (!formData || !formData.has('attachments'))) {
     return { error: 'Comment cannot be empty' }
   }
 
@@ -330,13 +330,48 @@ export async function addComment(ticketId: string, comment: string) {
     return { error: 'Only the Assignee, Reviewer, Admin, or Project Manager can post comments on an issue!' }
   }
 
+  // Handle attachments if present
+  let attachmentsMetadata: any[] = []
+  if (formData) {
+    const files = formData.getAll('attachments') as File[]
+    if (files.length > 0) {
+      const adminClient = createAdminClient()
+      for (const file of files) {
+        if (!file || file.size === 0) continue
+        
+        const fileExt = file.name.split('.').pop()
+        const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`
+        // Store in a comments subfolder for this ticket
+        const filePath = `comments/${ticketId}/${fileName}`
+        
+        const { error: uploadError } = await adminClient.storage
+          .from('issue-attachments')
+          .upload(filePath, file, { contentType: file.type, upsert: true })
+          
+        if (!uploadError) {
+          const { data: { publicUrl } } = adminClient.storage
+            .from('issue-attachments')
+            .getPublicUrl(filePath)
+            
+          attachmentsMetadata.push({
+            name: file.name,
+            url: publicUrl,
+            type: file.type,
+            size: file.size
+          })
+        }
+      }
+    }
+  }
+
   const { data, error } = await supabase
     .from('comments')
     .insert({
       ticket_id: ticketId,
-      comment: commentText
+      comment: commentText,
+      attachments: attachmentsMetadata
     })
-    .select('id, comment, created_at, user_id')
+    .select('id, comment, created_at, user_id, attachments')
     .single()
 
   if (error) {
