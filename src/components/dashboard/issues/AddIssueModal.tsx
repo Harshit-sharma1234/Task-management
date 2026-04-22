@@ -17,15 +17,20 @@ import {
   Paperclip,
   Loader2,
   FileIcon,
-  Trash2
+  Trash2,
+  ChevronDown,
+  Check
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { createIssue } from '@/app/dashboard/[workspace]/issues/actions';
 import { useRouter } from 'next/navigation';
+import { twMerge } from 'tailwind-merge';
+import { useGlobalStore } from '@/lib/store/global';
 
 interface Project {
   id: string;
-  name: string;
+  project_name?: string;
+  name?: string;
 }
 
 interface User {
@@ -66,6 +71,8 @@ export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModa
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const { addIssue, removeIssue } = useGlobalStore();
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -74,11 +81,34 @@ export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModa
     project_id: '',
     assignee_id: '',
   });
+  
+  const [isProjectDropdownOpen, setIsProjectDropdownOpen] = useState(false);
+  const projectDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (projectDropdownRef.current && !projectDropdownRef.current.contains(event.target as Node)) {
+        setIsProjectDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     setError(null);
     
+    if (!formData.title.trim()) { setError('Title is required'); setIsSubmitting(false); return; }
+    if (!formData.description.trim()) { setError('Description is required'); setIsSubmitting(false); return; }
+    if (!formData.status) { setError('Status is required'); setIsSubmitting(false); return; }
+    if (!formData.priority) { setError('Priority is required'); setIsSubmitting(false); return; }
+    if (!formData.project_id) { setError('Project is required'); setIsSubmitting(false); return; }
+    if (!formData.assignee_id) { setError('Assignee is required'); setIsSubmitting(false); return; }
+
     const data = new FormData();
     Object.entries(formData).forEach(([key, value]) => data.append(key, value));
     
@@ -88,6 +118,27 @@ export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModa
     // Instant Close & Background Process
     onClose();
     
+    const selectedProject = projects.find((p) => p.id === formData.project_id);
+
+    // Optimistic update: add temp issue to show instantly with project display info
+    const tempId = `temp-${Date.now()}`;
+    const tempIssue = {
+      id: tempId,
+      title: formData.title,
+      description: formData.description,
+      status: formData.status,
+      priority: formData.priority,
+      project_id: formData.project_id,
+      projects: selectedProject ? { id: selectedProject.id, project_name: selectedProject.project_name } : undefined,
+      assignee_id: formData.assignee_id,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      created_by: '', // Will be filled by server
+      attachments: [],
+      // Add other fields if needed
+    };
+    addIssue(tempIssue);
+    
     startTransition(async () => {
       const promise = createIssue(data);
       
@@ -95,9 +146,15 @@ export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModa
         loading: 'Creating your issue...',
         success: (result: any) => {
           if (result.error) throw new Error(result.error);
+          // Remove temp issue and add the real one (real-time might have added it already)
+          removeIssue(tempId);
+          addIssue(result.data);
           return 'Issue created successfully!';
         },
         error: (err: any) => {
+          // On error, remove the temp issue
+          removeIssue(tempId);
+          setIsSubmitting(false); // Allow retry on error
           return `Failed to create issue: ${err.message}`;
         }
       });
@@ -116,9 +173,6 @@ export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModa
             <span>New Issue</span>
           </div>
           <div className="flex items-center gap-2">
-            <button className="p-1 text-gray-400 hover:text-gray-600 transition-colors">
-              <Maximize2 size={16} />
-            </button>
             <button
               onClick={onClose}
               className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
@@ -129,12 +183,12 @@ export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModa
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="flex flex-col flex-1">
-          <div className="p-6 flex flex-col gap-4">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+          <div className="p-6 flex flex-col gap-4 flex-1 overflow-y-auto custom-scrollbar">
             <input
               autoFocus
               type="text"
-              placeholder="Issue title"
+              placeholder="Issue title *"
               required
               className="bg-transparent border-none text-xl font-bold text-gray-900 placeholder-gray-300 focus:outline-none w-full"
               value={formData.title}
@@ -143,7 +197,7 @@ export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModa
             <textarea
               placeholder="Add description... *"
               required
-              className="bg-transparent border-none text-sm text-gray-600 placeholder-gray-300 focus:outline-none w-full min-h-[120px] resize-none leading-relaxed"
+              className="bg-transparent border-none text-sm text-gray-600 placeholder-gray-300 focus:outline-none w-full min-h-[120px] resize-none leading-relaxed flex-1"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             />
@@ -239,7 +293,7 @@ export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModa
                 required
                 onChange={(e) => setFormData({ ...formData, assignee_id: e.target.value })}
               >
-                <option value="" disabled className="text-gray-400">Select assignee</option>
+                <option value="" disabled className="text-gray-400">Select assignee *</option>
                 <option value="" className="text-gray-900">Unassigned</option>
                 {users.map((u) => (
                   <option key={u.id} value={u.id} className="text-gray-900">
@@ -252,24 +306,60 @@ export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModa
               </div>
             </div>
 
-            {/* Project Selector */}
-            <div className="relative group min-w-[150px]">
-              <select
-                className="appearance-none bg-white border border-gray-200 rounded-md px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/20 pr-8 cursor-pointer w-full shadow-sm"
-                value={formData.project_id}
-                onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
-                required
+            {/* Project Selector (Custom Dropdown with Scrollbar) */}
+            <div className="relative group min-w-[200px]" ref={projectDropdownRef}>
+              <button
+                type="button"
+                onClick={() => setIsProjectDropdownOpen(!isProjectDropdownOpen)}
+                className="flex items-center justify-between w-full bg-white border border-gray-200 rounded-md px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/20 shadow-sm"
               >
-                <option value="" disabled className="text-gray-400">Select project</option>
-                {projects.map((p) => (
-                  <option key={p.id} value={p.id} className="text-gray-900">
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-              <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                <div className="w-2 h-2 rounded-full bg-indigo-500" />
-              </div>
+                <div className="flex items-center gap-2 truncate pr-2">
+                  <div className="w-2 h-2 rounded-full bg-indigo-500 shrink-0" />
+                  <span className="truncate">
+                    {projects.find(p => p.id === formData.project_id)?.project_name || 
+                     (projects.find(p => p.id === formData.project_id) as any)?.name || 
+                     'Select project *'}
+                  </span>
+                </div>
+                <ChevronDown size={14} className={twMerge("text-gray-400 transition-transform duration-200", isProjectDropdownOpen && "rotate-180")} />
+              </button>
+
+              {isProjectDropdownOpen && (
+                <div className="absolute bottom-full mb-2 left-0 w-full bg-white rounded-lg shadow-xl border border-gray-100 py-1 z-[60] animate-in fade-in slide-in-from-bottom-2 duration-200">
+                  <div className="max-h-[220px] overflow-y-auto custom-scrollbar">
+                    {projects.length === 0 ? (
+                      <div className="px-3 py-4 text-center">
+                        <p className="text-[11px] text-gray-400">No projects available</p>
+                      </div>
+                    ) : (
+                      projects.map((p) => {
+                        const isSelected = p.id === formData.project_id;
+                        const label = p.project_name || (p as any).name || (p as any).title || 'Project';
+                        
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => {
+                              setFormData({ ...formData, project_id: p.id });
+                              setIsProjectDropdownOpen(false);
+                            }}
+                            className={twMerge(
+                              "w-full text-left px-3 py-2 text-[11px] font-bold transition-all flex items-center justify-between group",
+                              isSelected 
+                                ? "bg-indigo-50 text-indigo-600" 
+                                : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                            )}
+                          >
+                            <span className="truncate mr-2">{label}</span>
+                            {isSelected && <Check size={12} className="shrink-0" />}
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

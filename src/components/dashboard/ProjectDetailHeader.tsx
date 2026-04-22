@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams, useRouter, useParams } from 'next/navigation';
 import { ChevronRight, Layout, Info, Link as LinkIcon, Check, Plus } from 'lucide-react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
@@ -19,6 +19,8 @@ interface ProjectDetailHeaderProps {
 
 export function ProjectDetailHeader({ projectName, projectId, users }: ProjectDetailHeaderProps) {
   const searchParams = useSearchParams();
+  const params = useParams();
+  const workspaceSlug = params?.workspace as string;
   const { isPending, startTabTransition, pendingTab } = useProjectTransition();
   const activeTab = (searchParams.get('tab') || 'overview').toLowerCase();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -37,7 +39,7 @@ export function ProjectDetailHeader({ projectName, projectId, users }: ProjectDe
 
   const handleTabClick = (tabId: string) => {
     if (tabId === activeTab) return;
-    startTabTransition(`/dashboard/projects/${projectId}?tab=${tabId}`);
+    startTabTransition(`/dashboard/${workspaceSlug}/projects/${projectId}?tab=${tabId}`);
   };
 
   return (
@@ -45,7 +47,7 @@ export function ProjectDetailHeader({ projectName, projectId, users }: ProjectDe
       {/* Top row: Breadcrumbs & Actions */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm text-gray-500">
-          <Link href="/dashboard/projects" className="hover:text-indigo-600 transition-colors">Projects</Link>
+          <Link href={`/dashboard/${workspaceSlug}/projects`} className="hover:text-indigo-600 transition-colors">Projects</Link>
           <ChevronRight size={14} className="text-gray-300" />
           <span className="text-gray-900 font-medium">{projectName}</span>
         </div>
@@ -83,7 +85,7 @@ export function ProjectDetailHeader({ projectName, projectId, users }: ProjectDe
         <AddIssueModal 
           isOpen={isModalOpen} 
           onClose={() => setIsModalOpen(false)} 
-          projects={[{ id: projectId, name: projectName }]}
+          projects={[{ id: projectId, project_name: projectName }]}
           users={users}
         />
       )}
