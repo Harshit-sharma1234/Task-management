@@ -85,7 +85,7 @@ export function ProjectDetailHeader({ projectName, projectId, users }: ProjectDe
         <AddIssueModal 
           isOpen={isModalOpen} 
           onClose={() => setIsModalOpen(false)} 
-          projects={[{ id: projectId, name: projectName }]}
+          projects={[{ id: projectId, project_name: projectName }]}
           users={users}
         />
       )}
