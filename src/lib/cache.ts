@@ -191,7 +191,7 @@ export const getCachedRecentTickets = (limit: number = 10, workspaceId: string) 
       const supabase = createAdminClient();
       const { data, error } = await supabase
         .from('tickets')
-        .select('id, title, status, priority, created_at, assignee_id, reviewer_id, projects(project_name)')
+        .select('id, title, status, priority, created_at, assignee_id, reviewer_id, projects(project_name), assignees:users!assignee_id(id, name, avatar_url)')
         .eq('workspace_id', workspaceId)
         .order('created_at', { ascending: false })
         .limit(limit);
