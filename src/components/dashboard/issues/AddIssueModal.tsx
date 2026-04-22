@@ -29,7 +29,8 @@ import { useGlobalStore } from '@/lib/store/global';
 
 interface Project {
   id: string;
-  project_name: string;
+  project_name?: string;
+  name?: string;
 }
 
 interface User {
