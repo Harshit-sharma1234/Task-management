@@ -42,6 +42,9 @@ export default function SignupForm() {
       provider,
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
+        queryParams: {
+          scope: 'openid email profile'
+        }
       },
     });
   };
