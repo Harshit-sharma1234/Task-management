@@ -178,7 +178,10 @@ function StatCard({ label, value, icon: Icon, color, bg, delay }: any) {
  * ── WIDGET: PROJECT LIST ──
  */
 async function ProjectOverviewList({ workspaceId, workspaceSlug }: { workspaceId: string, workspaceSlug: string }) {
-    const stats = await getCachedStats(workspaceId);
+    const [stats, users] = await Promise.all([
+        getCachedStats(workspaceId),
+        getCachedUsers(workspaceId)
+    ]);
     const recentProjects = stats.recentProjects || [];
     const projectStats = stats.projectStats || {};
     const userMap = new Map(users.map(u => [u.id, u]));
@@ -256,8 +259,8 @@ async function ProjectOverviewList({ workspaceId, workspaceSlug }: { workspaceId
 /**
  * ── WIDGET: ISSUE LIST ──
  */
-async function IssueOverviewList() {
-    const recentTickets = await getCachedRecentTickets(5);
+async function IssueOverviewList({ workspaceId, workspaceSlug }: { workspaceId: string, workspaceSlug: string }) {
+    const recentTickets = await getCachedRecentTickets(5, workspaceId);
 
     const renderPriorityIcon = (priority: string) => {
         switch (priority) {
