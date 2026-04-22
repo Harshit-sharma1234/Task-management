@@ -220,14 +220,14 @@ export function WorkspaceClient({ workspaces }: { workspaces: Workspace[] }) {
         )}
 
         <footer className="mt-12 text-center border-t border-[var(--color-linear-border)] pt-6">
-          <p className="text-xs text-[var(--color-linear-muted)]">
+          <div className="text-xs text-[var(--color-linear-muted)]">
             Log out of your account?{' '}
             <form action="/auth/signout" method="post" className="inline">
               <button type="submit" className="text-[var(--color-linear-accent)] hover:underline font-medium">
                 Sign out
               </button>
             </form>
-          </p>
+          </div>
         </footer>
       </div>
     </main>
