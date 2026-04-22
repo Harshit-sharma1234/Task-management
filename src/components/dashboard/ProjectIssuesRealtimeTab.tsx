@@ -310,7 +310,7 @@ export function ProjectIssuesRealtimeTab({
         <AddIssueModal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
-          projects={[{ id: projectId, name: projectName }]}
+          projects={[{ id: projectId, project_name: projectName }]}
           users={users}
         />
       )}
