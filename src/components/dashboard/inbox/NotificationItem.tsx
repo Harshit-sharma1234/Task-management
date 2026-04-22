@@ -3,6 +3,7 @@
 import { formatDistanceToNow } from 'date-fns';
 import { MessageSquare, UserPlus, Zap, FileText, Check, Bell, AtSign } from 'lucide-react';
 import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 
 interface Notification {
@@ -27,6 +28,9 @@ interface NotificationItemProps {
 }
 
 export function NotificationItem({ notification, onMarkRead, showId = true }: NotificationItemProps) {
+  const params = useParams();
+  const workspaceSlug = params?.workspace as string;
+
   const typeLabel = {
     assignment: 'Assignment',
     comment: 'New Comment',
@@ -37,8 +41,8 @@ export function NotificationItem({ notification, onMarkRead, showId = true }: No
 
   // Map entity to dashboard link
   const link = notification.entity_type === 'ticket'
-    ? `/dashboard/issues/${notification.entity_id}`
-    : `/dashboard/projects/${notification.entity_id}`;
+    ? `/dashboard/${workspaceSlug}/issues/${notification.entity_id}`
+    : `/dashboard/${workspaceSlug}/projects/${notification.entity_id}`;
 
   return (
     <div
