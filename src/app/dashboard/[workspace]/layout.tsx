@@ -49,7 +49,8 @@ export default async function WorkspaceDashboardLayout({
 
   if (!membership) redirect('/workspace');
 
-  const roleName = (membership as any).roles?.role_name || '';
+  const rolesData = (membership as any).roles;
+  const roleName = (Array.isArray(rolesData) ? rolesData[0]?.role_name : rolesData?.role_name) || '';
 
   // 4. Fetch workspace-scoped data for hydration
   const [projectsRes, teamRes, unreadRes, allWorkspacesRes] = await Promise.all([
