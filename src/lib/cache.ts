@@ -25,7 +25,7 @@ export async function getCachedWorkspaceMember(workspaceId: string, userId: stri
       if (error || !data) return null;
       return {
         ...data.users,
-        roles: data.roles
+        roles: Array.isArray(data.roles) ? data.roles[0] : data.roles
       };
     },
     [`workspace-member-${workspaceId}-${userId}`],
@@ -56,7 +56,7 @@ export const getCachedUsers = (workspaceId: string) => cache(unstable_cache(
     }
     return (data || []).map((m: any) => ({
       ...m.users,
-      roles: m.roles
+      roles: Array.isArray(m.roles) ? m.roles[0] : m.roles
     })).filter(u => u.id);
   },
   ['workspace-members-list', workspaceId],
