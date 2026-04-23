@@ -61,7 +61,7 @@ export async function createIssue(formData: FormData) {
 
   // --- Background Operations (Parallel) ---
   const adminClient = createAdminClient()
-  
+
   const runSideEffects = async () => {
     try {
       const sideEffects: Promise<any>[] = []
@@ -73,40 +73,40 @@ export async function createIssue(formData: FormData) {
           const fileExt = file.name.split('.').pop()
           const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`
           const filePath = `${data.id}/${fileName}`
-          
+
           await adminClient.storage.from('issue-attachments').upload(filePath, file, { contentType: file.type, upsert: true })
           const { data: { publicUrl } } = adminClient.storage.from('issue-attachments').getPublicUrl(filePath)
-          
+
           return { name: file.name, url: publicUrl, type: file.type, size: file.size }
         })
 
         const metadata = await Promise.all(uploadPromises)
         if (metadata.length > 0) {
-        const updateAttachmentPromise = adminClient.from('tickets').update({ attachments: metadata }).eq('id', data.id)
-        sideEffects.push(Promise.resolve(updateAttachmentPromise))
+          const updateAttachmentPromise = adminClient.from('tickets').update({ attachments: metadata }).eq('id', data.id)
+          sideEffects.push(Promise.resolve(updateAttachmentPromise))
+        }
       }
-    }
 
-    // 3. Side effects: Activity, Notifications, Auto-Membership
-    sideEffects.push(logActivity(supabase, profile.id, data.id, 'created', 'Issue created'))
-    
-    if (assigneeId) {
-      sideEffects.push(createNotification({
-        userId: assigneeId,
-        actorId: profile.id,
-        workspaceId: (data as any).projects?.workspace_id,
-        entityType: 'ticket',
-        entityId: data.id,
-        type: 'assignment',
-        message: `${profile.name} assigned you a new issue: ${title}`
-      }))
-      
-      // Auto-membership
-      const membershipPromise = adminClient
-        .from('project_members')
-        .upsert({ project_id: projectId, user_id: assigneeId }, { onConflict: 'project_id,user_id' })
-      sideEffects.push(Promise.resolve(membershipPromise))
-    }
+      // 3. Side effects: Activity, Notifications, Auto-Membership
+      sideEffects.push(logActivity(supabase, profile.id, data.id, 'created', 'Issue created'))
+
+      if (assigneeId) {
+        sideEffects.push(createNotification({
+          userId: assigneeId,
+          actorId: profile.id,
+          workspaceId: (data as any).projects?.workspace_id,
+          entityType: 'ticket',
+          entityId: data.id,
+          type: 'assignment',
+          message: `${profile.name} assigned you a new issue: ${title}`
+        }))
+
+        // Auto-membership
+        const membershipPromise = adminClient
+          .from('project_members')
+          .upsert({ project_id: projectId, user_id: assigneeId }, { onConflict: 'project_id,user_id' })
+        sideEffects.push(Promise.resolve(membershipPromise))
+      }
 
       await Promise.all(sideEffects)
     } catch (err) {
@@ -119,12 +119,12 @@ export async function createIssue(formData: FormData) {
 
   // Granular revalidation only
   revalidateTag('issues', 'max')
-  
+
   if (projectId) {
     revalidatePath(`/dashboard/projects/${projectId}`);
   }
   revalidatePath('/dashboard');
-  
+
   return { success: true, data }
 }
 
@@ -183,9 +183,9 @@ export async function updateIssueContent(formData: FormData) {
   const existingAttachments = existingAttachmentsStr ? JSON.parse(existingAttachmentsStr) : []
 
   // Build the update payload — only include changed fields
-  const updatePayload: Record<string, any> = { 
+  const updatePayload: Record<string, any> = {
     updated_at: new Date().toISOString(),
-    attachments: existingAttachments 
+    attachments: existingAttachments
   }
 
   if (title !== undefined && title !== ticket.title) {
@@ -202,27 +202,27 @@ export async function updateIssueContent(formData: FormData) {
 
   if (newFiles.length > 0) {
     const adminClient = createAdminClient();
-    
+
     for (const fileObj of newFiles) {
       const file = fileObj as File;
       if (!file || !file.name || file.size === 0) continue;
-      
+
       const fileExt = file.name.split('.').pop();
       const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
       const filePath = `${ticket.id}/${fileName}`;
-      
+
       const { error: uploadError } = await adminClient.storage
         .from('issue-attachments')
         .upload(filePath, file, {
           contentType: file.type,
           upsert: true
         });
-        
+
       if (!uploadError) {
         const { data: { publicUrl } } = adminClient.storage
           .from('issue-attachments')
           .getPublicUrl(filePath);
-          
+
         newAttachmentsMetadata.push({
           name: file.name,
           url: publicUrl,
@@ -231,7 +231,7 @@ export async function updateIssueContent(formData: FormData) {
         });
       }
     }
-    
+
     // Merge new attachments with existing ones
     updatePayload.attachments = [...existingAttachments, ...newAttachmentsMetadata];
   }
@@ -338,21 +338,21 @@ export async function addComment(ticketId: string, comment: string, formData?: F
       const adminClient = createAdminClient()
       for (const file of files) {
         if (!file || file.size === 0) continue
-        
+
         const fileExt = file.name.split('.').pop()
         const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`
         // Store in a comments subfolder for this ticket
         const filePath = `comments/${ticketId}/${fileName}`
-        
+
         const { error: uploadError } = await adminClient.storage
           .from('issue-attachments')
           .upload(filePath, file, { contentType: file.type, upsert: true })
-          
+
         if (!uploadError) {
           const { data: { publicUrl } } = adminClient.storage
             .from('issue-attachments')
             .getPublicUrl(filePath)
-            
+
           attachmentsMetadata.push({
             name: file.name,
             url: publicUrl,
@@ -384,7 +384,7 @@ export async function addComment(ticketId: string, comment: string, formData?: F
 
   // --- Fire-and-forget: logging, mentions, notifications ---
   // These don't need to block the response to the user
-  ;(async () => {
+  ; (async () => {
     try {
       // Log comment
       await logActivity(supabase, profile.id, ticketId, 'commented', 'Added a comment')
@@ -394,7 +394,7 @@ export async function addComment(ticketId: string, comment: string, formData?: F
       if (ticket.assignee_id && ticket.assignee_id !== profile.id) notifyIds.add(ticket.assignee_id)
 
       const notificationPromises = []
-      
+
       const mentionedNames = await parseMentions(commentText)
       if (mentionedNames && mentionedNames.length > 0) {
         const { data: mentionedUsers } = await supabase.from('users').select('id, name').in('name', mentionedNames)
@@ -426,7 +426,7 @@ export async function addComment(ticketId: string, comment: string, formData?: F
           message: `${profile.name} commented on: ${ticket.title}`
         }))
       }
-      
+
       await Promise.all(notificationPromises)
     } catch (err) {
       console.error('Post-comment side effects error:', err)
@@ -596,11 +596,11 @@ export async function updateIssue(ticketId: string, updates: {
   if (updates.assignee_id || updates.reviewer_id) {
     const adminClient = createAdminClient();
     const projectIdQuery = await adminClient.from('tickets').select('project_id').eq('id', ticketId).single();
-    
+
     if (projectIdQuery.data?.project_id) {
       const { project_id } = projectIdQuery.data;
       const membershipUpserts = [];
-      
+
       if (updates.assignee_id) {
         membershipUpserts.push(
           adminClient.from('project_members').upsert({ project_id, user_id: updates.assignee_id }, { onConflict: 'project_id,user_id' })
@@ -611,7 +611,7 @@ export async function updateIssue(ticketId: string, updates: {
           adminClient.from('project_members').upsert({ project_id, user_id: updates.reviewer_id }, { onConflict: 'project_id,user_id' })
         );
       }
-      
+
       await Promise.all(membershipUpserts);
       revalidateTag('projects', 'max');
     }
@@ -778,7 +778,7 @@ export async function bulkDeleteIssues(ticketIds: string[]) {
 
   // Use admin client to bypass RLS for batch deletion
   const adminClient = createAdminClient()
-  
+
   // Fetch project_ids BEFORE deletion so we can revalidate the specific project paths
   const { data: ticketsToDelete } = await adminClient
     .from('tickets')

@@ -70,9 +70,9 @@ export function Header({ userId, email, profileData, workspaceSlug }: HeaderProp
         <div className="flex items-center gap-6">
           {userProfile ? (
             <div className="flex items-center gap-3">
-              <UserDropdown 
-                profile={userProfile} 
-                onSignOut={() => setShowSignOutConfirm(true)} 
+              <UserDropdown
+                profile={userProfile}
+                onSignOut={() => setShowSignOutConfirm(true)}
                 workspaceSlug={workspaceSlug}
               />
             </div>
@@ -91,9 +91,9 @@ export function Header({ userId, email, profileData, workspaceSlug }: HeaderProp
       {/* Sign Out Confirmation Modal */}
       {showSignOutConfirm && (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center">
-          <div 
+          <div
             className="absolute inset-0 bg-[#0e0e11]/40 backdrop-blur-[4px] animate-in fade-in duration-300"
-            onClick={() => setShowSignOutConfirm(false)} 
+            onClick={() => setShowSignOutConfirm(false)}
           />
           <div className="relative bg-white rounded-3xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] border border-gray-100 px-8 py-8 w-full max-w-sm mx-4 animate-in fade-in zoom-in slide-in-from-bottom-4 duration-300">
             <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mb-6 ring-8 ring-red-50/50">
