@@ -126,7 +126,7 @@ export default async function IssueDetailsPage({ params }: { params: Promise<{ i
     : (ticket as any).projects?.project_name;
 
   // RBAC: "admin, pm, reviewer, assign have full access"
-  const userRole = member?.roles?.role_name;
+  const userRole = (member?.roles as any)?.role_name;
   const isAdmin = userRole === 'Admin' || userRole === 'Project Manager';
   const isAssignee = profile?.id === ticket.assignee_id;
   const isReviewer = profile?.id === (ticket as any).reviewer_id;
