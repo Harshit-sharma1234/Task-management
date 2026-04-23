@@ -37,7 +37,7 @@ const TeamMemberRow = memo(({ user, isAdmin, currentUserRole }: { user: any, isA
         try {
             // Optimistic update
             useTeamStore.getState().updateRole(user.id, newRole);
-            
+
             const result = await updateUserRole(user.id, newRole);
             if (result.error) {
                 toast.error(result.error);
@@ -170,10 +170,10 @@ export function TeamList({ isAdmin, currentUserRole }: { isAdmin: boolean, curre
         return initialUsers.filter(u => {
             const matchesSearch = u.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 u.email?.toLowerCase().includes(searchTerm.toLowerCase())
-            
-            const matchesRole = roleFilter === 'All' || 
+
+            const matchesRole = roleFilter === 'All' ||
                 u.roles?.role_name?.toLowerCase() === roleFilter.toLowerCase()
-                
+
             return matchesSearch && matchesRole
         })
     }, [initialUsers, searchTerm, roleFilter])
@@ -194,9 +194,9 @@ export function TeamList({ isAdmin, currentUserRole }: { isAdmin: boolean, curre
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
-                
+
                 <div className="relative">
-                    <select 
+                    <select
                         value={roleFilter}
                         onChange={(e) => setRoleFilter(e.target.value)}
                         className="appearance-none bg-gray-50/50 border border-gray-100 rounded-lg px-3 py-1.5 text-[12px] font-semibold text-gray-600 focus:outline-none focus:ring-1 focus:ring-indigo-500/30 focus:bg-white transition-all cursor-pointer pr-7"

@@ -81,7 +81,7 @@ export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModa
     project_id: '',
     assignee_id: '',
   });
-  
+
   const [isProjectDropdownOpen, setIsProjectDropdownOpen] = useState(false);
   const projectDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -101,7 +101,7 @@ export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModa
     if (isSubmitting) return;
     setIsSubmitting(true);
     setError(null);
-    
+
     if (!formData.title.trim()) { setError('Title is required'); setIsSubmitting(false); return; }
     if (!formData.description.trim()) { setError('Description is required'); setIsSubmitting(false); return; }
     if (!formData.status) { setError('Status is required'); setIsSubmitting(false); return; }
@@ -111,13 +111,13 @@ export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModa
 
     const data = new FormData();
     Object.entries(formData).forEach(([key, value]) => data.append(key, value));
-    
+
     // Append files
     selectedFiles.forEach((file) => data.append('attachments', file));
 
     // Instant Close & Background Process
     onClose();
-    
+
     const selectedProject = projects.find((p) => p.id === formData.project_id);
 
     // Optimistic update: add temp issue to show instantly with project display info
@@ -138,10 +138,10 @@ export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModa
       // Add other fields if needed
     };
     addIssue(tempIssue);
-    
+
     startTransition(async () => {
       const promise = createIssue(data);
-      
+
       toast.promise(promise, {
         loading: 'Creating your issue...',
         success: (result: any) => {
@@ -316,9 +316,9 @@ export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModa
                 <div className="flex items-center gap-2 truncate pr-2">
                   <div className="w-2 h-2 rounded-full bg-indigo-500 shrink-0" />
                   <span className="truncate">
-                    {projects.find(p => p.id === formData.project_id)?.project_name || 
-                     (projects.find(p => p.id === formData.project_id) as any)?.name || 
-                     'Select project *'}
+                    {projects.find(p => p.id === formData.project_id)?.project_name ||
+                      (projects.find(p => p.id === formData.project_id) as any)?.name ||
+                      'Select project *'}
                   </span>
                 </div>
                 <ChevronDown size={14} className={twMerge("text-gray-400 transition-transform duration-200", isProjectDropdownOpen && "rotate-180")} />
@@ -335,7 +335,7 @@ export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModa
                       projects.map((p) => {
                         const isSelected = p.id === formData.project_id;
                         const label = p.project_name || (p as any).name || (p as any).title || 'Project';
-                        
+
                         return (
                           <button
                             key={p.id}
@@ -346,8 +346,8 @@ export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModa
                             }}
                             className={twMerge(
                               "w-full text-left px-3 py-2 text-[11px] font-bold transition-all flex items-center justify-between group",
-                              isSelected 
-                                ? "bg-indigo-50 text-indigo-600" 
+                              isSelected
+                                ? "bg-indigo-50 text-indigo-600"
                                 : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                             )}
                           >
@@ -377,8 +377,8 @@ export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModa
                   e.target.value = ''; // Reset to allow re-selecting same file
                 }}
               />
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => fileInputRef.current?.click()}
                 className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-all group/paperclip relative"
               >

@@ -47,7 +47,12 @@ export function IssueReviewerSelector({
             // Filter reviewer eligibility: Only Admin, PM, or Senior Developer
             const userRole = (u as any).roles?.role_name;
             const isEligible = userRole === 'Admin' || userRole === 'Project Manager' || userRole === 'Senior Developer';
-            return matchesSearch && isEligible;
+            
+            // "Sr Dev also cannot self-assign their own ticket for review"
+            const isSelfReview = u.id === assigneeId;
+            const isRestrictedSelfReview = isSelfReview && userRole === 'Senior Developer';
+            
+            return matchesSearch && isEligible && !isRestrictedSelfReview;
         });
 
     useEffect(() => {

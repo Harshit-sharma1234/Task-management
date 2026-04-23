@@ -5,6 +5,40 @@ import { createAdminClient } from './supabase/admin';
 /**
  * Cached fetch for the users belonging to a specific workspace.
  */
+/**
+ * Cached fetch for a specific workspace member (useful for permission checks).
+ */
+export async function getCachedWorkspaceMember(workspaceId: string, userId: string) {
+  return unstable_cache(
+    async () => {
+      const supabase = createAdminClient();
+      const { data, error } = await supabase
+        .from('workspace_members')
+        .select(`
+          users(id, name, avatar_url),
+          roles(role_name)
+        `)
+        .eq('workspace_id', workspaceId)
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (error || !data) return null;
+      return {
+        ...data.users,
+        roles: data.roles
+      };
+    },
+    [`workspace-member-${workspaceId}-${userId}`],
+    {
+      revalidate: 3600,
+      tags: [`workspace-${workspaceId}`, `user-${userId}`]
+    }
+  )();
+}
+
+/**
+ * Cached fetch for the users belonging to a specific workspace.
+ */
 export const getCachedUsers = (workspaceId: string) => cache(unstable_cache(
   async () => {
     const supabase = createAdminClient();
@@ -320,7 +354,7 @@ export const getCachedUsersMinimal = (workspaceId: string) => unstable_cache(
       .from('workspace_members')
       .select('users(id, name)')
       .eq('workspace_id', workspaceId);
-    
+
     if (error) {
       console.error(`[Cache] Error fetching minimal users for workspace ${workspaceId}:`, error);
       return [];

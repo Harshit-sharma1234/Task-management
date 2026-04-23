@@ -13,6 +13,7 @@ interface IssueAssigneeSelectorProps {
     currentAssignee: { name: string, avatar_url?: string | null } | null;
     users: { id: string, name: string, email?: string, avatar_url?: string | null }[];
     currentUser?: any;
+    reviewerId?: string | null;
 }
 
 export const IssueAssigneeSelector = memo(({
@@ -20,7 +21,8 @@ export const IssueAssigneeSelector = memo(({
     currentAssigneeId,
     currentAssignee,
     users,
-    currentUser
+    currentUser,
+    reviewerId
 }: IssueAssigneeSelectorProps) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
@@ -31,7 +33,7 @@ export const IssueAssigneeSelector = memo(({
 
 
     const role = currentUser?.roles?.role_name;
-    const isOwner = currentUser?.id === currentAssigneeId; // Currently only checking assignee since reviewerId is not passed here yet
+    const isOwner = currentUser?.id === currentAssigneeId || currentUser?.id === reviewerId;
     const isAdmin = role === 'Admin' || role === 'Project Manager';
     const canUpdate = isAdmin || isOwner;
 

@@ -110,6 +110,7 @@ export function IssuePropertyControls({
                     currentAssignee={users.find(u => u.id === assigneeId) || null}
                     users={users as any}
                     currentUser={currentUser}
+                    reviewerId={reviewerId}
                   />
                 </div>
               </div>
