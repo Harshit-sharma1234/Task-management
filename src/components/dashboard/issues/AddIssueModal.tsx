@@ -64,6 +64,7 @@ const priorityOptions = [
 ];
 
 export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModalProps) {
+  console.log('[AddIssueModal] Rendering - Version 1.1 (Optimistic Fix)');
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -101,6 +102,7 @@ export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModa
     if (isSubmitting) return;
     setIsSubmitting(true);
     setError(null);
+    console.log('[AddIssueModal] Submitting form data:', formData);
 
     if (!formData.title.trim()) { setError('Title is required'); setIsSubmitting(false); return; }
     if (!formData.description.trim()) { setError('Description is required'); setIsSubmitting(false); return; }
@@ -137,6 +139,7 @@ export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModa
       attachments: [],
       // Add other fields if needed
     };
+    console.log('[AddIssueModal] Adding optimistic issue:', tempIssue);
     addIssue(tempIssue);
 
     startTransition(async () => {
@@ -149,6 +152,7 @@ export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModa
           // Remove temp issue and add the real one (real-time might have added it already)
           removeIssue(tempId);
           addIssue(result.data);
+          console.log('[AddIssueModal] Issue created successfully:', result.data);
           return 'Issue created successfully!';
         },
         error: (err: any) => {

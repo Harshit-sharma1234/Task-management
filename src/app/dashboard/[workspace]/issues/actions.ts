@@ -9,6 +9,7 @@ import { createNotification, parseMentions } from '@/app/dashboard/[workspace]/n
 import { getCachedUserProfile } from '@/lib/cache'
 
 export async function createIssue(formData: FormData) {
+  console.log('[Server Action] createIssue started');
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
 
@@ -125,6 +126,7 @@ export async function createIssue(formData: FormData) {
   }
   revalidatePath('/dashboard');
 
+  console.log('[Server Action] createIssue success:', data.id);
   return { success: true, data }
 }
 
