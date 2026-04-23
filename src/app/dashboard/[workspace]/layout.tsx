@@ -132,7 +132,7 @@ export default async function WorkspaceDashboardLayout({
             role: roleName,
           }} 
         />
-        <main className="flex-1 overflow-y-auto w-full">
+        <main className="flex-1 overflow-y-auto w-full outline-none">
           {children}
         </main>
       </div>

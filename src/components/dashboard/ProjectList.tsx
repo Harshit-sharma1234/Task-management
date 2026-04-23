@@ -47,14 +47,14 @@ import { UserAvatar } from '@/components/ui/UserAvatar';
  * Memoized row component to prevent re-renders of the entire 
  * project list when searching or filtering.
  */
-const ProjectRow = memo(({ 
-    project, 
-    users, 
+const ProjectRow = memo(({
+    project,
+    users,
     isLast,
     userRole
-}: { 
-    project: Project; 
-    users: User[]; 
+}: {
+    project: Project;
+    users: User[];
     isLast: boolean;
     userRole: AppRole | null;
 }) => {
@@ -131,7 +131,7 @@ const ProjectRow = memo(({
     const leadUser = users.find(u => u.id === project.lead_id);
 
     return (
-        <div 
+        <div
             className="grid grid-cols-[1fr_100px_140px_140px_140px_48px] items-center py-2 hover:bg-gray-50/50 transition-colors group text-sm relative hover:z-20 focus-within:z-20 border-b border-gray-100"
             onMouseEnter={() => setIsInteractive(true)}
             onFocus={() => setIsInteractive(true)}
@@ -139,7 +139,7 @@ const ProjectRow = memo(({
             {/* Name */}
             <div className="flex items-center gap-3 pl-5 min-w-0">
                 <Folder size={15} className="text-gray-400 group-hover:text-gray-600 shrink-0" />
-                <Link 
+                <Link
                     href={`/dashboard/${workspaceSlug}/projects/${project.id}`}
                     prefetch={true}
                     onMouseEnter={prefetchProject}
@@ -149,7 +149,7 @@ const ProjectRow = memo(({
                     {project.project_name}
                 </Link>
             </div>
-            
+
             {/* Priority */}
             <div className="hidden md:flex items-center relative z-10 pl-2">
                 {isInteractive ? (
@@ -160,7 +160,7 @@ const ProjectRow = memo(({
                     </div>
                 )}
             </div>
-            
+
             {/* Lead */}
             <div className="hidden sm:flex items-center relative z-10 pl-2">
                 {isInteractive ? (
@@ -179,7 +179,7 @@ const ProjectRow = memo(({
                     </div>
                 )}
             </div>
-            
+
             {/* Target date */}
             <div className="hidden lg:flex items-center justify-end pr-5 relative z-10">
                 {isInteractive ? (
@@ -192,15 +192,14 @@ const ProjectRow = memo(({
                     </span>
                 )}
             </div>
-            
+
             {/* Status */}
             <div className="flex items-center justify-end pr-5 text-gray-500 gap-2 relative z-10">
-                <div className={`w-2 h-2 rounded-full ${
-                    project.status === 'done' ? 'bg-green-500' :
-                    project.status === 'in_progress' ? 'bg-indigo-500' :
-                    project.status === 'cancelled' ? 'bg-red-500' :
-                    'bg-orange-500'
-                }`}></div>
+                <div className={`w-2 h-2 rounded-full ${project.status === 'done' ? 'bg-green-500' :
+                        project.status === 'in_progress' ? 'bg-indigo-500' :
+                            project.status === 'cancelled' ? 'bg-red-500' :
+                                'bg-orange-500'
+                    }`}></div>
                 <span className="text-[10px] font-bold uppercase text-gray-400 tracking-tight">
                     {project.status ? project.status.replace('_', ' ') : 'backlog'}
                 </span>
@@ -293,9 +292,9 @@ export function ProjectList({ projects, users, userMap, userRole }: ProjectListP
     const filteredProjects = useMemo(() => {
         const listToFilter = localProjects;
         if (!searchTerm.trim()) return listToFilter;
-        
+
         const term = searchTerm.toLowerCase();
-        return listToFilter.filter(project => 
+        return listToFilter.filter(project =>
             project.project_name.toLowerCase().includes(term) ||
             (project.lead_id && userMap[project.lead_id]?.toLowerCase().includes(term))
         );
@@ -321,9 +320,9 @@ export function ProjectList({ projects, users, userMap, userRole }: ProjectListP
                 <div className="flex items-center gap-3">
                     <div className="relative">
                         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                        <input 
-                            type="text" 
-                            placeholder="Search projects..." 
+                        <input
+                            type="text"
+                            placeholder="Search projects..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="pl-9 pr-4 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 w-64 bg-gray-50/50"
@@ -345,7 +344,7 @@ export function ProjectList({ projects, users, userMap, userRole }: ProjectListP
                                 {searchTerm ? 'No matching projects' : 'No projects found'}
                             </h3>
                             <p className="text-gray-500 mb-6 text-center max-w-sm">
-                                {searchTerm 
+                                {searchTerm
                                     ? `We couldn't find any projects matching "${searchTerm}".`
                                     : "You haven't created any projects yet. Start by creating a project to organize your team's tasks."}
                             </p>

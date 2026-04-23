@@ -37,7 +37,7 @@ export function EditableIssueContent({
     const [attachments, setAttachments] = useState<Attachment[]>(initialAttachments);
     const [newFiles, setNewFiles] = useState<File[]>([]);
     const [isSaving, setIsSaving] = useState(false);
-    
+
     const titleRef = useRef<HTMLInputElement>(null);
     const descRef = useRef<HTMLTextAreaElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -92,7 +92,7 @@ export function EditableIssueContent({
 
         // 2. Combine with filtered existing attachments
         const optimisticTotalAttachments = [...attachments, ...optimisticNewAttachments];
-        
+
         // 3. Update state and exit edit mode INSTANTLY
         setAttachments(optimisticTotalAttachments);
         setIsSaving(true);
@@ -114,7 +114,7 @@ export function EditableIssueContent({
             setTitle(previousTitle);
             setDescription(previousDescription);
             setAttachments(previousAttachments);
-            setIsEditing(true); 
+            setIsEditing(true);
             setIsSaving(false);
             return;
         }
@@ -193,79 +193,76 @@ export function EditableIssueContent({
 
                 {/* Attachments Section (Integrated for Optimistic UI) */}
                 {attachments.length > 0 && (
-                  <div className="mt-8 pt-6 border-t border-gray-100/60">
-                    <div className="flex items-center gap-2 mb-4 px-1">
-                      <Paperclip size={14} className={isSaving ? "text-indigo-400 animate-pulse" : "text-gray-400"} />
-                      <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">
-                        Attachments ({attachments.length})
-                      </h3>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {attachments.map((file, idx) => (
-                        <div key={file.url} className="group/attach-item relative bg-gray-50/50 border border-gray-100 rounded-xl hover:bg-white hover:border-indigo-200 hover:shadow-lg hover:shadow-indigo-500/5 transition-all active:scale-[0.98]">
-                          <a
-                            href={file.isOptimistic ? undefined : file.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => file.isOptimistic && e.preventDefault()}
-                            className={`flex items-center gap-3 p-3 w-full ${
-                              file.isOptimistic ? 'cursor-wait opacity-70' : ''
-                            }`}
-                          >
-                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all shadow-sm border ${
-                              file.isOptimistic 
-                              ? 'bg-white border-indigo-200 text-indigo-400' 
-                              : 'bg-white border-gray-100 text-indigo-500 group-hover/attachment:bg-indigo-50 group-hover/attachment:border-indigo-100'
-                            }`}>
-                              {file.isOptimistic ? <Loader2 size={18} className="animate-spin" /> : <FileIcon size={18} />}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className={`text-xs font-bold truncate transition-colors ${
-                                file.isOptimistic ? 'text-indigo-400' : 'text-gray-900 group-hover/attachment:text-indigo-600'
-                              }`}>
-                                {file.name}
-                              </div>
-                              <div className="text-[9px] text-gray-400 font-extrabold uppercase tracking-wider flex items-center gap-1.5 mt-0.5">
-                                {file.isOptimistic ? (
-                                  <span className="text-indigo-500 animate-pulse">Uploading...</span>
-                                ) : (
-                                  <>
-                                    <span className="bg-gray-100 px-1 rounded text-gray-500">
-                                      {file.type ? file.type.split('/')[1]?.toUpperCase() : 'FILE'}
-                                    </span>
-                                    <span>{(file.size / 1024).toFixed(1)} KB</span>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                          </a>
-                          
-                          {/* Download Button */}
-                          {!file.isOptimistic && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                e.preventDefault();
-                                // Open with download hint
-                                window.open(file.url + '?download=true', '_blank');
-                                // Force download attempt
-                                const link = document.createElement('a');
-                                link.href = file.url;
-                                link.download = file.name;
-                                document.body.appendChild(link);
-                                link.click();
-                                document.body.removeChild(link);
-                              }}
-                              className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg opacity-0 group-hover/attach-item:opacity-100 transition-all z-10"
-                              title="Download file"
-                            >
-                              <Download size={16} />
-                            </button>
-                          )}
+                    <div className="mt-8 pt-6 border-t border-gray-100/60">
+                        <div className="flex items-center gap-2 mb-4 px-1">
+                            <Paperclip size={14} className={isSaving ? "text-indigo-400 animate-pulse" : "text-gray-400"} />
+                            <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">
+                                Attachments ({attachments.length})
+                            </h3>
                         </div>
-                      ))}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                            {attachments.map((file, idx) => (
+                                <div key={file.url} className="group/attach-item relative bg-gray-50/50 border border-gray-100 rounded-xl hover:bg-white hover:border-indigo-200 hover:shadow-lg hover:shadow-indigo-500/5 transition-all active:scale-[0.98]">
+                                    <a
+                                        href={file.isOptimistic ? undefined : file.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={(e) => file.isOptimistic && e.preventDefault()}
+                                        className={`flex items-center gap-3 p-3 w-full ${file.isOptimistic ? 'cursor-wait opacity-70' : ''
+                                            }`}
+                                    >
+                                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all shadow-sm border ${file.isOptimistic
+                                                ? 'bg-white border-indigo-200 text-indigo-400'
+                                                : 'bg-white border-gray-100 text-indigo-500 group-hover/attachment:bg-indigo-50 group-hover/attachment:border-indigo-100'
+                                            }`}>
+                                            {file.isOptimistic ? <Loader2 size={18} className="animate-spin" /> : <FileIcon size={18} />}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className={`text-xs font-bold truncate transition-colors ${file.isOptimistic ? 'text-indigo-400' : 'text-gray-900 group-hover/attachment:text-indigo-600'
+                                                }`}>
+                                                {file.name}
+                                            </div>
+                                            <div className="text-[9px] text-gray-400 font-extrabold uppercase tracking-wider flex items-center gap-1.5 mt-0.5">
+                                                {file.isOptimistic ? (
+                                                    <span className="text-indigo-500 animate-pulse">Uploading...</span>
+                                                ) : (
+                                                    <>
+                                                        <span className="bg-gray-100 px-1 rounded text-gray-500">
+                                                            {file.type ? file.type.split('/')[1]?.toUpperCase() : 'FILE'}
+                                                        </span>
+                                                        <span>{(file.size / 1024).toFixed(1)} KB</span>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </a>
+
+                                    {/* Download Button */}
+                                    {!file.isOptimistic && (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                e.preventDefault();
+                                                // Open with download hint
+                                                window.open(file.url + '?download=true', '_blank');
+                                                // Force download attempt
+                                                const link = document.createElement('a');
+                                                link.href = file.url;
+                                                link.download = file.name;
+                                                document.body.appendChild(link);
+                                                link.click();
+                                                document.body.removeChild(link);
+                                            }}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg opacity-0 group-hover/attach-item:opacity-100 transition-all z-10"
+                                            title="Download file"
+                                        >
+                                            <Download size={16} />
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
                     </div>
-                  </div>
                 )}
             </div>
         );
