@@ -44,18 +44,18 @@ interface IssueRowProps {
   workspaceSlug?: string;
 }
 
-const IssueRow = memo(({ 
-  ticket, 
-  users, 
-  isSelected, 
-  onToggleSelection, 
-  currentUser, 
+const IssueRow = memo(({
+  ticket,
+  users,
+  isSelected,
+  onToggleSelection,
+  currentUser,
   isMyTasks = false,
   workspaceSlug
 }: IssueRowProps) => {
   const router = useRouter();
   const [isInteractive, setIsInteractive] = useState(false);
-  const issueHref = workspaceSlug 
+  const issueHref = workspaceSlug
     ? `/dashboard/${workspaceSlug}/issues/${ticket.id}`
     : `/dashboard/issues/${ticket.id}`;
   const prefetchIssue = useCallback(() => {
@@ -206,7 +206,7 @@ const IssueRow = memo(({
       >
         {/* Project Link */}
         <Link
-          href={ticket.projects?.id 
+          href={ticket.projects?.id
             ? (workspaceSlug ? `/dashboard/${workspaceSlug}/projects/${ticket.projects.id}` : `/dashboard/projects/${ticket.projects.id}`)
             : '#'}
           onClick={(e) => !ticket.projects?.id && e.preventDefault()}

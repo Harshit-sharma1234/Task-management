@@ -40,7 +40,7 @@ export function CreateProjectButton({ variant = 'header', workspaceId }: CreateP
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [users, setUsers] = useState<User[]>([])
-  
+
   // Lazy fetch users when modal is opened to avoid blocking main page render
   useEffect(() => {
     if (isOpen && users.length === 0 && workspaceId) {
@@ -78,7 +78,7 @@ export function CreateProjectButton({ variant = 'header', workspaceId }: CreateP
   }
 
   const toggleAssignee = (id: string) => {
-    setSelectedAssignees(prev => 
+    setSelectedAssignees(prev =>
       prev.includes(id) ? prev.filter(userId => userId !== id) : [...prev, id]
     )
   }
@@ -97,10 +97,10 @@ export function CreateProjectButton({ variant = 'header', workspaceId }: CreateP
 
     // Instant Close & Background Process
     closeModal()
-    
+
     startTransition(async () => {
       const promise = createProject(data)
-      
+
       toast.promise(promise, {
         loading: 'Creating your project...',
         success: (result: any) => {
@@ -145,7 +145,7 @@ export function CreateProjectButton({ variant = 'header', workspaceId }: CreateP
   return (
     <>
       {variant === 'header' ? (
-        <button 
+        <button
           onClick={openModal}
           className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition-colors cursor-pointer"
         >
@@ -153,7 +153,7 @@ export function CreateProjectButton({ variant = 'header', workspaceId }: CreateP
           New Project
         </button>
       ) : (
-        <button 
+        <button
           onClick={openModal}
           className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer"
         >
@@ -186,7 +186,7 @@ export function CreateProjectButton({ variant = 'header', workspaceId }: CreateP
               )}
 
               {/* Hidden fields to preserve server action contract */}
-               <input type="hidden" name="status" value={status} />
+              <input type="hidden" name="status" value={status} />
               <input type="hidden" name="priority" value={priority} />
               <input type="hidden" name="lead_id" value={leadId} />
               <input type="hidden" name="start_date" value={startDate} />
@@ -232,9 +232,8 @@ export function CreateProjectButton({ variant = 'header', workspaceId }: CreateP
                             setStatus(o.value)
                             setOpenPill(null)
                           }}
-                          className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center justify-between ${
-                            o.value === status ? 'bg-gray-50' : ''
-                          }`}
+                          className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center justify-between ${o.value === status ? 'bg-gray-50' : ''
+                            }`}
                         >
                           <span className="text-gray-800">{o.label}</span>
                           {o.value === status && <Check size={16} className="text-indigo-600" />}
@@ -267,9 +266,8 @@ export function CreateProjectButton({ variant = 'header', workspaceId }: CreateP
                               setPriority(o.value)
                               setOpenPill(null)
                             }}
-                            className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center justify-between ${
-                              o.value === priority ? 'bg-gray-50' : ''
-                            }`}
+                            className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center justify-between ${o.value === priority ? 'bg-gray-50' : ''
+                              }`}
                           >
                             <span className="flex items-center gap-2 text-gray-800">
                               <Icon size={14} className="text-gray-400" />
@@ -302,9 +300,8 @@ export function CreateProjectButton({ variant = 'header', workspaceId }: CreateP
                           setLeadId('')
                           setOpenPill(null)
                         }}
-                        className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center justify-between ${
-                          !leadId ? 'bg-gray-50' : ''
-                        }`}
+                        className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center justify-between ${!leadId ? 'bg-gray-50' : ''
+                          }`}
                       >
                         <span className="text-gray-800">No lead</span>
                         {!leadId && <Check size={16} className="text-indigo-600" />}
@@ -317,9 +314,8 @@ export function CreateProjectButton({ variant = 'header', workspaceId }: CreateP
                             setLeadId(u.id)
                             setOpenPill(null)
                           }}
-                          className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center justify-between ${
-                            u.id === leadId ? 'bg-gray-50' : ''
-                          }`}
+                          className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center justify-between ${u.id === leadId ? 'bg-gray-50' : ''
+                            }`}
                         >
                           <span className="text-gray-800">{u.name || 'Unnamed User'}</span>
                           {u.id === leadId && <Check size={16} className="text-indigo-600" />}
@@ -339,7 +335,7 @@ export function CreateProjectButton({ variant = 'header', workspaceId }: CreateP
                     className="sr-only"
                     value={selectedAssignees.join(',')}
                     required
-                    onChange={() => {}}
+                    onChange={() => { }}
                     title="Please select at least one member"
                   />
 
@@ -369,9 +365,8 @@ export function CreateProjectButton({ variant = 'header', workspaceId }: CreateP
                                 key={u.id}
                                 type="button"
                                 onClick={() => toggleAssignee(u.id)}
-                                className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center justify-between ${
-                                  isSelected ? 'bg-gray-50' : ''
-                                }`}
+                                className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center justify-between ${isSelected ? 'bg-gray-50' : ''
+                                  }`}
                               >
                                 <span className={isSelected ? 'font-medium text-gray-900' : 'text-gray-700'}>
                                   {u.name || 'Unnamed User'}
@@ -479,7 +474,7 @@ export function CreateProjectButton({ variant = 'header', workspaceId }: CreateP
                   placeholder="Write a description, a project brief, or collect ideas..."
                 />
               </div>
-              
+
               <div className="flex justify-end gap-3 pt-2">
                 <button
                   type="button"

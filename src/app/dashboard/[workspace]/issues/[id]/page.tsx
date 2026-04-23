@@ -8,7 +8,8 @@ import { CommentSection } from '@/components/dashboard/issues/CommentSection';
 import { IssuePropertyControls } from '@/components/dashboard/issues/IssuePropertyControls';
 import { IssueHeaderActions } from '@/components/dashboard/issues/IssueHeaderActions';
 import { EditableIssueContent } from '@/components/dashboard/issues/EditableIssueContent';
-import { getCachedUserProfile, getCachedIssueUsers, getCachedWorkspaceBySlug } from '@/lib/cache';
+import { getCachedUserProfile, getCachedIssueUsers, getCachedWorkspaceBySlug, getCachedWorkspaceMember } from '@/lib/cache';
+// Triggering re-parse to fix ReferenceError
 import { IssueActivitySkeleton } from '@/components/dashboard/issues/IssueActivitySkeleton';
 
 async function IssueActivitySection({
@@ -16,7 +17,7 @@ async function IssueActivitySection({
   currentUser,
 }: {
   ticketId: string;
-  currentUser: { id: string; name: string; email: string; avatar_url: string | null };
+  currentUser: { id: string; name: string; email: string; avatar_url: string | null; roles?: any };
 }) {
   const supabase = await createClient(); // Still used for RLS-scoped comments/logs fetch if desired, but we'll use admin for profiles
   const adminClient = createAdminClient();
@@ -111,6 +112,8 @@ export default async function IssueDetailsPage({ params }: { params: Promise<{ i
     getCachedIssueUsers(workspace.id)
   ]);
 
+  const member = profile?.id ? await getCachedWorkspaceMember(workspace.id, profile.id) : null;
+
   const { data: ticket, error: ticketError } = ticketResponse;
 
   if (ticketError || !ticket) {
@@ -122,16 +125,21 @@ export default async function IssueDetailsPage({ params }: { params: Promise<{ i
     ? (ticket as any).projects?.[0]?.project_name
     : (ticket as any).projects?.project_name;
 
-  // RBAC: Since profile no longer carries global roles (workspace-scoped now),
-  // allow edit/delete for the ticket creator. Workspace-level role checks happen in layout.
-  const canDelete = true; // Workspace role verified at layout level
-  const canEdit = canDelete || profile?.id === (ticket as any).created_by;
+  // RBAC: "admin, pm, reviewer, assign have full access"
+  const userRole = member?.roles?.role_name;
+  const isAdmin = userRole === 'Admin' || userRole === 'Project Manager';
+  const isAssignee = profile?.id === ticket.assignee_id;
+  const isReviewer = profile?.id === (ticket as any).reviewer_id;
+
+  const canDelete = isAdmin;
+  const canEdit = isAdmin || isAssignee || isReviewer || profile?.id === (ticket as any).created_by;
 
   const currentUserForActivity = {
     id: profile?.id || '',
     name: profile?.name || 'Anonymous',
     email: user.email || '',
     avatar_url: profile?.avatar_url || null,
+    roles: member?.roles || null,
   };
 
   return (
