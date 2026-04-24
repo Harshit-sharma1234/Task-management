@@ -43,9 +43,11 @@ export const IssuePrioritySelector = memo(({
 
 
     const role = currentUser?.roles?.role_name;
-    const isOwner = currentUser?.id === assigneeId || currentUser?.id === reviewerId;
     const isAdmin = role === 'Admin' || role === 'Project Manager';
-    const canUpdate = isAdmin || isOwner;
+    const isSrDev = role === 'Senior Developer';
+    const isAssignee = currentUser?.id === assigneeId;
+    const isReviewer = currentUser?.id === reviewerId;
+    const canUpdate = isAdmin || isSrDev || isAssignee || isReviewer;
 
     useEffect(() => { setOptimisticPriority(currentPriority); }, [currentPriority]);
 
