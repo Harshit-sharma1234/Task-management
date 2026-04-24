@@ -189,7 +189,7 @@ export default async function IssueDetailsPage({ params }: { params: Promise<{ i
             initialAssigneeId={ticket.assignee_id}
             initialReviewerId={ticket.reviewer_id}
             currentUserId={profile?.id || ''}
-            currentUser={profile}
+            currentUser={currentUserForActivity}
             projectName={ticketProjectName || 'N/A'}
             users={allUsers || []}
           />
