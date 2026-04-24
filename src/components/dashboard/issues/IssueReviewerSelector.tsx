@@ -33,9 +33,11 @@ export function IssueReviewerSelector({
 
 
     const role = currentUser?.roles?.role_name;
-    const isOwner = currentUser?.id === assigneeId || currentUser?.id === currentReviewerId;
     const isAdmin = role === 'Admin' || role === 'Project Manager';
-    const canUpdate = isAdmin || isOwner;
+    const isSrDev = role === 'Senior Developer';
+    const isAssignee = currentUser?.id === assigneeId;
+    const isReviewer = currentUser?.id === currentReviewerId;
+    const canUpdate = isAdmin || isSrDev || isAssignee || isReviewer;
 
     useEffect(() => { setOptimisticReviewerId(currentReviewerId); }, [currentReviewerId]);
 
