@@ -328,14 +328,20 @@ export const getCachedIssueUsers = (workspaceId: string) => unstable_cache(
     const supabase = createAdminClient();
     const { data, error } = await supabase
       .from('workspace_members')
-      .select('users(id, name, avatar_url, email)')
+      .select(`
+        users(id, name, avatar_url, email),
+        roles(role_name)
+      `)
       .eq('workspace_id', workspaceId);
 
     if (error) {
       console.error(`[Cache] Error fetching issue users for workspace ${workspaceId}:`, error);
       return [];
     }
-    return (data || []).map((m: any) => m.users).filter(Boolean);
+    return (data || []).map((m: any) => ({
+      ...m.users,
+      roles: Array.isArray(m.roles) ? m.roles[0] : m.roles
+    })).filter(u => u.id);
   },
   ['issue-users-list', workspaceId],
   {

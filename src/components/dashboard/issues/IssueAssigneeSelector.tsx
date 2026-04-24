@@ -33,9 +33,11 @@ export const IssueAssigneeSelector = memo(({
 
 
     const role = currentUser?.roles?.role_name;
-    const isOwner = currentUser?.id === currentAssigneeId || currentUser?.id === reviewerId;
     const isAdmin = role === 'Admin' || role === 'Project Manager';
-    const canUpdate = isAdmin || isOwner;
+    const isSrDev = role === 'Senior Developer';
+    const isAssignee = currentUser?.id === currentAssigneeId;
+    const isReviewer = currentUser?.id === reviewerId;
+    const canUpdate = isAdmin || isSrDev || isAssignee || isReviewer;
 
     const optimisticAssignee = useMemo(() => 
         users.find(u => u.id === optimisticAssigneeId) || null
