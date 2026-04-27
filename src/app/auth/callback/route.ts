@@ -86,8 +86,8 @@ async function handleAuthenticatedUser(userProfile: any, adminClient: any, origi
     return NextResponse.redirect(`${origin}/dashboard/${slug}/${rolePath}`)
   }
   
-  // No memberships yet, send to onboarding
-  return NextResponse.redirect(`${origin}/workspace`)
+  // No memberships yet, send to set-password (so they can set a password for email login)
+  return NextResponse.redirect(`${origin}/auth/set-password`)
 }
 
 function getRolePath(roleName: string): string {
