@@ -225,7 +225,7 @@ export async function createWorkspaceInvite(workspaceId: string, email: string, 
         }
     }
 
-    // 3. Generate Token and Expiry
+    // 3. Generate token and expiry
     const token = require('crypto').randomBytes(32).toString('hex');
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiry
@@ -243,22 +243,31 @@ export async function createWorkspaceInvite(workspaceId: string, email: string, 
 
     // 4. Create or refresh the invite atomically so resending to the same
     // email updates the existing row instead of hitting the unique constraint.
-    const { data: invite, error: inviteError } = await adminClient
+    const { error: inviteError } = await adminClient
         .from('workspace_invites')
         .upsert(invitePayload, {
             onConflict: 'workspace_id,email'
-        })
-        .select('workspaces(name, slug)')
-        .single();
+        });
 
     if (inviteError) {
         console.error('[createWorkspaceInvite] Error:', inviteError);
         return { error: `Failed to create invite: ${inviteError.message}` };
     }
 
+    const { data: invite, error: fetchInviteError } = await adminClient
+        .from('workspace_invites')
+        .select('workspaces(name, slug)')
+        .eq('workspace_id', workspaceId)
+        .eq('email', normalizedEmail)
+        .maybeSingle();
+
+    if (fetchInviteError || !invite) {
+        console.error('[createWorkspaceInvite] Fetch invite details failed:', fetchInviteError);
+        return { error: 'Failed to fetch invite details after creating invite' };
+    }
+
     // 5. Send Email
     const workspaceName = (invite as any).workspaces?.name || 'a workspace';
-    const workspaceSlug = (invite as any).workspaces?.slug || 'default';
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     const inviteLink = `${baseUrl}/invite/${token}`;
 

@@ -21,13 +21,14 @@ export async function GET(request: Request) {
       
       if (user) {
         const adminClient = createAdminClient()
+        const isInviteRedirect = next.startsWith('/invite/')
         
         // Add a small delay to ensure the DB trigger (social_auth_sync.sql) has finished
         // especially in high-latency production environments.
         await new Promise(resolve => setTimeout(resolve, 500))
 
         // 1. Get internal user profile
-        const { data: userProfile } = await adminClient
+        let { data: userProfile } = await adminClient
           .from('users')
           .select('id, last_workspace_id')
           .eq('auth_id', user.id)
@@ -47,9 +48,12 @@ export async function GET(request: Request) {
             await supabase.auth.signOut()
             return NextResponse.redirect(`${origin}/login?message=No account found for this email. Please sign up with your work email first.`)
           }
-          
-          // Use the retry profile if found
-          return handleAuthenticatedUser(retryProfile, adminClient, origin)
+          userProfile = retryProfile
+        }
+
+        // Handle invited users first
+        if (isInviteRedirect) {
+          return NextResponse.redirect(`${origin}${next}`)
         }
 
         return handleAuthenticatedUser(userProfile, adminClient, origin)
