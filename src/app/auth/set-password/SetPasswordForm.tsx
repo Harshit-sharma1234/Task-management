@@ -49,10 +49,6 @@ export default function SetPasswordForm() {
         }
     }
 
-    const handleSkip = () => {
-        router.push('/workspace')
-    }
-
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
             {error && (
@@ -97,7 +93,7 @@ export default function SetPasswordForm() {
                 </div>
             </div>
 
-            <div className="pt-2 space-y-3">
+            <div className="pt-2">
                 <button 
                     type="submit" 
                     disabled={isLoading}
@@ -111,15 +107,6 @@ export default function SetPasswordForm() {
                             <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
                         </>
                     )}
-                </button>
-
-                <button 
-                    type="button"
-                    onClick={handleSkip}
-                    disabled={isLoading}
-                    className="w-full py-2 text-xs font-bold text-[var(--color-linear-muted)] hover:text-[var(--color-linear-text)] transition-colors"
-                >
-                    Skip for now
                 </button>
             </div>
         </form>
