@@ -38,15 +38,24 @@ export async function updateSession(request: NextRequest) {
     } = await supabase.auth.getUser()
 
     const pathname = request.nextUrl.pathname
+    const isServerActionRequest = request.headers.has('next-action')
 
     // Protected routes that require authentication
-    const isProtectedRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/workspace') || pathname.startsWith('/invite')
+    // Note: invite links must be accessible to new users without an account.
+    // The invite pages themselves handle redirecting to /invite-signup or /login as appropriate.
+    const isProtectedRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/workspace')
     
     // Auth routes that should redirect if already logged in
     const isAuthRoute = pathname === '/login' || pathname === '/signup'
 
     // Guard 1: No session + protected route → /login
     if (!user && isProtectedRoute) {
+        // Let server actions execute and return structured auth errors
+        // instead of returning an HTML redirect payload.
+        if (isServerActionRequest) {
+            return supabaseResponse
+        }
+
         const url = request.nextUrl.clone()
         url.pathname = '/login'
         return NextResponse.redirect(url)

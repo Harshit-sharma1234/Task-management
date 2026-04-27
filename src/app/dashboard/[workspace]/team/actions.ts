@@ -204,11 +204,13 @@ export async function createWorkspaceInvite(workspaceId: string, email: string, 
         return { error: 'Unauthorized: Only Admin and Project Managers can invite members' };
     }
 
+    const normalizedEmail = email.toLowerCase().trim();
+
     // 2. Check if email is already a member
     const { data: targetUser } = await adminClient
         .from('users')
         .select('id')
-        .eq('email', email.toLowerCase().trim())
+        .ilike('email', normalizedEmail)
         .maybeSingle();
 
     if (targetUser) {
@@ -224,29 +226,120 @@ export async function createWorkspaceInvite(workspaceId: string, email: string, 
         }
     }
 
-    // 3. Generate Token and Expiry
+    // 3. Generate token and expiry
     const token = require('crypto').randomBytes(32).toString('hex');
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiry
 
-    // 4. Create Invite
-    const { data: invite, error: inviteError } = await adminClient
+    // 4. Create or refresh invite
+    // First try to refresh any existing invite for this workspace/email.
+    // This avoids unique-constraint failures on reinvite.
+    const invitePayload = {
+        role_id: roleId,
+        token,
+        status: 'pending',
+        expires_at: expiresAt.toISOString(),
+        invited_by: requesterProfile.id,
+    };
+
+    let inviteError: any = null;
+    const { data: refreshedRows, error: refreshInviteError } = await adminClient
         .from('workspace_invites')
-        .insert({
-            workspace_id: workspaceId,
-            email: email.toLowerCase().trim(),
-            role_id: roleId,
-            token,
-            status: 'pending',
-            expires_at: expiresAt.toISOString(),
-            invited_by: requesterProfile.id
-        })
+        .update(invitePayload)
+        .eq('workspace_id', workspaceId)
+        .ilike('email', normalizedEmail)
+        .select('id');
+
+    if (refreshInviteError) {
+        console.error('[createWorkspaceInvite] Failed to refresh existing invite:', refreshInviteError);
+        return { error: `Failed to refresh existing invite: ${refreshInviteError.message}` };
+    }
+
+    if (!refreshedRows || refreshedRows.length === 0) {
+        const { error: insertInviteError } = await adminClient
+            .from('workspace_invites')
+            .insert({
+                workspace_id: workspaceId,
+                email: normalizedEmail,
+                ...invitePayload,
+            });
+
+        // Handle race condition where another process inserted concurrently.
+        if ((insertInviteError as any)?.code === '23505' || insertInviteError?.message?.toLowerCase().includes('duplicate key')) {
+            const { error: recoverUpdateError } = await adminClient
+                .from('workspace_invites')
+                .update(invitePayload)
+                .eq('workspace_id', workspaceId)
+                .ilike('email', normalizedEmail);
+
+            inviteError = recoverUpdateError;
+        } else {
+            inviteError = insertInviteError;
+        }
+    }
+
+    const { data: invite, error: fetchInviteError } = await adminClient
+        .from('workspace_invites')
         .select('workspaces(name, slug)')
-        .single();
+        .eq('workspace_id', workspaceId)
+        .ilike('email', normalizedEmail)
+        .maybeSingle();
+
+    if (!inviteError && !invite) {
+        // Fallback for PostgREST variants that don't return row reliably.
+        const { data: inviteRow, error: fetchInviteError } = await adminClient
+            .from('workspace_invites')
+            .select('workspaces(name, slug)')
+            .eq('workspace_id', workspaceId)
+            .ilike('email', normalizedEmail)
+            .maybeSingle();
+
+        if (fetchInviteError || !inviteRow) {
+            console.error('[createWorkspaceInvite] Fetch invite after upsert failed:', fetchInviteError);
+            return { error: 'Failed to fetch invite details after creating invite' };
+        }
+
+        const workspaceName = (inviteRow as any).workspaces?.name || 'a workspace';
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+        const inviteLink = `${baseUrl}/invite/${token}`;
+
+        try {
+            const { sendEmail } = await import('@/lib/email');
+            await sendEmail({
+                to: normalizedEmail,
+                subject: `You've been invited to join ${workspaceName} on Tectome`,
+                html: `
+                <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #1a1a1a; padding: 20px; border: 1px solid #eee; border-radius: 12px;">
+                    <h2 style="color: #4f46e5;">Workspace Invitation</h2>
+                    <p>You have been invited to join the <strong>${workspaceName}</strong> workspace on Tectome.</p>
+                    <p>Click the button below to accept your invitation and join the team:</p>
+                    <div style="margin: 30px 0;">
+                        <a href="${inviteLink}" style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">Accept Invitation</a>
+                    </div>
+                    <p style="color: #666; font-size: 12px;">This link will expire in 7 days.</p>
+                    <p style="color: #999; font-size: 12px; margin-top: 20px; border-top: 1px solid #eee; pt: 10px;">If you didn't expect this invite, you can safely ignore this email.</p>
+                </div>
+                `
+            });
+        } catch (emailErr) {
+            console.error('[createWorkspaceInvite] Email send failed but invite created:', emailErr);
+        }
+
+        return {
+            success: true,
+            inviteLink,
+            message: `Invite created for ${normalizedEmail}`
+        };
+    }
 
     if (inviteError) {
         console.error('[createWorkspaceInvite] Error:', inviteError);
         return { error: `Failed to create invite: ${inviteError.message}` };
+    }
+
+    if (fetchInviteError || !invite) {
+        console.error('[createWorkspaceInvite] Fetch invite details failed:', fetchInviteError);
+        return { error: 'Failed to fetch invite details after creating invite' };
     }
 
     // 5. Send Email
@@ -258,7 +351,7 @@ export async function createWorkspaceInvite(workspaceId: string, email: string, 
     try {
         const { sendEmail } = await import('@/lib/email');
         await sendEmail({
-            to: email,
+            to: normalizedEmail,
             subject: `You've been invited to join ${workspaceName} on Tectome`,
             html: `
                 <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #1a1a1a; padding: 20px; border: 1px solid #eee; border-radius: 12px;">
@@ -280,6 +373,6 @@ export async function createWorkspaceInvite(workspaceId: string, email: string, 
     return { 
         success: true, 
         inviteLink,
-        message: `Invite created for ${email}`
+        message: `Invite created for ${normalizedEmail}`
     };
 }

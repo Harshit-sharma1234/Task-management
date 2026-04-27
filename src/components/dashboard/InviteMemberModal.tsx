@@ -1,9 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { X, UserPlus, Mail, Shield, BadgeCheck, Copy, Check } from 'lucide-react'
 import { createWorkspaceInvite } from '@/app/dashboard/[workspace]/team/actions'
-import { useParams } from 'next/navigation'
 import { toast } from 'sonner'
 
 interface InviteMemberModalProps {
@@ -20,17 +19,43 @@ const ROLES = [
 ]
 
 export function InviteMemberModal({ isOpen, onClose, workspaceId }: InviteMemberModalProps) {
-    const params = useParams()
-    
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [inviteLink, setInviteLink] = useState<string | null>(null)
     const [copied, setCopied] = useState(false)
+    const isOpenRef = useRef(isOpen)
+    const requestVersionRef = useRef(0)
+
+    // Reset state function
+    const resetState = () => {
+        setIsSubmitting(false)
+        setError(null)
+        setInviteLink(null)
+        setCopied(false)
+    }
+
+    // Keep a live reference for guarding async updates
+    useEffect(() => {
+        isOpenRef.current = isOpen
+    }, [isOpen])
+
+    // Always reset when modal visibility changes
+    useEffect(() => {
+        if (!isOpen) {
+            // Invalidate any in-flight invite response updates
+            requestVersionRef.current += 1
+            resetState()
+            return
+        }
+
+        resetState()
+    }, [isOpen])
 
     if (!isOpen) return null
 
     async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault()
+        const requestVersion = ++requestVersionRef.current
         setIsSubmitting(true)
         setError(null)
         setInviteLink(null)
@@ -41,7 +66,12 @@ export function InviteMemberModal({ isOpen, onClose, workspaceId }: InviteMember
         
         try {
             const result = await createWorkspaceInvite(workspaceId, email, roleId)
-            
+
+            // Ignore stale responses after close or newer submissions
+            if (!isOpenRef.current || requestVersion !== requestVersionRef.current) {
+                return
+            }
+
             if (result.error) {
                 setError(result.error)
                 setIsSubmitting(false)
@@ -50,7 +80,16 @@ export function InviteMemberModal({ isOpen, onClose, workspaceId }: InviteMember
                 setIsSubmitting(false)
             }
         } catch (err: any) {
-            setError(err.message || 'Failed to create invite')
+            if (!isOpenRef.current || requestVersion !== requestVersionRef.current) {
+                return
+            }
+
+            const message = err?.message || 'Failed to create invite'
+            if (message.toLowerCase().includes('unexpected response')) {
+                setError('Your session may have expired. Please log in again and retry.')
+            } else {
+                setError(message)
+            }
             setIsSubmitting(false)
         }
     }
@@ -65,6 +104,15 @@ export function InviteMemberModal({ isOpen, onClose, workspaceId }: InviteMember
         } catch (err) {
             toast.error('Failed to copy link')
         }
+    }
+
+    // Handle modal close with state reset
+    const handleClose = () => {
+        // Immediately invalidate in-flight requests before parent rerender.
+        isOpenRef.current = false
+        requestVersionRef.current += 1
+        resetState()
+        onClose()
     }
 
     return (
@@ -82,7 +130,7 @@ export function InviteMemberModal({ isOpen, onClose, workspaceId }: InviteMember
                         </div>
                     </div>
                     <button 
-                        onClick={onClose}
+                        onClick={handleClose}
                         className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400 hover:text-gray-600"
                     >
                         <X size={20} />
@@ -135,7 +183,7 @@ export function InviteMemberModal({ isOpen, onClose, workspaceId }: InviteMember
                         <div className="pt-2 flex gap-4">
                             <button 
                                 type="button" 
-                                onClick={onClose}
+                                onClick={handleClose}
                                 className="flex-1 px-6 py-4 bg-white border border-gray-200 text-gray-600 text-[14px] font-bold rounded-2xl hover:bg-gray-50 hover:text-gray-900 transition-all active:scale-95"
                             >
                                 Cancel
@@ -184,7 +232,7 @@ export function InviteMemberModal({ isOpen, onClose, workspaceId }: InviteMember
                         </div>
 
                         <button 
-                            onClick={onClose}
+                            onClick={handleClose}
                             className="w-full py-4 text-[14px] font-bold text-gray-500 hover:text-gray-900 transition-colors"
                         >
                             Close
