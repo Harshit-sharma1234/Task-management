@@ -14,7 +14,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-const FROM_ADDRESS = process.env.EMAIL_FROM || 'Tectome <harahit004@gmail.com>';
+const FROM_ADDRESS = process.env.EMAIL_FROM || 'Tectome <kapilnainanidev6@gmail.com>';
 
 interface SendEmailParams {
   to: string | string[];
