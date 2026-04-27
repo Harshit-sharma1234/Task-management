@@ -13,12 +13,56 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  // If not logged in, redirect to login with return URL
+  // If not logged in, redirect to invite signup page
   if (!user) {
-    redirect(`/login?next=/invite/${token}`);
+    redirect(`/invite-signup?token=${token}`);
   }
 
+  // Check if user has an account in our system
   const adminClient = createAdminClient();
+  let { data: userProfile } = await adminClient
+    .from('users')
+    .select('id, email')
+    .eq('auth_id', user.id)
+    .maybeSingle();
+
+  // If auth user exists but profile row is missing (e.g. manual deletion),
+  // repair it so invite acceptance can continue.
+  if (!userProfile) {
+    const fallbackName =
+      (user.user_metadata?.full_name as string | undefined) ||
+      (user.user_metadata?.name as string | undefined) ||
+      (user.email?.split('@')[0] ?? 'User');
+    const fallbackEmployeeId =
+      (user.user_metadata?.employee_id as string | undefined) ||
+      `INV-${user.id.slice(0, 8).toUpperCase()}`;
+
+    await adminClient
+      .from('users')
+      .upsert(
+        {
+          id: user.id,
+          auth_id: user.id,
+          email: (user.email || '').toLowerCase(),
+          name: fallbackName,
+          employee_id: fallbackEmployeeId,
+        },
+        { onConflict: 'id' }
+      );
+
+    const { data: repairedProfile } = await adminClient
+      .from('users')
+      .select('id, email')
+      .eq('auth_id', user.id)
+      .maybeSingle();
+
+    userProfile = repairedProfile;
+  }
+
+  // If still missing profile, send to invite signup flow.
+  if (!userProfile) {
+    redirect(`/invite-signup?token=${token}`);
+  }
 
   // Validate the token
   const { data: invite } = await adminClient
@@ -47,13 +91,6 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
       </main>
     );
   }
-
-  // Get user profile to check email match
-  const { data: userProfile } = await adminClient
-    .from('users')
-    .select('id, email')
-    .eq('auth_id', user.id)
-    .single();
 
   const emailMatch = userProfile?.email?.toLowerCase() === invite.email.toLowerCase();
 

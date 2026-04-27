@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { X, UserPlus, Mail, Shield, BadgeCheck, Copy, Check } from 'lucide-react'
 import { createWorkspaceInvite } from '@/app/dashboard/[workspace]/team/actions'
 import { toast } from 'sonner'
@@ -12,21 +12,23 @@ interface InviteMemberModalProps {
 }
 
 const ROLES = [
-    { id: 'f1e5cb69-a296-43c7-8905-00fc99e1f5aa', name: 'Junior Developer' },
-    { id: 'f660ccef-e2f5-466c-b4bd-7864576a63a6', name: 'Senior Developer' },
-    { id: '2f06e25a-a784-4091-a845-c4837ba718bf', name: 'Project Manager' },
-    { id: '83c755ee-b6c2-4d58-9492-ebd976d48486', name: 'Admin' },
+    { id: 'Junior Developer', label: 'Junior Developer', desc: 'Can view and update assigned tickets' },
+    { id: 'Senior Developer', label: 'Senior Developer', desc: 'Can manage issues and review code' },
+    { id: 'Project Manager', label: 'Project Manager', desc: 'Can manage projects and team members' },
+    { id: 'Admin', label: 'Admin', desc: 'Full access to all workspace settings' },
 ]
 
 export function InviteMemberModal({ isOpen, onClose, workspaceId }: InviteMemberModalProps) {
     const formRef = useRef<HTMLFormElement>(null)
-
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [inviteLink, setInviteLink] = useState<string | null>(null)
     const [copied, setCopied] = useState(false)
+    
+    // Safety guard for async updates
+    const requestVersionRef = useRef(0)
 
-    const resetModalState = () => {
+    const resetState = () => {
         setIsSubmitting(false)
         setError(null)
         setInviteLink(null)
@@ -36,7 +38,8 @@ export function InviteMemberModal({ isOpen, onClose, workspaceId }: InviteMember
 
     useEffect(() => {
         if (!isOpen) {
-            resetModalState()
+            requestVersionRef.current += 1
+            resetState()
         }
     }, [isOpen])
 
@@ -46,160 +49,165 @@ export function InviteMemberModal({ isOpen, onClose, workspaceId }: InviteMember
         e.preventDefault()
         setIsSubmitting(true)
         setError(null)
-        setInviteLink(null)
 
+        const currentVersion = requestVersionRef.current
         const formData = new FormData(e.currentTarget)
-        const email = formData.get('email') as string
-        const roleId = formData.get('role_id') as string
-        
+
         try {
-            const result = await createWorkspaceInvite(workspaceId, email, roleId)
+            const result = await createWorkspaceInvite(null, formData)
             
+            // Prevent state updates if modal was closed or re-opened
+            if (currentVersion !== requestVersionRef.current) return
+
             if (result.error) {
                 setError(result.error)
                 setIsSubmitting(false)
-            } else {
-                setInviteLink(result.inviteLink || null)
+            } else if (result.inviteLink) {
+                setInviteLink(result.inviteLink)
                 setIsSubmitting(false)
+                toast.success('Invitation link generated!')
             }
-        } catch (err: any) {
-            setError(err.message || 'Failed to create invite')
+        } catch (err) {
+            if (currentVersion !== requestVersionRef.current) return
+            setError('Failed to create invitation. Please try again.')
             setIsSubmitting(false)
         }
     }
 
     const copyToClipboard = async () => {
-        if (!inviteLink) return
-        try {
+        if (inviteLink) {
             await navigator.clipboard.writeText(inviteLink)
             setCopied(true)
             toast.success('Link copied to clipboard')
             setTimeout(() => setCopied(false), 2000)
-        } catch (err) {
-            toast.error('Failed to copy link')
         }
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-100 animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center">
+            <div 
+                className="absolute inset-0 bg-black/40 backdrop-blur-[2px] animate-in fade-in duration-300" 
+                onClick={onClose} 
+            />
+            
+            <div className="relative w-full max-w-[480px] bg-white rounded-2xl shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden">
                 {/* Header */}
-                <div className="px-8 py-5 border-b border-gray-100 flex items-center justify-between bg-white">
+                <div className="px-8 pt-8 pb-6 border-b border-gray-50 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl">
-                            <UserPlus size={22} />
+                        <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                            <UserPlus size={20} />
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold text-gray-900 leading-tight">Invite Member</h2>
-                            <p className="text-xs text-gray-400 font-medium">Add someone to your workspace</p>
+                            <h2 className="text-[17px] font-bold text-gray-900 tracking-tight">Invite Member</h2>
+                            <p className="text-[12px] font-medium text-gray-500">Add people to your workspace</p>
                         </div>
                     </div>
                     <button 
                         onClick={onClose}
-                        className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400 hover:text-gray-600"
+                        className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 transition-colors"
                     >
                         <X size={20} />
                     </button>
                 </div>
 
                 {!inviteLink ? (
-                    <form ref={formRef} onSubmit={handleSubmit} className="p-8 space-y-6">
-                        {error && (
-                            <div className="p-4 bg-red-50 border border-red-100 text-red-600 text-sm rounded-2xl flex items-center gap-3 animate-in shake duration-300">
-                                <X size={16} className="shrink-0" />
-                                <span className="font-medium">{error}</span>
-                            </div>
-                        )}
-
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Email Address</label>
+                    <form ref={formRef} onSubmit={handleSubmit} className="p-8 space-y-8">
+                        <input type="hidden" name="workspaceId" value={workspaceId} />
+                        
+                        {/* Email Input */}
+                        <div className="space-y-3">
+                            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest px-1">Email Address</label>
                             <div className="relative group">
-                                <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-gray-400 group-focus-within:text-indigo-500 transition-colors">
+                                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-500 transition-colors">
                                     <Mail size={18} />
                                 </div>
-                                <input 
-                                    type="email" 
+                                <input
                                     name="email"
+                                    type="email"
+                                    placeholder="Enter colleague's email"
                                     required
-                                    placeholder="jane@company.com"
-                                    className="w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-[15px] font-medium focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 outline-none transition-all shadow-inner"
+                                    className="w-full h-14 pl-12 pr-4 bg-gray-50 border-none rounded-xl text-[14px] font-medium placeholder:text-gray-400 focus:ring-2 focus:ring-indigo-500/20 focus:bg-white transition-all"
                                 />
                             </div>
                         </div>
 
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Assign Role</label>
-                            <div className="relative">
-                                <select 
-                                    name="role_id"
-                                    required
-                                    className="w-full px-5 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-[15px] font-medium focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 outline-none transition-all shadow-inner appearance-none cursor-pointer"
-                                >
-                                    {ROLES.map(role => (
-                                        <option key={role.id} value={role.id}>{role.name}</option>
-                                    ))}
-                                </select>
-                                <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none text-gray-400">
-                                    <Shield size={18} />
-                                </div>
+                        {/* Role Selection */}
+                        <div className="space-y-3">
+                            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest px-1">Assign Role</label>
+                            <div className="grid grid-cols-1 gap-2">
+                                {ROLES.map((role) => (
+                                    <label 
+                                        key={role.id}
+                                        className="relative flex items-center gap-4 p-4 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors border-2 border-transparent has-[:checked]:border-indigo-500/20 has-[:checked]:bg-indigo-50/30 group"
+                                    >
+                                        <input
+                                            type="radio"
+                                            name="roleName"
+                                            value={role.id}
+                                            defaultChecked={role.id === 'Junior Developer'}
+                                            className="sr-only"
+                                        />
+                                        <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 group-has-[:checked]:bg-indigo-600 group-has-[:checked]:text-white transition-colors">
+                                            {role.id === 'Admin' ? <Shield size={18} /> : <BadgeCheck size={18} />}
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="text-[14px] font-bold text-gray-900 leading-none mb-1">{role.label}</div>
+                                            <div className="text-[11px] font-medium text-gray-500">{role.desc}</div>
+                                        </div>
+                                        <div className="w-5 h-5 rounded-full border-2 border-gray-200 group-has-[:checked]:border-indigo-600 group-has-[:checked]:bg-indigo-600 flex items-center justify-center transition-all">
+                                            <div className="w-2 h-2 rounded-full bg-white opacity-0 group-has-[:checked]:opacity-100 transition-opacity" />
+                                        </div>
+                                    </label>
+                                ))}
                             </div>
                         </div>
 
-                        <div className="pt-2 flex gap-4">
-                            <button 
-                                type="button" 
-                                onClick={onClose}
-                                className="flex-1 px-6 py-4 bg-white border border-gray-200 text-gray-600 text-[14px] font-bold rounded-2xl hover:bg-gray-50 hover:text-gray-900 transition-all active:scale-95"
-                            >
-                                Cancel
-                            </button>
-                            <button 
-                                type="submit" 
-                                disabled={isSubmitting}
-                                className="flex-1 px-6 py-4 bg-indigo-600 text-white text-[14px] font-bold rounded-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/20 active:scale-95 disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2"
-                            >
-                                {isSubmitting ? (
-                                    <>
-                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                        <span>Inviting...</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <span>Send Invite</span>
-                                    </>
-                                )}
-                            </button>
-                        </div>
+                        {error && (
+                            <div className="p-4 rounded-xl bg-red-50 text-red-600 text-[13px] font-medium animate-in slide-in-from-top-2">
+                                {error}
+                            </div>
+                        )}
+
+                        <button
+                            type="submit"
+                            disabled={isSubmitting}
+                            className="w-full h-14 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-xl text-[14px] font-bold shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2 group"
+                        >
+                            {isSubmitting ? (
+                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            ) : (
+                                <>Generate Invite Link</>
+                            )}
+                        </button>
                     </form>
                 ) : (
-                    <div className="p-10 text-center space-y-6 animate-in zoom-in-95 duration-500">
-                        <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-3xl flex items-center justify-center mx-auto shadow-sm">
-                            <BadgeCheck size={40} />
+                    <div className="p-8 text-center animate-in zoom-in-95 duration-500">
+                        <div className="w-20 h-20 bg-green-50 text-green-600 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                            <Check size={36} />
                         </div>
+                        <h3 className="text-[20px] font-bold text-gray-900 mb-2 tracking-tight">Invite Link Ready!</h3>
+                        <p className="text-[13px] font-medium text-gray-500 mb-8 max-w-[280px] mx-auto leading-relaxed">
+                            Copy this link and send it to your colleague. It will expire in 7 days.
+                        </p>
                         
-                        <div className="space-y-2">
-                            <h3 className="text-2xl font-bold text-gray-900 lowercase first-letter:uppercase">Invite generated!</h3>
-                            <p className="text-[13px] text-gray-500 font-medium">An invitation email has been sent. You can also share the link manually below.</p>
-                        </div>
-
-                        <div className="relative group">
-                            <input 
+                        <div className="relative group mb-8">
+                            <input
                                 readOnly
                                 value={inviteLink}
-                                className="w-full pl-5 pr-12 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-[13px] font-mono text-gray-600 outline-none select-all"
+                                className="w-full h-16 pl-6 pr-16 bg-gray-50 border-none rounded-2xl text-[13px] font-bold text-indigo-600 truncate"
                             />
-                            <button 
+                            <button
                                 onClick={copyToClipboard}
-                                className="absolute right-2 top-2 p-2 bg-white text-gray-400 hover:text-indigo-600 rounded-xl border border-gray-100 shadow-sm transition-all hover:scale-105 active:scale-95"
+                                className="absolute right-2 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center rounded-xl bg-white shadow-sm hover:shadow-md text-gray-400 hover:text-indigo-600 transition-all active:scale-90"
                             >
-                                {copied ? <Check size={18} className="text-emerald-500" /> : <Copy size={18} />}
+                                {copied ? <Check size={18} className="text-green-500" /> : <Copy size={18} />}
                             </button>
                         </div>
 
                         <div className="flex gap-3">
                             <button
                                 type="button"
-                                onClick={resetModalState}
+                                onClick={resetState}
                                 className="flex-1 py-4 text-[14px] font-bold text-indigo-600 hover:text-indigo-700 transition-colors"
                             >
                                 Invite another member
@@ -212,16 +220,6 @@ export function InviteMemberModal({ isOpen, onClose, workspaceId }: InviteMember
                                 Close
                             </button>
                         </div>
-                    </div>
-                )}
-
-                {/* Footer */}
-                {!inviteLink && (
-                    <div className="px-8 py-5 bg-gray-50/50 border-t border-gray-100">
-                        <p className="text-[10px] text-gray-400 text-center flex items-center justify-center gap-2 font-bold uppercase tracking-widest">
-                            <Shield size={12} className="text-indigo-400/50" />
-                            Invite link expires in 7 days
-                        </p>
                     </div>
                 )}
             </div>
