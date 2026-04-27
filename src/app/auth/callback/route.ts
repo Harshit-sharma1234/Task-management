@@ -17,6 +17,7 @@ export async function GET(request: Request) {
       
       if (user) {
         const adminClient = createAdminClient()
+        const isInviteRedirect = next.startsWith('/invite/')
         
         // 1. Get internal user profile (already synced by trigger)
         const { data: userProfile } = await adminClient
@@ -36,6 +37,10 @@ export async function GET(request: Request) {
             .eq('user_id', userProfile.id)
 
           if (memberships && memberships.length > 0) {
+            if (isInviteRedirect) {
+              return NextResponse.redirect(`${origin}${next}`)
+            }
+
             // Determine target workspace
             let target = memberships[0]
             if (lastWorkspaceId) {
