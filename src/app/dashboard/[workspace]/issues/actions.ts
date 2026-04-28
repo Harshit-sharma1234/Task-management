@@ -143,9 +143,11 @@ export async function createIssue(formData: FormData) {
           }))
           
           // Auto-membership
-          const membershipPromise = adminClient
-            .from('project_members')
-            .upsert({ project_id: projectId, user_id: assigneeId }, { onConflict: 'project_id,user_id' })
+          const membershipPromise = Promise.resolve(
+            adminClient
+              .from('project_members')
+              .upsert({ project_id: projectId, user_id: assigneeId }, { onConflict: 'project_id,user_id' })
+          );
           sideEffects.push(membershipPromise)
         }
 
