@@ -5,6 +5,8 @@ import { Mail, Lock, Loader2, AlertCircle, User, BadgeCheck, ShieldCheck, ArrowL
 import { signup, requestOTP, verifyOTP } from './actions';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
+import { useSearchParams } from 'next/navigation';
+import { useEffect } from 'react';
 
 type Step = 'email' | 'otp' | 'details';
 
@@ -37,16 +39,31 @@ export default function SignupForm() {
   const [state, signupAction, isSignupPending] = useActionState(signup, null);
   const [isOAuthLoading, setIsOAuthLoading] = useState<string | null>(null);
   const supabase = useMemo(() => createClient(), []);
+  const searchParams = useSearchParams();
+  const token = searchParams.get('token');
+  const message = searchParams.get('message');
+
+  useEffect(() => {
+    if (message) {
+      toast.info(message, {
+        duration: 5000,
+      });
+    }
+  }, [message]);
 
   const handleSocialLogin = async (provider: 'google' | 'azure') => {
     setIsOAuthLoading(provider);
+    const callbackUrl = new URL(`${window.location.origin}/auth/callback`);
+    if (token) callbackUrl.searchParams.set('token', token);
+
     await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: callbackUrl.toString(),
         queryParams: {
+          prompt: 'select_account',
           scope: 'openid email profile'
-        }
+        },
       },
     });
   };
@@ -213,6 +230,7 @@ export default function SignupForm() {
       {step === 'details' && (
         <form className="space-y-4" action={signupAction}>
           <input type="hidden" name="email" value={email} />
+          {token && <input type="hidden" name="token" value={token} />}
           
           <div className="space-y-1">
             <label className="text-xs font-medium text-[var(--color-linear-muted)]">Full Name</label>
