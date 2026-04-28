@@ -31,9 +31,10 @@ interface CommentSectionProps {
     email: string;
     avatar_url?: string | null;
   };
+  canComment: boolean;
 }
 
-export function CommentSection({ ticketId, initialComments, initialLogs = [], currentUser }: CommentSectionProps) {
+export function CommentSection({ ticketId, initialComments, initialLogs = [], currentUser, canComment }: CommentSectionProps) {
   const { 
     commentsMap, 
     setInitialComments, 
@@ -138,6 +139,7 @@ export function CommentSection({ ticketId, initialComments, initialLogs = [], cu
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canComment) return;
     const text = newComment.trim();
     if ((!text && attachments.length === 0) || isSubmitting) return;
 
@@ -191,7 +193,7 @@ export function CommentSection({ ticketId, initialComments, initialLogs = [], cu
     }
 
     setIsSubmitting(false);
-  }, [newComment, attachments, isSubmitting, ticketId, currentUser, addCommentOptimistic, removeComment, replaceTempComment]);
+  }, [newComment, attachments, isSubmitting, ticketId, currentUser, addCommentOptimistic, removeComment, replaceTempComment, canComment]);
 
   const handleEditStart = (comment: Comment) => {
     setEditingCommentId(comment.id);
@@ -405,86 +407,92 @@ export function CommentSection({ ticketId, initialComments, initialLogs = [], cu
       </div>
 
       {/* New Comment Input */}
-      <div className="flex gap-3">
-        <div className="mt-1">
-          <UserAvatar
-            name={currentUser.name}
-            avatarUrl={currentUser.avatar_url}
-            size="sm"
-          />
-        </div>
-        <div className="flex-1 max-w-3xl space-y-3">
-          {/* Pre-submission Attachment List */}
-          {attachments.length > 0 && (
-            <div className="flex flex-wrap gap-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
-              {attachments.map((file, idx) => (
-                <div key={idx} className="relative group">
-                  <div className="flex items-center gap-2 pl-2 pr-1 py-1.5 bg-blue-50 border border-blue-100 rounded-lg">
-                    {file.type.startsWith('image/') ? (
-                      <ImageIcon size={12} className="text-blue-500" />
-                    ) : (
-                      <FileIcon size={12} className="text-blue-500" />
-                    )}
-                    <span className="text-[10px] font-medium text-blue-700 max-w-[100px] truncate">
-                      {file.name}
-                    </span>
-                    <button
-                      onClick={() => removeAttachment(idx)}
-                      className="p-0.5 hover:bg-blue-100 rounded text-blue-400 hover:text-blue-600 transition-colors"
-                    >
-                      <X size={12} />
-                    </button>
+      {canComment ? (
+        <div className="flex gap-3">
+          <div className="mt-1">
+            <UserAvatar
+              name={currentUser.name}
+              avatarUrl={currentUser.avatar_url}
+              size="sm"
+            />
+          </div>
+          <div className="flex-1 max-w-3xl space-y-3">
+            {/* Pre-submission Attachment List */}
+            {attachments.length > 0 && (
+              <div className="flex flex-wrap gap-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                {attachments.map((file, idx) => (
+                  <div key={idx} className="relative group">
+                    <div className="flex items-center gap-2 pl-2 pr-1 py-1.5 bg-blue-50 border border-blue-100 rounded-lg">
+                      {file.type.startsWith('image/') ? (
+                        <ImageIcon size={12} className="text-blue-500" />
+                      ) : (
+                        <FileIcon size={12} className="text-blue-500" />
+                      )}
+                      <span className="text-[10px] font-medium text-blue-700 max-w-[100px] truncate">
+                        {file.name}
+                      </span>
+                      <button
+                        onClick={() => removeAttachment(idx)}
+                        className="p-0.5 hover:bg-blue-100 rounded text-blue-400 hover:text-blue-600 transition-colors"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="relative">
-            <div className="flex items-center gap-2 border border-gray-200/60 rounded-xl pl-3 pr-1.5 py-1.5 focus-within:border-gray-400 focus-within:ring-1 focus-within:ring-gray-400 transition-all bg-white shadow-sm">
-              <input
-                type="text"
-                placeholder="Leave a comment (paste images or use icon)..."
-                className="w-full bg-transparent text-[13px] text-gray-900 placeholder-gray-400 focus:outline-none py-1"
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                onPaste={handlePaste}
-                disabled={isSubmitting}
-              />
-              
-              <div className="flex items-center gap-1">
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  onChange={handleFileSelect} 
-                  className="hidden" 
-                  multiple 
-                />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isSubmitting}
-                  className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                  title="Attach files"
-                >
-                  <Paperclip size={14} />
-                </button>
-                <button
-                  type="submit"
-                  disabled={(!newComment.trim() && attachments.length === 0) || isSubmitting}
-                  className="p-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-                >
-                  {isSubmitting ? (
-                    <Loader2 size={13} className="animate-spin" />
-                  ) : (
-                    <Send size={13} />
-                  )}
-                </button>
+                ))}
               </div>
-            </div>
-          </form>
+            )}
+
+            <form onSubmit={handleSubmit} className="relative">
+              <div className="flex items-center gap-2 border border-gray-200/60 rounded-xl pl-3 pr-1.5 py-1.5 focus-within:border-gray-400 focus-within:ring-1 focus-within:ring-gray-400 transition-all bg-white shadow-sm">
+                <input
+                  type="text"
+                  placeholder="Leave a comment (paste images or use icon)..."
+                  className="w-full bg-transparent text-[13px] text-gray-900 placeholder-gray-400 focus:outline-none py-1"
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  onPaste={handlePaste}
+                  disabled={isSubmitting}
+                />
+                
+                <div className="flex items-center gap-1">
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    onChange={handleFileSelect} 
+                    className="hidden" 
+                    multiple 
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isSubmitting}
+                    className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                    title="Attach files"
+                  >
+                    <Paperclip size={14} />
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={(!newComment.trim() && attachments.length === 0) || isSubmitting}
+                    className="p-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                  >
+                    {isSubmitting ? (
+                      <Loader2 size={13} className="animate-spin" />
+                    ) : (
+                      <Send size={13} />
+                    )}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-xs font-medium text-gray-500">
+          Only the Assignee, Reviewer, Admin, or Project Manager can comment on this issue.
+        </div>
+      )}
 
       <ConfirmModal
         isOpen={!!commentToDelete}
