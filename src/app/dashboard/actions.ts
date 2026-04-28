@@ -444,6 +444,33 @@ export async function updateProjectStatus(projectId: string, status: string | nu
     return { success: true }
 }
 
+export async function updateProjectName(projectId: string, projectName: string) {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+        return { error: 'You must be logged in to update a project' }
+    }
+
+    const adminClient = createAdminClient()
+    const { error } = await adminClient
+        .from('projects')
+        .update({ project_name: projectName.trim() })
+        .eq('id', projectId)
+
+    if (error) {
+        return { error: friendlyDbError(error, 'project') }
+    }
+
+    revalidateProjectDataTags()
+    revalidatePath('/dashboard/projects', 'page')
+    revalidatePath(`/dashboard/projects/${projectId}`, 'page')
+    revalidatePath('/dashboard')
+    revalidateTag('projects', 'max')
+    
+    return { success: true }
+}
+
 export async function updateProjectDescription(projectId: string, description: string | null) {
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()

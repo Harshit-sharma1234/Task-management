@@ -3,19 +3,21 @@
 import { useState, useRef } from 'react'
 import { UserCircle, Shield, Plus, Lock, Mail, Building, Trash2, AlertTriangle } from 'lucide-react'
 import { updateUserPassword, updateUserAvatar, updateUserEmail } from '@/app/dashboard/actions'
-import { deleteWorkspaceAction, updateWorkspaceAction } from './actions'
+import { deleteWorkspaceAction, updateWorkspaceAction, resetPasswordAction } from './actions'
 import { createClient } from '@/lib/supabase/client'
 import Image from 'next/image'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { useSettingsStore } from '@/lib/store/settings'
 import { useAvatarStore } from '@/lib/store/avatar'
 import { DeleteWorkspaceModal } from '@/components/dashboard/DeleteWorkspaceModal'
+import { ForgotPasswordFlow } from '@/app/login/ForgotPasswordFlow'
 import { toast } from 'sonner'
 
 export function SettingsTabs({ user }: { user: { id: string, name: string, email: string, avatar_url: string | null, workspacerole: string, activeWorkspace: { id: string, name: string, slug: string } } }) {
     const setUserData = useSettingsStore((s) => s.setUserData)
     const setGlobalAvatar = useAvatarStore((s) => s.setAvatarUrl)
     const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'workspace'>('profile')
+    const [showForgotFlow, setShowForgotFlow] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
     const [previewUrl, setPreviewUrl] = useState<string | null>(user.avatar_url)
     const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -31,6 +33,8 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
     const [isSavingPassword, setIsSavingPassword] = useState(false)
     const [passwordError, setPasswordError] = useState('')
     const [passwordSuccess, setPasswordSuccess] = useState(false)
+    const [isResettingPassword, setIsResettingPassword] = useState(false)
+    const [resetSuccess, setResetSuccess] = useState(false)
 
     // Email Update State
     const [isChangingEmail, setIsChangingEmail] = useState(false)
@@ -126,6 +130,20 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
             }, 2500)
         }
         setIsSavingPassword(false)
+    }
+
+    const handleForgotPassword = async () => {
+        setIsResettingPassword(true)
+        const result = await resetPasswordAction()
+        if (result.error) {
+            toast.error(result.error)
+        } else {
+            setResetSuccess(true)
+            toast.success('Reset code sent to your email!')
+            setShowForgotFlow(true) // Open the same modal used on the login page
+            setTimeout(() => setResetSuccess(false), 5000)
+        }
+        setIsResettingPassword(false)
     }
 
     const handleEmailSubmit = async () => {
@@ -593,10 +611,54 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
                                     </div>
                                 )}
                             </div>
+
+                            {/* Forgot Password Link */}
+                            <div className="p-8 rounded-3xl bg-gray-50/50 border border-gray-100/50 flex flex-col sm:flex-row items-center justify-between gap-6 transition-all hover:bg-white hover:shadow-xl hover:shadow-gray-200/40 group/reset">
+                                <div className="flex items-center gap-5">
+                                    <div className="w-14 h-14 rounded-2xl bg-white border border-gray-100 flex items-center justify-center text-gray-400 group-hover/reset:text-indigo-600 group-hover/reset:border-indigo-100 group-hover/reset:shadow-lg group-hover/reset:shadow-indigo-600/10 transition-all duration-500">
+                                        <Mail size={22} />
+                                    </div>
+                                    <div>
+                                        <h4 className="text-[15px] font-bold text-gray-900 mb-1">Forgot your password?</h4>
+                                        <p className="text-[13px] text-gray-500 font-medium max-w-[320px] leading-relaxed">
+                                            We'll send a secure password reset link to <span className="text-indigo-600 font-bold">{user.email}</span>
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={handleForgotPassword}
+                                    disabled={isResettingPassword || resetSuccess}
+                                    className={`px-8 py-3.5 rounded-2xl text-[13px] font-bold transition-all duration-300 flex items-center gap-2.5 active:scale-95 shrink-0 shadow-lg ${
+                                        resetSuccess 
+                                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-100 shadow-emerald-500/10' 
+                                        : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-600/20'
+                                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                                >
+                                    {isResettingPassword ? (
+                                        <>
+                                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            <span>Sending Link...</span>
+                                        </>
+                                    ) : resetSuccess ? (
+                                        <>
+                                            <Plus size={16} className="rotate-45" />
+                                            <span>Email Sent!</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Lock size={16} />
+                                            <span>Send Reset Link</span>
+                                        </>
+                                    )}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}
             </div>
+            {showForgotFlow && (
+                <ForgotPasswordFlow onClose={() => setShowForgotFlow(false)} />
+            )}
         </div>
     )
 }

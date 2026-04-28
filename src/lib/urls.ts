@@ -7,7 +7,8 @@
  */
 export function getBaseUrl() {
   if (process.env.NEXT_PUBLIC_APP_URL) {
-    return process.env.NEXT_PUBLIC_APP_URL;
+    const url = process.env.NEXT_PUBLIC_APP_URL;
+    return url.endsWith('/') ? url.slice(0, -1) : url;
   }
 
   if (process.env.VERCEL_URL) {

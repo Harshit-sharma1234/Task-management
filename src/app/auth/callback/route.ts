@@ -1,16 +1,21 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
+import { isSafeRedirectPath } from '@/lib/validation'
+import { getRolePath } from '@/lib/role-utils'
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
-  const next = requestUrl.searchParams.get('next') ?? '/'
+  const rawNext = requestUrl.searchParams.get('next') ?? '/'
 
   // Robust origin detection for production (handles proxies like Vercel)
   const protocol = request.headers.get('x-forwarded-proto') || requestUrl.protocol.replace(':', '') || 'http'
   const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || requestUrl.host
   const origin = `${protocol.includes('://') ? protocol : `${protocol}://`}${host}`
+
+  // Issue #2: Validate redirect path to prevent open redirects
+  const next = isSafeRedirectPath(rawNext) ? rawNext : '/'
 
   if (code) {
     const supabase = await createClient()
@@ -43,25 +48,74 @@ export async function GET(request: Request) {
             .eq('auth_id', user.id)
             .maybeSingle()
           
-          if (!retryProfile) {
-            console.error('Auth Callback: User record not found in public.users table after signup/login.')
-            await supabase.auth.signOut()
-            return NextResponse.redirect(`${origin}/login?message=No account found for this email. Please sign up with your work email first.`)
+          if (retryProfile) {
+            userProfile = retryProfile
           }
-          userProfile = retryProfile
         }
 
-        // Handle invited users first
+        // Issue #6: Sync OAuth profile data on every login
+        if (userProfile) {
+          const oauthName = user.user_metadata?.full_name || user.user_metadata?.name
+          const oauthAvatar = user.user_metadata?.avatar_url || user.user_metadata?.picture
+
+          if (oauthName || oauthAvatar) {
+            const updates: Record<string, string> = {}
+            if (oauthName) updates.name = oauthName
+            if (oauthAvatar) updates.avatar_url = oauthAvatar
+
+            await adminClient
+              .from('users')
+              .update(updates)
+              .eq('id', userProfile.id)
+          }
+        }
+
+        if (userProfile) {
+          if (isInviteRedirect) {
+            return NextResponse.redirect(`${origin}${next}`)
+          }
+          return handleAuthenticatedUser(userProfile, adminClient, origin)
+        }
+
+        // Issue #14: Profile missing after OAuth — attempt repair before redirecting
+        console.warn(`[auth/callback] No profile found for auth user ${user.id}. DB trigger may have failed.`)
+        
+        // Attempt auto-repair using OAuth metadata
+        const fallbackName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'User'
+        const fallbackAvatar = user.user_metadata?.avatar_url || user.user_metadata?.picture || null
+        const fallbackEmployeeId = `EXT-${user.id.slice(0, 8).toUpperCase()}`
+
+        const { data: repairedProfile } = await adminClient
+          .from('users')
+          .upsert({
+            id: user.id,
+            auth_id: user.id,
+            email: (user.email || '').toLowerCase(),
+            name: fallbackName,
+            avatar_url: fallbackAvatar,
+            employee_id: fallbackEmployeeId,
+          }, { onConflict: 'id' })
+          .select()
+          .single()
+
+        // After repair, redirect to workspace onboarding (no memberships yet)
         if (isInviteRedirect) {
           return NextResponse.redirect(`${origin}${next}`)
         }
+        
+        if (repairedProfile) {
+          return handleAuthenticatedUser(repairedProfile, adminClient, origin)
+        }
 
-        return handleAuthenticatedUser(userProfile, adminClient, origin)
+        return NextResponse.redirect(`${origin}/workspace`)
       }
+      
+      // User is null after exchange — shouldn't happen, fallback
+      return NextResponse.redirect(`${origin}${next}`)
     }
   }
 
-  // return the user to an error page with instructions
+  // Auth failed
   return NextResponse.redirect(`${origin}/login?error=auth-callback-failed`)
 }
 
@@ -91,15 +145,6 @@ async function handleAuthenticatedUser(userProfile: any, adminClient: any, origi
   }
   
   // No memberships yet, send to set-password (so they can set a password for email login)
-  return NextResponse.redirect(`${origin}/auth/set-password`)
-}
-
-function getRolePath(roleName: string): string {
-  switch (roleName) {
-    case 'Admin': return 'admin'
-    case 'Project Manager': return 'project-manager'
-    case 'Senior Developer': return 'senior-developer'
-    case 'Junior Developer': return 'junior-developer'
-    default: return 'junior-developer'
-  }
+  // or workspace creation
+  return NextResponse.redirect(`${origin}/workspace`)
 }

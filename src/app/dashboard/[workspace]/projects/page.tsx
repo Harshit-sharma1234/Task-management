@@ -17,6 +17,8 @@ export default function ProjectsPage() {
     const users = useTeamStore(state => state.users);
     const currentUserRole = useTeamStore(state => state.currentUserRole);
 
+    const activeWorkspaceId = useGlobalStore(state => state.activeWorkspaceId);
+
     const userMap = useMemo(() => {
         return (users || []).reduce((acc: Record<string, string>, u: any) => {
             acc[u.id] = u.name;
@@ -35,6 +37,7 @@ export default function ProjectsPage() {
                 users={users} 
                 userMap={userMap} 
                 userRole={currentUserRole as any}
+                workspaceId={activeWorkspaceId || undefined}
             />
         </div>
     );

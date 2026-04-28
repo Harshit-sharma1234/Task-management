@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
+import { getRolePath } from '@/lib/role-utils'
 
 /**
  * Creates a new workspace and adds the creator as Admin.
@@ -212,12 +213,3 @@ export async function selectWorkspace(workspaceId: string, workspaceSlug: string
     redirect(`/dashboard/${workspaceSlug}/${rolePath}`)
 }
 
-function getRolePath(roleName: string): string {
-    switch (roleName) {
-        case 'Admin': return 'admin'
-        case 'Project Manager': return 'project-manager'
-        case 'Senior Developer': return 'senior-developer'
-        case 'Junior Developer': return 'junior-developer'
-        default: return 'junior-developer'
-    }
-}
