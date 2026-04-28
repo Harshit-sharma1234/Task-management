@@ -64,7 +64,6 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
     redirect(`/signup?token=${token}&message=Please create an account to join the workspace`);
   }
 
-  const adminClient = createAdminClient();
   // Validate the token
   const { data: invite } = await adminClient
     .from('workspace_invites')
