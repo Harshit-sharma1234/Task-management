@@ -15,9 +15,11 @@ import { IssueActivitySkeleton } from '@/components/dashboard/issues/IssueActivi
 async function IssueActivitySection({
   ticketId,
   currentUser,
+  canComment,
 }: {
   ticketId: string;
   currentUser: { id: string; name: string; email: string; avatar_url: string | null; roles?: any };
+  canComment: boolean;
 }) {
   const supabase = await createClient(); // Still used for RLS-scoped comments/logs fetch if desired, but we'll use admin for profiles
   const adminClient = createAdminClient();
@@ -71,6 +73,7 @@ async function IssueActivitySection({
       initialComments={normalizedComments as any}
       initialLogs={normalizedLogs as any}
       currentUser={currentUser}
+      canComment={canComment}
     />
   );
 }
@@ -78,6 +81,7 @@ async function IssueActivitySection({
 export default async function IssueDetailsPage({ params }: { params: Promise<{ id: string; workspace: string }> }) {
   const { id, workspace: workspaceSlug } = await params;
   const supabase = await createClient();
+  const adminClient = createAdminClient();
 
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -87,6 +91,13 @@ export default async function IssueDetailsPage({ params }: { params: Promise<{ i
 
   const workspace = await getCachedWorkspaceBySlug(workspaceSlug);
   if (!workspace) redirect('/dashboard');
+
+  // Resolve profile by auth_id first (avoids email/id mismatch).
+  const { data: profileByAuth } = await adminClient
+    .from('users')
+    .select('id, auth_id, email, name, employee_id, avatar_url')
+    .eq('auth_id', user.id)
+    .maybeSingle();
 
   // Fetch above-the-fold data first.
   // Comments/logs are loaded inside Suspense to keep navigation snappy.
@@ -108,7 +119,7 @@ export default async function IssueDetailsPage({ params }: { params: Promise<{ i
       `)
       .eq('id', id)
       .single(),
-    getCachedUserProfile(user.email!),
+    profileByAuth ? Promise.resolve(profileByAuth) : getCachedUserProfile(user.email!),
     getCachedIssueUsers(workspace.id)
   ]);
 
@@ -130,9 +141,15 @@ export default async function IssueDetailsPage({ params }: { params: Promise<{ i
   const isAdmin = userRole === 'Admin' || userRole === 'Project Manager';
   const isAssignee = profile?.id === ticket.assignee_id;
   const isReviewer = profile?.id === (ticket as any).reviewer_id;
+  const canAccessIssue = isAdmin || isAssignee || isReviewer;
+  const canComment = canAccessIssue;
+
+  if (!canAccessIssue) {
+    redirect(`/dashboard/${workspaceSlug}/issues`);
+  }
 
   const canDelete = isAdmin;
-  const canEdit = isAdmin || isAssignee || isReviewer || profile?.id === (ticket as any).created_by;
+  const canEdit = canAccessIssue;
 
   const currentUserForActivity = {
     id: profile?.id || '',
@@ -176,7 +193,7 @@ export default async function IssueDetailsPage({ params }: { params: Promise<{ i
             </div>
 
             <Suspense fallback={<IssueActivitySkeleton />}>
-              <IssueActivitySection ticketId={id} currentUser={currentUserForActivity} />
+              <IssueActivitySection ticketId={id} currentUser={currentUserForActivity} canComment={canComment} />
             </Suspense>
           </div>
         </div>

@@ -47,12 +47,11 @@ export const IssueStatusSelector = memo(({
 
     const role = currentUser?.roles?.role_name;
     const isAdmin = role === 'Admin' || role === 'Project Manager';
-    const isSrDev = role === 'Senior Developer';
     const isAssignee = currentUser?.id === assigneeId;
     const isReviewer = currentUser?.id === reviewerId;
-    const canUpdate = isAdmin || isSrDev || isAssignee || isReviewer;
+    const canUpdate = isAdmin || isAssignee || isReviewer;
 
-    // Restricted statuses for assignees (cannot move to in_review or done)
+    // Restricted statuses for assignees
     const isRestrictedAssignee = currentUser?.id === assigneeId && !isAdmin;
     const restrictedStatuses = ['in_review', 'done'];
 
