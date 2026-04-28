@@ -120,7 +120,10 @@ export async function createIssue(formData: FormData) {
 
           const metadata = (await Promise.all(uploadPromises)).filter(Boolean)
           if (metadata.length > 0) {
-            const updateAttachmentPromise = adminClient.from('tickets').update({ attachments: metadata }).eq('id', data.id)
+            // Convert Thenable to actual Promise for TS compatibility in Promise array
+            const updateAttachmentPromise = Promise.resolve(
+              adminClient.from('tickets').update({ attachments: metadata }).eq('id', data.id)
+            );
             sideEffects.push(updateAttachmentPromise)
           }
         }
