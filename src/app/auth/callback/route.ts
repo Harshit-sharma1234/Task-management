@@ -1,12 +1,16 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
+import { isSafeRedirectPath } from '@/lib/validation'
+import { getRolePath } from '@/lib/role-utils'
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
-  // next is the path to redirect to after logging in (usually '/')
-  const next = searchParams.get('next') ?? '/'
+  const rawNext = searchParams.get('next') ?? '/'
+
+  // Issue #2: Validate redirect path to prevent open redirects
+  const next = isSafeRedirectPath(rawNext) ? rawNext : '/'
 
   if (code) {
     const supabase = await createClient()
@@ -19,18 +23,33 @@ export async function GET(request: Request) {
         const adminClient = createAdminClient()
         const isInviteRedirect = next.startsWith('/invite/')
         
-        // 1. Get internal user profile (already synced by trigger)
+        // 1. Get internal user profile
         const { data: userProfile } = await adminClient
           .from('users')
           .select('id, last_workspace_id')
           .eq('auth_id', user.id)
           .maybeSingle()
 
+        // Issue #6: Sync OAuth profile data on every login
         if (userProfile) {
-          // 2. Refresh last visited workspace
+          const oauthName = user.user_metadata?.full_name || user.user_metadata?.name
+          const oauthAvatar = user.user_metadata?.avatar_url || user.user_metadata?.picture
+
+          if (oauthName || oauthAvatar) {
+            const updates: Record<string, string> = {}
+            if (oauthName) updates.name = oauthName
+            if (oauthAvatar) updates.avatar_url = oauthAvatar
+
+            await adminClient
+              .from('users')
+              .update(updates)
+              .eq('id', userProfile.id)
+          }
+        }
+
+        if (userProfile) {
           const lastWorkspaceId = (userProfile as any).last_workspace_id
 
-          // 3. Get memberships
           const { data: memberships } = await adminClient
             .from('workspace_members')
             .select('workspace_id, role_id, workspaces(slug), roles(role_name)')
@@ -41,7 +60,6 @@ export async function GET(request: Request) {
               return NextResponse.redirect(`${origin}${next}`)
             }
 
-            // Determine target workspace
             let target = memberships[0]
             if (lastWorkspaceId) {
               const matched = memberships.find((m: any) => m.workspace_id === lastWorkspaceId)
@@ -55,33 +73,40 @@ export async function GET(request: Request) {
             return NextResponse.redirect(`${origin}/dashboard/${slug}/${rolePath}`)
           }
           
-          // No memberships yet, send to onboarding
           return NextResponse.redirect(`${origin}/workspace`)
         }
+
+        // Issue #14: Profile missing after OAuth — attempt repair before redirecting
+        console.warn(`[auth/callback] No profile found for auth user ${user.id}. DB trigger may have failed.`)
+        
+        // Attempt auto-repair using OAuth metadata
+        const fallbackName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'User'
+        const fallbackAvatar = user.user_metadata?.avatar_url || user.user_metadata?.picture || null
+        const fallbackEmployeeId = `EXT-${user.id.slice(0, 8).toUpperCase()}`
+
+        await adminClient
+          .from('users')
+          .upsert({
+            id: user.id,
+            auth_id: user.id,
+            email: (user.email || '').toLowerCase(),
+            name: fallbackName,
+            avatar_url: fallbackAvatar,
+            employee_id: fallbackEmployeeId,
+          }, { onConflict: 'id' })
+
+        // After repair, redirect to workspace onboarding (no memberships yet)
+        if (isInviteRedirect) {
+          return NextResponse.redirect(`${origin}${next}`)
+        }
+        return NextResponse.redirect(`${origin}/workspace`)
       }
       
-      const forwardedHost = request.headers.get('x-forwarded-host') 
-      const isLocalEnv = process.env.NODE_ENV === 'development'
-      if (isLocalEnv) {
-        return NextResponse.redirect(`${origin}${next}`)
-      } else if (forwardedHost) {
-        return NextResponse.redirect(`https://${forwardedHost}${next}`)
-      } else {
-        return NextResponse.redirect(`${origin}${next}`)
-      }
+      // User is null after exchange — shouldn't happen, fallback
+      return NextResponse.redirect(`${origin}${next}`)
     }
   }
 
-  // return the user to an error page with instructions
+  // Auth failed
   return NextResponse.redirect(`${origin}/login?error=auth-callback-failed`)
-}
-
-function getRolePath(roleName: string): string {
-  switch (roleName) {
-    case 'Admin': return 'admin'
-    case 'Project Manager': return 'project-manager'
-    case 'Senior Developer': return 'senior-developer'
-    case 'Junior Developer': return 'junior-developer'
-    default: return 'junior-developer'
-  }
 }

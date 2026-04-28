@@ -62,8 +62,9 @@ export function ProjectIssuesRealtimeTab({
 
   const handleFilterChange = (newFilter: string) => {
     setActiveFilter(newFilter);
+    const workspaceSlug = window.location.pathname.split('/')[2];
     // 🚀 Send filter strictly to backend (Step 1 requirement)
-    router.push(`/dashboard/projects/${projectId}?tab=issues&filter=${newFilter}`, { scroll: false });
+    router.push(`/dashboard/${workspaceSlug}/projects/${projectId}?tab=issues&filter=${newFilter}`, { scroll: false });
   };
   
   // Keep local tickets state in sync with server-side prop updates
@@ -283,6 +284,7 @@ export function ProjectIssuesRealtimeTab({
               users={users} 
               onOpenModal={() => setIsModalOpen(true)}
               currentUser={currentUser}
+              workspaceSlug={typeof window !== 'undefined' ? window.location.pathname.split('/')[2] : 'tectome'}
               onOptimisticDelete={(ids) => {
                 ids.forEach(id => deletedIdsRef.current.add(id));
                 setTickets(prev => prev.filter(t => !ids.includes(t.id)));
@@ -295,6 +297,7 @@ export function ProjectIssuesRealtimeTab({
               users={users}
               currentUser={currentUser}
               displaySettings={displaySettings}
+              workspaceSlug={typeof window !== 'undefined' ? window.location.pathname.split('/')[2] : 'tectome'}
               onOpenModal={() => setIsModalOpen(true)}
             />
           )}

@@ -21,6 +21,7 @@ interface IssuesBoardProps {
   users: any[];
   currentUser: any;
   displaySettings: DisplaySettings;
+  workspaceSlug: string;
   onOpenModal?: () => void;
 }
 
@@ -34,12 +35,12 @@ const statusIcons: Record<string, any> = {
   'cancelled': { label: 'Cancelled', color: 'bg-red-500' },
 };
 
-function IssueCard({ ticket, users, currentUser, displaySettings }: { ticket: any, users: any[], currentUser: any, displaySettings: DisplaySettings }) {
+function IssueCard({ ticket, users, currentUser, displaySettings, workspaceSlug }: { ticket: any, users: any[], currentUser: any, displaySettings: DisplaySettings, workspaceSlug: string }) {
   const showProp = (id: string) => displaySettings.showProperties.includes(id);
 
   return (
     <Link 
-      href={`/dashboard/issues/${ticket.id}`}
+      href={`/dashboard/${workspaceSlug}/issues/${ticket.id}`}
       className="block group bg-white border border-gray-100 rounded-xl p-4 mb-3 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all cursor-pointer relative"
     >
       <div className="flex flex-col gap-3">
@@ -111,7 +112,7 @@ function IssueCard({ ticket, users, currentUser, displaySettings }: { ticket: an
   );
 }
 
-export function IssuesBoard({ groupedData, users, currentUser, displaySettings, onOpenModal }: IssuesBoardProps) {
+export function IssuesBoard({ groupedData, users, currentUser, displaySettings, workspaceSlug, onOpenModal }: IssuesBoardProps) {
   return (
     <div className="flex gap-6 h-full overflow-x-auto pb-10 min-h-[calc(100vh-250px)]">
       {groupedData.map((group) => {
@@ -162,6 +163,7 @@ export function IssuesBoard({ groupedData, users, currentUser, displaySettings, 
                      users={users}
                      currentUser={currentUser}
                      displaySettings={displaySettings}
+                     workspaceSlug={workspaceSlug}
                    />
                  ))
                )}

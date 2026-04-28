@@ -7,129 +7,171 @@ import { getUserProfile } from '@/lib/roles'
 import { createNotification, parseMentions } from '@/app/dashboard/[workspace]/notifications/actions'
 
 import { getCachedUserProfile } from '@/lib/cache'
+import crypto from 'crypto'
 
 export async function createIssue(formData: FormData) {
-  const supabase = await createClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  try {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-  if (authError || !user) {
-    return { error: 'You must be logged in to create an issue' }
-  }
-
-  // Use cached profile
-  const profile = await getCachedUserProfile(user.email!)
-  if (!profile) {
-    return { error: 'User profile not found. Please try logging in again.' }
-  }
-
-  const title = formData.get('title') as string
-  const description = formData.get('description') as string
-  const status = formData.get('status') as string
-  const priority = formData.get('priority') as string
-  const projectId = formData.get('project_id') as string
-  const assigneeId = formData.get('assignee_id') as string
-
-  // Validation
-  if (!title?.trim()) return { error: 'Title is required' }
-  if (!description?.trim()) return { error: 'Description is required' }
-  if (!status) return { error: 'Status is required' }
-  if (!priority) return { error: 'Priority is required' }
-  if (!projectId) return { error: 'Project is required' }
-
-  // Step 1: Create Ticket (Atomic)
-  const { data, error } = await supabase
-    .from('tickets')
-    .insert({
-      title,
-      description: description || null,
-      status: status || 'to_do',
-      priority: priority || 'no_priority',
-      project_id: projectId,
-      assignee_id: assigneeId || null,
-      created_by: profile.id
-    })
-    .select('id, project_id, projects(workspace_id)')
-    .single()
-
-  if (error) {
-    console.error('SUPABASE ERROR CREATING TICKET:', error)
-    if (error.code === '23505' || error.message?.includes('tickets_title_key')) {
-      return { error: `A ticket with the title "${title}" already exists. Please use a different title.` }
+    if (authError || !user) {
+      return { error: 'You must be logged in to create an issue' }
     }
-    return { error: `Failed to create issue: ${error.message}` }
-  }
 
-  // --- Background Operations (Parallel) ---
-  const adminClient = createAdminClient()
-  
-  const runSideEffects = async () => {
-    try {
-      const sideEffects: Promise<any>[] = []
+    // Use cached profile
+    const profile = await getCachedUserProfile(user.email!)
+    if (!profile) {
+      return { error: 'User profile not found. Please try logging in again.' }
+    }
 
-      // 2. Parallel File Uploads
-      const files = formData.getAll('attachments') as File[]
-      if (files.length > 0) {
-        const uploadPromises = files.filter(f => f && f.size > 0).map(async (file) => {
-          const fileExt = file.name.split('.').pop()
-          const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`
-          const filePath = `${data.id}/${fileName}`
+    const title = formData.get('title') as string
+    const description = formData.get('description') as string
+    const status = formData.get('status') as string
+    const priority = formData.get('priority') as string
+    const projectId = formData.get('project_id') as string
+    const assigneeId = formData.get('assignee_id') as string
+
+    // Validation
+    if (!title?.trim()) return { error: 'Title is required' }
+    if (!description?.trim()) return { error: 'Description is required' }
+    if (!status) return { error: 'Status is required' }
+    if (!priority) return { error: 'Priority is required' }
+    if (!projectId) return { error: 'Project is required' }
+
+    // Fetch workspace_id and verify membership using admin client
+    const adminClient = createAdminClient()
+    
+    // 1. Resolve project context
+    const { data: projectData, error: projectError } = await adminClient
+      .from('projects')
+      .select('workspace_id')
+      .eq('id', projectId)
+      .single()
+
+    if (projectError || !projectData) {
+      console.error('[createIssue] Project lookup failed:', projectError)
+      return { error: 'Project not found' }
+    }
+
+    const workspaceId = projectData.workspace_id
+
+    // 2. Verify membership (security check since we are bypassing RLS)
+    const { data: membership } = await adminClient
+      .from('workspace_members')
+      .select('id')
+      .eq('workspace_id', workspaceId)
+      .eq('user_id', profile.id)
+      .maybeSingle()
+
+    if (!membership) {
+      return { error: 'Unauthorized: You are not a member of this workspace.' }
+    }
+
+    // Step 1: Create Ticket (Atomic) - Use adminClient to bypass restrictive legacy RLS
+    const { data, error } = await adminClient
+      .from('tickets')
+      .insert({
+        title,
+        description: description || null,
+        status: status || 'to_do',
+        priority: priority || 'no_priority',
+        project_id: projectId,
+        workspace_id: workspaceId,
+        assignee_id: assigneeId || null,
+        created_by: profile.id
+      })
+      .select('id, project_id, workspace_id')
+      .single()
+
+    if (error) {
+      console.error('SUPABASE ERROR CREATING TICKET:', error)
+      if (error.code === '23505' || error.message?.includes('tickets_title_key')) {
+        return { error: `A ticket with the title "${title}" already exists. Please use a different title.` }
+      }
+      return { error: `Failed to create issue: ${error.message}` }
+    }
+
+    // --- Background Operations (Parallel) ---
+    
+    const runSideEffects = async () => {
+      try {
+        const sideEffects: Promise<any>[] = []
+
+        // 2. Parallel File Uploads
+        const files = formData.getAll('attachments') as File[]
+        if (files && files.length > 0) {
+          const uploadPromises = files.map(async (file) => {
+            const fileName = `${data.id}/${crypto.randomUUID()}-${file.name}`
+            const { error: uploadError } = await adminClient.storage
+              .from('issue-attachments')
+              .upload(fileName, file)
+            
+            if (uploadError) {
+              console.error('[createIssue] File upload error:', uploadError)
+              return null
+            }
+
+            const { data: { publicUrl } } = adminClient.storage
+              .from('issue-attachments')
+              .getPublicUrl(fileName)
+
+            return { name: file.name, url: publicUrl, type: file.type, size: file.size }
+          })
+
+          const metadata = (await Promise.all(uploadPromises)).filter(Boolean)
+          if (metadata.length > 0) {
+            const updateAttachmentPromise = adminClient.from('tickets').update({ attachments: metadata }).eq('id', data.id)
+            sideEffects.push(updateAttachmentPromise)
+          }
+        }
+
+        // 3. Side effects: Activity, Notifications, Auto-Membership
+        sideEffects.push(logActivity(adminClient, profile.id, data.id, 'created', 'Issue created'))
+        
+        if (assigneeId) {
+          sideEffects.push(createNotification({
+            userId: assigneeId,
+            actorId: profile.id,
+            workspaceId: workspaceId,
+            entityType: 'ticket',
+            entityId: data.id,
+            type: 'assignment',
+            message: `${profile.name} assigned you a new issue: ${title}`
+          }))
           
-          await adminClient.storage.from('issue-attachments').upload(filePath, file, { contentType: file.type, upsert: true })
-          const { data: { publicUrl } } = adminClient.storage.from('issue-attachments').getPublicUrl(filePath)
-          
-          return { name: file.name, url: publicUrl, type: file.type, size: file.size }
-        })
+          // Auto-membership
+          const membershipPromise = adminClient
+            .from('project_members')
+            .upsert({ project_id: projectId, user_id: assigneeId }, { onConflict: 'project_id,user_id' })
+          sideEffects.push(membershipPromise)
+        }
 
-        const metadata = await Promise.all(uploadPromises)
-        if (metadata.length > 0) {
-        const updateAttachmentPromise = adminClient.from('tickets').update({ attachments: metadata }).eq('id', data.id)
-        sideEffects.push(Promise.resolve(updateAttachmentPromise))
+        await Promise.all(sideEffects)
+      } catch (err) {
+        console.error('[createIssue] Side effect error:', err)
       }
     }
 
-    // 3. Side effects: Activity, Notifications, Auto-Membership
-    sideEffects.push(logActivity(supabase, profile.id, data.id, 'created', 'Issue created'))
+    // Fire and forget side effects
+    runSideEffects()
+
+    // Granular revalidation only
+    revalidateTag('issues', 'max')
     
-    if (assigneeId) {
-      sideEffects.push(createNotification({
-        userId: assigneeId,
-        actorId: profile.id,
-        workspaceId: (data as any).projects?.workspace_id,
-        entityType: 'ticket',
-        entityId: data.id,
-        type: 'assignment',
-        message: `${profile.name} assigned you a new issue: ${title}`
-      }))
-      
-      // Auto-membership
-      const membershipPromise = adminClient
-        .from('project_members')
-        .upsert({ project_id: projectId, user_id: assigneeId }, { onConflict: 'project_id,user_id' })
-      sideEffects.push(Promise.resolve(membershipPromise))
+    if (projectId) {
+      revalidatePath(`/dashboard/projects/${projectId}`);
     }
-
-      await Promise.all(sideEffects)
-    } catch (err) {
-      console.error('[createIssue] Side effect error:', err)
-    }
+    revalidatePath('/dashboard');
+    
+    return { success: true, data }
+  } catch (err: any) {
+    console.error('[createIssue] UNHANDLED ERROR:', err)
+    return { error: `An unexpected error occurred: ${err.message || 'Unknown error'}` }
   }
-
-  // Fire and forget side effects
-  runSideEffects()
-
-  // Granular revalidation only
-  revalidateTag('issues', 'max')
-  
-  if (projectId) {
-    revalidatePath(`/dashboard/projects/${projectId}`);
-  }
-  revalidatePath('/dashboard');
-  
-  return { success: true, data }
 }
 
-async function logActivity(supabase: any, userId: string, ticketId: string, actionType: string, message: string) {
-  const { error } = await supabase
+async function logActivity(adminClient: any, userId: string, ticketId: string, actionType: string, message: string) {
+  const { error } = await adminClient
     .from('logs')
     .insert({
       user_id: userId,
@@ -310,9 +352,11 @@ export async function addComment(ticketId: string, comment: string) {
     return { error: 'Comment cannot be empty' }
   }
 
-  const { data: ticket, error: ticketError } = await supabase
+  // Fetch ticket and verify workspace membership using admin client
+  const adminClient = createAdminClient()
+  const { data: ticket, error: ticketError } = await adminClient
     .from('tickets')
-    .select('id, title, created_by, assignee_id, reviewer_id, projects(workspace_id)')
+    .select('id, title, created_by, assignee_id, reviewer_id, workspace_id')
     .eq('id', ticketId)
     .single()
 
@@ -320,30 +364,30 @@ export async function addComment(ticketId: string, comment: string) {
     return { error: 'Ticket not found.' }
   }
 
-  // Roles are now workspace-scoped; commenting is allowed for all workspace members
-  const isAdmin = true // Workspace role verified at layout level
-  const isPM = false
-  const isTicketAssignee = profile.id === ticket.assignee_id
-  const isTicketReviewer = profile.id === ticket.reviewer_id
+  // Verify workspace membership
+  const { data: membership } = await adminClient
+    .from('workspace_members')
+    .select('id, roles(role_name)')
+    .eq('workspace_id', ticket.workspace_id)
+    .eq('user_id', profile.id)
+    .single()
 
-  if (!isAdmin && !isPM && !isTicketAssignee && !isTicketReviewer) {
-    return { error: 'Only the Assignee, Reviewer, Admin, or Project Manager can post comments on an issue!' }
+  if (!membership) {
+    return { error: 'Unauthorized: You are not a member of this workspace.' }
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await adminClient
     .from('comments')
     .insert({
       ticket_id: ticketId,
-      comment: commentText
+      comment: commentText,
+      user_id: profile.id // Explicitly set user_id since we're bypassing RLS
     })
     .select('id, comment, created_at, user_id')
     .single()
 
   if (error) {
     console.error('SUPABASE ERROR ADDING COMMENT:', error)
-    if (error.message.includes('row-level security policy') || error.code === '42501') {
-      return { error: 'Only the Assignee, Reviewer, Admin, or Project Manager can post comments on an issue!' }
-    }
     return { error: `Failed to add comment: ${error.message}` }
   }
 
@@ -515,34 +559,80 @@ export async function updateIssue(ticketId: string, updates: {
   }
 
   // Fetch profile and current ticket state in parallel
+  const adminClient = createAdminClient()
   const [profile, { data: ticket }] = await Promise.all([
     getUserProfile(supabase, user.email!),
-    supabase
+    adminClient
       .from('tickets')
-      .select('id, title, status, priority, assignee_id, reviewer_id, created_by, project_id, projects(workspace_id)')
+      .select('id, title, status, priority, assignee_id, reviewer_id, created_by, project_id, workspace_id')
       .eq('id', ticketId)
       .single()
   ])
   if (!profile) return { error: 'User profile not found' }
-
   if (!ticket) return { error: 'Ticket not found' }
 
-  // ACCESS GATE: Workspace layout verifies membership; allow updates for assignee, reviewer, or any member
-  const isTicketAssignee = profile.id === ticket.assignee_id
-  const isTicketReviewer = profile.id === ticket.reviewer_id
-  const isCreator = profile.id === ticket.created_by
+  // Verify workspace membership and role
+  const { data: membership } = await adminClient
+    .from('workspace_members')
+    .select('id, role_id, roles(role_name)')
+    .eq('workspace_id', ticket.workspace_id)
+    .eq('user_id', profile.id)
+    .single()
 
-  // CONSTRAINT: Assignee can't be the reviewer
+  if (!membership) {
+    return { error: 'Unauthorized: You are not a member of this workspace.' }
+  }
+
+  const userRole = (membership as any).roles.role_name
+  const isAssignee = profile.id === ticket.assignee_id
+  const isReviewer = profile.id === ticket.reviewer_id
+  const isAdmin = userRole === 'Admin'
+  const isPM = userRole === 'Project Manager'
+
+  // Rule 1: Allowed roles to update (Admin, PM, Assignee, Reviewer)
+  if (!isAdmin && !isPM && !isAssignee && !isReviewer) {
+    return { error: 'Only the Admin, Project Manager, Assignee, or Reviewer can update this issue.' }
+  }
+
+  // Rule 2: Assignee restriction (Status)
+  // Assignees cannot move issues to In Review or Done
+  if (updates.status && (updates.status === 'in_review' || updates.status === 'done')) {
+    if (isAssignee && !isAdmin && !isPM && !isReviewer) {
+      return { error: 'Assignees cannot move issues to "In Review" or "Done". This must be done by a Reviewer or Manager.' }
+    }
+  }
+
+  // Rule 3: Reviewer Assignment Restriction
+  if (updates.reviewer_id) {
+    const { data: reviewerMembership } = await adminClient
+      .from('workspace_members')
+      .select('roles(role_name)')
+      .eq('workspace_id', ticket.workspace_id)
+      .eq('user_id', updates.reviewer_id)
+      .single()
+
+    const reviewerRole = (reviewerMembership as any)?.roles?.role_name
+    
+    // Only Admin/PM/Sr Dev can be reviewers
+    if (!['Admin', 'Project Manager', 'Senior Developer'].includes(reviewerRole)) {
+      return { error: 'Only Admins, Project Managers, or Senior Developers can be assigned as Reviewers. Junior Developers are not eligible.' }
+    }
+
+    // Sr Dev cannot self-assign
+    const currentAssigneeId = updates.assignee_id || ticket.assignee_id
+    if (reviewerRole === 'Senior Developer' && updates.reviewer_id === currentAssigneeId) {
+      return { error: 'Senior Developers cannot self-assign as the reviewer for their own ticket.' }
+    }
+  }
+
+  // CONSTRAINT: Assignee can't be the reviewer (General check)
   const newAssigneeId = updates.assignee_id !== undefined ? updates.assignee_id : ticket.assignee_id
   const newReviewerId = updates.reviewer_id !== undefined ? updates.reviewer_id : ticket.reviewer_id
   if (newAssigneeId && newReviewerId && newAssigneeId === newReviewerId) {
     return { error: 'The assignee and reviewer cannot be the same person' }
   }
 
-  // Reviewer role validation is now handled via workspace_members
-  // TODO: Validate reviewer role from workspace context
-
-  const { data, error } = await supabase
+  const { data, error } = await adminClient
     .from('tickets')
     .update({
       ...updates,

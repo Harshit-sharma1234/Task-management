@@ -1,19 +1,21 @@
 import Link from 'next/link';
 import LoginForm from './LoginForm';
-import { createClient } from '@/lib/supabase/client';
 import { redirect } from 'next/navigation';
+import { getServerUser } from '@/lib/auth-server';
 
 export const metadata = {
   title: 'Log in',
 };
 
-export default async function Login({ searchParams }: { searchParams: { message: string } }) {
+export default async function Login({ searchParams }: { searchParams: Promise<{ message?: string; error?: string; next?: string }> }) {
   const resolvedSearchParams = await searchParams;
-  const supabase = await createClient()
-  const { data, error } = await supabase.auth.getUser()
+  const initialMessage = resolvedSearchParams.message || resolvedSearchParams.error;
 
-  if (data.user) {
-    redirect('/dashboard')
+  // Issue #15: Use the deduplicated getServerUser (middleware also guards this,
+  // but this ensures SSR correctness for direct navigation)
+  const user = await getServerUser();
+  if (user) {
+    redirect('/dashboard');
   }
 
   // Structured Data (JSON-LD) for SEO
@@ -44,7 +46,11 @@ export default async function Login({ searchParams }: { searchParams: { message:
             <p className="text-sm text-[var(--color-linear-muted)]">Enter your details to continue.</p>
           </header>
           
-          <LoginForm initialMessage={resolvedSearchParams?.message} />
+          <LoginForm 
+            initialMessage={initialMessage} 
+            nextUrl={resolvedSearchParams?.next}
+            isError={!!resolvedSearchParams.error}
+          />
           
           <div className="mt-8 text-center">
             <p className="text-xs text-[var(--color-linear-muted)]">

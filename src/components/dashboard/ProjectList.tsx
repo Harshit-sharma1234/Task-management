@@ -39,6 +39,7 @@ interface ProjectListProps {
     users: User[];
     userMap: Record<string, string>;
     userRole: AppRole | null;
+    workspaceId?: string;
 }
 
 import { UserAvatar } from '@/components/ui/UserAvatar';
@@ -84,8 +85,9 @@ const ProjectRow = memo(({
     };
 
     const prefetchProject = useMemo(() => {
-        const overviewHref = `/dashboard/projects/${project.id}`;
-        const issuesHref = `/dashboard/projects/${project.id}?tab=issues`;
+        const workspaceSlug = typeof window !== 'undefined' ? window.location.pathname.split('/')[2] : 'tectome';
+        const overviewHref = `/dashboard/${workspaceSlug}/projects/${project.id}`;
+        const issuesHref = `/dashboard/${workspaceSlug}/projects/${project.id}?tab=issues`;
         return () => {
             router.prefetch(overviewHref);
             router.prefetch(issuesHref);
@@ -138,7 +140,7 @@ const ProjectRow = memo(({
             <div className="flex items-center gap-3 pl-5 min-w-0">
                 <Folder size={15} className="text-gray-400 group-hover:text-gray-600 shrink-0" />
                 <Link 
-                    href={`/dashboard/projects/${project.id}`}
+                    href={`/dashboard/${typeof window !== 'undefined' ? window.location.pathname.split('/')[2] : 'tectome'}/projects/${project.id}`}
                     prefetch={true}
                     onMouseEnter={prefetchProject}
                     onFocus={prefetchProject}
@@ -241,7 +243,7 @@ const ProjectRow = memo(({
 
 ProjectRow.displayName = 'ProjectRow';
 
-export function ProjectList({ projects, users, userMap, userRole }: ProjectListProps) {
+export function ProjectList({ projects, users, userMap, userRole, workspaceId }: ProjectListProps) {
     const [searchTerm, setSearchTerm] = useState('');
     const [localProjects, setLocalProjects] = useState<Project[]>(projects);
     const supabase = useMemo(() => createClient(), []);
@@ -327,7 +329,7 @@ export function ProjectList({ projects, users, userMap, userRole }: ProjectListP
                             className="pl-9 pr-4 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 w-64 bg-gray-50/50"
                         />
                     </div>
-                    <CreateProjectButton variant="header" />
+                    <CreateProjectButton variant="header" workspaceId={workspaceId} />
                 </div>
             </header>
 
@@ -347,7 +349,7 @@ export function ProjectList({ projects, users, userMap, userRole }: ProjectListP
                                     ? `We couldn't find any projects matching "${searchTerm}".`
                                     : "You haven't created any projects yet. Start by creating a project to organize your team's tasks."}
                             </p>
-                            {!searchTerm && <CreateProjectButton variant="header" />}
+                            {!searchTerm && <CreateProjectButton variant="header" workspaceId={workspaceId} />}
                         </div>
                     ) : (
                         <div className="bg-white rounded-lg shadow-sm border border-gray-200">

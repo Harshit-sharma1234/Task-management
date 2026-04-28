@@ -10,6 +10,7 @@ interface IssuesViewProps {
   activeFilter: string;
   currentUser: any;
   workspaceId: string;
+  workspaceSlug: string;
   initialLimit?: number;
   totalLimit?: number;
 }
@@ -39,6 +40,7 @@ export function IssuesView({
   activeFilter: initialFilter,
   currentUser,
   workspaceId,
+  workspaceSlug,
   initialLimit = 40,
   totalLimit = 120
 }: IssuesViewProps) {
@@ -226,6 +228,7 @@ export function IssuesView({
               onOpenModal={() => setIsModalOpen(true)}
               currentUser={currentUser}
               isMyTasks={false}
+              workspaceSlug={workspaceSlug}
               onOptimisticDelete={(ids) => {
                 ids.forEach(id => deletedIdsRef.current.add(id));
                 setTickets(prev => prev.filter(t => !ids.includes(t.id)));
@@ -237,6 +240,7 @@ export function IssuesView({
               users={users}
               currentUser={currentUser}
               displaySettings={displaySettings}
+              workspaceSlug={workspaceSlug}
               onOpenModal={() => setIsModalOpen(true)}
             />
           )}

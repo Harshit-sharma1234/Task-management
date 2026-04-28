@@ -36,9 +36,12 @@ export function NotificationItem({ notification, onMarkRead, showId = true }: No
   }[notification.type];
 
   // Map entity to dashboard link
+  // Get workspace slug from the URL since NotificationItem is used in a workspace-scoped page
+  const workspaceSlug = typeof window !== 'undefined' ? window.location.pathname.split('/')[2] : 'tectome';
+  
   const link = notification.entity_type === 'ticket' 
-    ? `/dashboard/issues/${notification.entity_id}`
-    : `/dashboard/projects/${notification.entity_id}`;
+    ? `/dashboard/${workspaceSlug}/issues/${notification.entity_id}`
+    : `/dashboard/${workspaceSlug}/projects/${notification.entity_id}`;
 
   return (
     <div 

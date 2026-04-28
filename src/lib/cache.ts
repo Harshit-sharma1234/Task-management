@@ -28,7 +28,7 @@ export const getCachedUsers = (workspaceId: string) => cache(unstable_cache(
   ['workspace-members-list', workspaceId],
   {
     revalidate: 3600,
-    tags: [`team-members-${workspaceId}`, 'users', `workspace-${workspaceId}`]
+    tags: [`team-members-${workspaceId}`, 'team-members', 'users', `workspace-${workspaceId}`]
   }
 ))();
 
@@ -523,9 +523,9 @@ export const getCachedUpcomingDeadlines = (workspaceId: string) => unstable_cach
 )();
 
 /**
- * Cached fetch for recent unread notifications for a user.
+ * Cached fetch for recent unread notifications for a user within a workspace.
  */
-export const getCachedRecentNotifications = (userId: string, limit: number = 3) =>
+export const getCachedRecentNotifications = (userId: string, workspaceId: string, limit: number = 3) =>
   unstable_cache(
     async () => {
       const supabase = createAdminClient();
@@ -533,20 +533,21 @@ export const getCachedRecentNotifications = (userId: string, limit: number = 3) 
         .from('notifications')
         .select('id, message, created_at, type, is_read')
         .eq('user_id', userId)
+        .eq('workspace_id', workspaceId)
         .eq('is_read', false)
         .order('created_at', { ascending: false })
         .limit(limit);
 
       if (error) {
-        console.error(`[Cache] Error fetching recent notifications for ${userId}:`, error);
+        console.error(`[Cache] Error fetching recent notifications for ${userId} in ${workspaceId}:`, error);
         return [];
       }
       return data || [];
     },
-    [`recent-notifications-${userId}-${limit}`],
+    [`recent-notifications-${userId}-${workspaceId}-${limit}`],
     {
       revalidate: 30,
-      tags: [`notifications-${userId}`]
+      tags: [`notifications-${userId}`, `workspace-${workspaceId}`]
     }
   )();
 

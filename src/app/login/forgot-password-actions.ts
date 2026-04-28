@@ -47,15 +47,24 @@ export async function requestPasswordResetOTP(email: string) {
         .maybeSingle()
 
     if (!user) {
-        // Security best practice: don't reveal if user exists. 
-        // But for internal apps, it's often better to be helpful. 
-        // We'll return success anyway to prevent email enumeration, OR return error if specifically requested.
-        // User asked for "forgot password" specifically, let's be helpful.
-        return { error: 'No account found with this email address.' }
+        // Issue #13: Don't reveal whether the user exists — always return success
+        // to prevent email enumeration attacks.
+        return { success: true }
     }
 
     const otpCode = randomInt(100000, 999999).toString()
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString() // 5 minutes
+
+    // Issue #7: Rate limit — max 5 reset requests per email per hour
+    const { data: recentOtps } = await adminClient
+        .from('email_otps')
+        .select('created_at')
+        .eq('email', email.toLowerCase())
+        .gte('created_at', new Date(Date.now() - 60 * 60 * 1000).toISOString())
+
+    if (recentOtps && recentOtps.length >= 5) {
+        return { error: 'Too many reset requests. Please try again in an hour.' }
+    }
 
     const { error: otpError } = await adminClient
         .from('email_otps')
@@ -72,17 +81,20 @@ export async function requestPasswordResetOTP(email: string) {
     }
 
     const html = passwordResetEmail({ otpCode, expiresInMinutes: 5 })
+    
+    console.log(`[Reset OTP] Attempting to send email via Gmail to ${email}...`);
     const { success, error: emailError } = await sendEmail({
         to: email,
-        subject: `Password Reset Code: ${otpCode}`,
+        subject: `Your Tectome password reset`,
         html
     })
 
     if (!success) {
-        console.error('[Reset OTP] Email error:', emailError)
+        console.error('[Reset OTP] Gmail SMTP error:', emailError)
         return { error: 'Failed to send reset email. Please try again.' }
     }
 
+    console.log(`[Reset OTP] Email sent successfully to ${email}`);
     return { success: true }
 }
 

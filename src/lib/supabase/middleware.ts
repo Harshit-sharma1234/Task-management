@@ -57,7 +57,12 @@ export async function updateSession(request: NextRequest) {
         }
 
         const url = request.nextUrl.clone()
+        // Issue #16: Preserve the intended destination so users can return after login
+        const intendedPath = pathname
         url.pathname = '/login'
+        if (intendedPath !== '/dashboard') {
+            url.searchParams.set('next', intendedPath)
+        }
         return NextResponse.redirect(url)
     }
 

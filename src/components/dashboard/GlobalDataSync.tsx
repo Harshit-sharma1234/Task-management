@@ -23,26 +23,28 @@ interface GlobalDataSyncProps {
  */
 export function GlobalDataSync({ initialData }: GlobalDataSyncProps) {
     const hasHydrated = useRef(false);
+    const activeWorkspaceIdRef = useRef<string | null>(null);
     const { setProjects, setTeam, setInitialLoadComplete, setActiveWorkspaceId, updateProject } = useGlobalStore();
     const { setTeamData } = useTeamStore();
     const { setUnreadCount } = useNotificationStore();
     const supabase = createClient();
 
-    // IMMEDIATE HYDRATION
-    if (initialData && !hasHydrated.current) {
+    // IMMEDIATE HYDRATION / RE-HYDRATION ON WORKSPACE CHANGE
+    if (initialData && (initialData.activeWorkspaceId !== activeWorkspaceIdRef.current)) {
         setProjects(initialData.projects);
         setTeam(initialData.team);
         setTeamData(
             initialData.team, 
             initialData.profile?.roles?.role_name === 'Admin', 
-            initialData.profile?.roles?.role_name || null
+            initialData.profile?.roles?.role_name || null,
+            initialData.activeWorkspaceId || ''
         );
         setUnreadCount(initialData.unreadCount);
         if (initialData.activeWorkspaceId) {
             setActiveWorkspaceId(initialData.activeWorkspaceId);
         }
         setInitialLoadComplete(true);
-        hasHydrated.current = true;
+        activeWorkspaceIdRef.current = initialData.activeWorkspaceId || null;
     }
 
     useEffect(() => {

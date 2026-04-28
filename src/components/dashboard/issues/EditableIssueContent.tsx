@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useTransition } from 'react';
-import { Pencil, Check, X, Loader2, Paperclip, FileIcon, Trash2, Download } from 'lucide-react';
+import { Pencil, Check, X, Loader2, Paperclip, FileIcon, Trash2, Download, PlusCircle } from 'lucide-react';
 import { updateIssueContent } from '@/app/dashboard/[workspace]/issues/actions';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
@@ -59,6 +59,17 @@ export function EditableIssueContent({
             titleRef.current.select();
         }
     }, [isEditing]);
+
+    // Listen for header-triggered edit
+    useEffect(() => {
+        const handler = () => {
+            setIsEditing(true);
+            // Scroll to top if needed
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+        window.addEventListener('trigger-issue-edit', handler);
+        return () => window.removeEventListener('trigger-issue-edit', handler);
+    }, []);
 
     // Auto-resize textarea
     useEffect(() => {
@@ -177,10 +188,11 @@ export function EditableIssueContent({
                     {canEdit && !isSaving && (
                         <button
                             onClick={() => setIsEditing(true)}
-                            className="mt-1 p-2 rounded-lg text-gray-300 opacity-0 group-hover/content:opacity-100 hover:text-indigo-600 hover:bg-indigo-50 transition-all duration-200 shrink-0"
+                            className="mt-1 flex items-center gap-2 px-3 py-1.5 rounded-lg text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-all duration-200 shrink-0 font-bold text-xs shadow-sm shadow-indigo-100/50"
                             title="Edit issue"
                         >
-                            <Pencil size={16} />
+                            <Pencil size={14} />
+                            <span>Edit</span>
                         </button>
                     )}
                 </div>
@@ -348,17 +360,20 @@ export function EditableIssueContent({
             </div>
 
             {/* Attachments Management */}
-            <div className="space-y-4 pt-4 border-t border-gray-100">
-                <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-0.5">
-                        Attachments
-                    </label>
+            <div className="space-y-4 pt-6 border-t border-gray-100 bg-gray-50/30 -mx-4 px-4 py-6 rounded-b-xl">
+                <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                        <Paperclip size={14} className="text-gray-400" />
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] pl-0.5">
+                            Attachments
+                        </label>
+                    </div>
                     <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all uppercase tracking-wider"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold text-indigo-600 bg-white border border-indigo-100 hover:bg-indigo-50 rounded-lg transition-all shadow-sm active:scale-95"
                     >
-                        <Paperclip size={12} />
+                        <PlusCircle size={14} />
                         Add Files
                     </button>
                     <input

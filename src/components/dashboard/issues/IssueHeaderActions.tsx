@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Link as LinkIcon, Share2, MoreHorizontal, Check, Trash2, ExternalLink } from 'lucide-react';
+import { Link as LinkIcon, Share2, MoreHorizontal, Check, Trash2, ExternalLink, Pencil } from 'lucide-react';
 import { deleteIssue } from '@/app/dashboard/[workspace]/issues/actions';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
@@ -18,7 +18,8 @@ export function IssueHeaderActions({ ticketId, canDelete }: IssueHeaderActionsPr
   const router = useRouter();
 
   const handleCopyLink = () => {
-    const url = `${window.location.origin}/dashboard/issues/${ticketId}`;
+    const workspaceSlug = window.location.pathname.split('/')[2];
+    const url = `${window.location.origin}/dashboard/${workspaceSlug}/issues/${ticketId}`;
     navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -30,7 +31,8 @@ export function IssueHeaderActions({ ticketId, canDelete }: IssueHeaderActionsPr
     setIsDeleting(true);
     const result = await deleteIssue(ticketId);
     if (result.success) {
-      router.push('/dashboard/issues');
+      const workspaceSlug = window.location.pathname.split('/')[2];
+      router.push(`/dashboard/${workspaceSlug}/issues`);
       router.refresh();
     } else {
       toast.error(result.error || 'Failed to delete issue');
@@ -63,7 +65,18 @@ export function IssueHeaderActions({ ticketId, canDelete }: IssueHeaderActionsPr
             <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-100 rounded-xl shadow-lg z-20 py-1 flex flex-col">
               <button 
                 onClick={() => {
-                  window.open(`/dashboard/issues/${ticketId}`, '_blank');
+                  window.dispatchEvent(new CustomEvent('trigger-issue-edit'));
+                  setShowMenu(false);
+                }}
+                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left font-medium"
+              >
+                <Pencil size={14} className="text-gray-400" />
+                Edit issue
+              </button>
+              <button 
+                onClick={() => {
+                  const workspaceSlug = window.location.pathname.split('/')[2];
+                  window.open(`/dashboard/${workspaceSlug}/issues/${ticketId}`, '_blank');
                   setShowMenu(false);
                 }}
                 className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left"

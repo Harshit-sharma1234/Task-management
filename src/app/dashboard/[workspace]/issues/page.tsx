@@ -44,12 +44,13 @@ export default async function IssuesPage({
         filter={filter}
         userEmail={user.email!}
         workspaceId={workspace.id}
+        workspaceSlug={workspaceSlug}
       />
     </Suspense>
   );
 }
 
-async function IssueListContent({ filter, userEmail, workspaceId }: { filter: string; userEmail: string; workspaceId: string }) {
+async function IssueListContent({ filter, userEmail, workspaceId, workspaceSlug }: { filter: string; userEmail: string; workspaceId: string; workspaceSlug: string }) {
   // Fetch all required data in parallel including user profile
   const [ticketsRes, cachedProjects, cachedUsers, currentUser] = await Promise.all([
     getCachedIssuesList(workspaceId, INITIAL_ISSUES_LIMIT),
@@ -70,6 +71,7 @@ async function IssueListContent({ filter, userEmail, workspaceId }: { filter: st
       activeFilter={filter}
       currentUser={currentUser}
       workspaceId={workspaceId}
+      workspaceSlug={workspaceSlug}
       initialLimit={INITIAL_ISSUES_LIMIT}
       totalLimit={TOTAL_ISSUES_LIMIT}
     />

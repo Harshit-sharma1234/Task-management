@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ChevronRight, Layout, Info, Link as LinkIcon, Check, Plus } from 'lucide-react';
+import { ChevronRight, Layout, Info, Link as LinkIcon, Check, Plus, Pencil } from 'lucide-react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useProjectTransition } from '@/lib/contexts/ProjectTransitionContext';
@@ -37,7 +37,8 @@ export function ProjectDetailHeader({ projectName, projectId, users }: ProjectDe
 
   const handleTabClick = (tabId: string) => {
     if (tabId === activeTab) return;
-    startTabTransition(`/dashboard/projects/${projectId}?tab=${tabId}`);
+    const workspaceSlug = window.location.pathname.split('/')[2];
+    startTabTransition(`/dashboard/${workspaceSlug}/projects/${projectId}?tab=${tabId}`);
   };
 
   return (
@@ -45,12 +46,27 @@ export function ProjectDetailHeader({ projectName, projectId, users }: ProjectDe
       {/* Top row: Breadcrumbs & Actions */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm text-gray-500">
-          <Link href="/dashboard/projects" className="hover:text-indigo-600 transition-colors">Projects</Link>
+          <Link 
+            href={`/dashboard/${typeof window !== 'undefined' ? window.location.pathname.split('/')[2] : 'tectome'}/projects`} 
+            className="hover:text-indigo-600 transition-colors"
+          >
+            Projects
+          </Link>
           <ChevronRight size={14} className="text-gray-300" />
           <span className="text-gray-900 font-medium">{projectName}</span>
         </div>
 
         <div className="flex items-center gap-2">
+          <button 
+            onClick={() => {
+                window.dispatchEvent(new CustomEvent('trigger-project-edit'));
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-md text-[11px] font-bold uppercase tracking-wider hover:bg-gray-50 transition-all shadow-sm active:scale-95 mr-2"
+          >
+            <Pencil size={14} className="text-gray-400" />
+            <span>Edit Project</span>
+          </button>
+
           <button 
             onClick={() => setIsModalOpen(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-md text-[11px] font-bold uppercase tracking-wider hover:bg-indigo-700 transition-all shadow-sm shadow-indigo-600/20 active:scale-95 mr-2"
