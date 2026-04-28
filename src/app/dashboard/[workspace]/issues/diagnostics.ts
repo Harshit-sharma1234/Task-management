@@ -10,7 +10,7 @@ export async function diagnoseRLS() {
   const { data: { user } } = await supabase.auth.getUser()
   
   // 1. Check current role from DB perspective
-  const { data: roleInfo } = await adminClient.rpc('get_current_role_info').catch(() => ({ data: 'RPC NOT FOUND' }))
+  const { data: roleInfo } = await Promise.resolve(adminClient.rpc('get_current_role_info')).catch(() => ({ data: 'RPC NOT FOUND' as any }))
   
   // 2. Check membership
   const { data: membership } = await adminClient
