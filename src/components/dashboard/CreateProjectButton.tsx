@@ -5,6 +5,8 @@ import { Plus, ChevronDown, Check, X, Users, Calendar, CircleDot, MoreHorizontal
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { createProject } from '@/app/dashboard/actions'
+import { useGlobalStore } from '@/lib/store/global'
+import { useTeamStore } from '@/lib/store/team'
 
 interface User {
   id: string
@@ -40,15 +42,18 @@ export function CreateProjectButton({ variant = 'header', workspaceId }: CreateP
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [users, setUsers] = useState<User[]>([])
+  const activeWorkspaceId = useGlobalStore((state) => state.activeWorkspaceId)
+  const teamWorkspaceId = useTeamStore((state) => state.workspaceId)
+  const resolvedWorkspaceId = workspaceId || activeWorkspaceId || teamWorkspaceId || ''
 
   // Lazy fetch users when modal is opened to avoid blocking main page render
   useEffect(() => {
-    if (isOpen && users.length === 0 && workspaceId) {
+    if (isOpen && users.length === 0 && resolvedWorkspaceId) {
       import('@/app/dashboard/actions').then(mod => {
-        mod.fetchUsersForProject(workspaceId).then(setUsers)
+        mod.fetchUsersForProject(resolvedWorkspaceId).then(setUsers)
       })
     }
-  }, [isOpen, users.length, workspaceId])
+  }, [isOpen, users.length, resolvedWorkspaceId])
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -190,7 +195,7 @@ export function CreateProjectButton({ variant = 'header', workspaceId }: CreateP
               <input type="hidden" name="priority" value={priority} />
               <input type="hidden" name="lead_id" value={leadId} />
               <input type="hidden" name="start_date" value={startDate} />
-              <input type="hidden" name="workspace_id" value={workspaceId} />
+              <input type="hidden" name="workspace_id" value={resolvedWorkspaceId} />
 
               <div className="space-y-3">
                 <input
