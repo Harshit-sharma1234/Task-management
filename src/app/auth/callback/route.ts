@@ -7,6 +7,7 @@ import { getRolePath } from '@/lib/role-utils'
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
+  const token = requestUrl.searchParams.get('token')
   const rawNext = requestUrl.searchParams.get('next') ?? '/'
 
   // Robust origin detection for production (handles proxies like Vercel)
@@ -71,8 +72,76 @@ export async function GET(request: Request) {
         }
 
         if (userProfile) {
-          if (isInviteRedirect) {
-            return NextResponse.redirect(`${origin}${next}`)
+          const lastWorkspaceId = (userProfile as any).last_workspace_id
+
+          const { data: memberships } = await adminClient
+            .from('workspace_members')
+            .select('workspace_id, role_id, workspaces(slug), roles(role_name)')
+            .eq('user_id', userProfile.id)
+
+          if (memberships && memberships.length > 0) {
+            if (isInviteRedirect || token) {
+              // Handle Invite Token for existing users
+              if (token) {
+                const { data: invite } = await adminClient
+                  .from('workspace_invites')
+                  .select('*, workspaces(name, slug), roles(role_name)')
+                  .eq('token', token)
+                  .eq('status', 'pending')
+                  .gt('expires_at', new Date().toISOString())
+                  .maybeSingle()
+
+                if (invite && invite.email.toLowerCase() === user.email?.toLowerCase()) {
+                  // Join workspace (if not already a member)
+                  const { data: existing } = await adminClient
+                    .from('workspace_members')
+                    .select('id')
+                    .eq('workspace_id', invite.workspace_id)
+                    .eq('user_id', user.id)
+                    .maybeSingle()
+
+                  if (!existing) {
+                    await adminClient
+                      .from('workspace_members')
+                      .insert({
+                        workspace_id: invite.workspace_id,
+                        user_id: user.id,
+                        role_id: invite.role_id,
+                        joined_at: new Date().toISOString(),
+                      })
+
+                    await adminClient
+                      .from('workspace_invites')
+                      .update({ 
+                        status: 'accepted', 
+                        accepted_at: new Date().toISOString(),
+                        accepted_by: user.id
+                      })
+                      .eq('id', invite.id)
+                  }
+
+                  const slug = (invite as any).workspaces?.slug
+                  const roleName = (invite as any).roles?.role_name || 'Junior Developer'
+                  const rolePath = getRolePath(roleName)
+                  
+                  return NextResponse.redirect(`${origin}/dashboard/${slug}/${rolePath}`)
+                }
+              }
+
+              return NextResponse.redirect(`${origin}${next}`)
+            }
+
+            let target = memberships[0]
+            if (lastWorkspaceId) {
+              const matched = memberships.find((m: any) => m.workspace_id === lastWorkspaceId)
+              if (matched) target = matched
+            }
+
+            const slug = (target as any).workspaces?.slug
+            const roleName = (target as any).roles?.role_name || 'Junior Developer'
+            const rolePath = getRolePath(roleName)
+
+            return NextResponse.redirect(`${origin}/dashboard/${slug}/${rolePath}`)
           }
           return handleAuthenticatedUser(userProfile, adminClient, origin)
         }
@@ -97,6 +166,45 @@ export async function GET(request: Request) {
           }, { onConflict: 'id' })
           .select()
           .single()
+
+        // Handle Invite Token
+        if (token) {
+          const { data: invite } = await adminClient
+            .from('workspace_invites')
+            .select('*, workspaces(name, slug), roles(role_name)')
+            .eq('token', token)
+            .eq('status', 'pending')
+            .gt('expires_at', new Date().toISOString())
+            .maybeSingle()
+
+          if (invite && invite.email.toLowerCase() === user.email?.toLowerCase()) {
+            // Join workspace
+            await adminClient
+              .from('workspace_members')
+              .insert({
+                workspace_id: invite.workspace_id,
+                user_id: user.id,
+                role_id: invite.role_id,
+                joined_at: new Date().toISOString(),
+              })
+
+            // Accept invite
+            await adminClient
+              .from('workspace_invites')
+              .update({ 
+                status: 'accepted', 
+                accepted_at: new Date().toISOString(),
+                accepted_by: user.id
+              })
+              .eq('id', invite.id)
+
+            const slug = (invite as any).workspaces?.slug
+            const roleName = (invite as any).roles?.role_name || 'Junior Developer'
+            const rolePath = getRolePath(roleName)
+            
+            return NextResponse.redirect(`${origin}/dashboard/${slug}/${rolePath}`)
+          }
+        }
 
         // After repair, redirect to workspace onboarding (no memberships yet)
         if (isInviteRedirect) {

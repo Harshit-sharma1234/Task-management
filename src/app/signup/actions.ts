@@ -108,6 +108,7 @@ export async function signup(prevState: any, formData: FormData) {
     const email = (formData.get('email') as string)?.trim().toLowerCase()
     const employeeId = (formData.get('employee_id') as string)?.trim()
     const password = formData.get('password') as string
+    const token = formData.get('token') as string | null
 
     // ── Validation ──
     if (!name || name.length < 2) {
@@ -200,6 +201,42 @@ export async function signup(prevState: any, formData: FormData) {
             return { error: 'This Employee ID is already registered.' }
         }
         return { error: 'Failed to create profile. Please try again.' }
+    }
+
+    // ── Handle Invite Token (Automatic Join) ──
+    if (token) {
+        const { data: invite } = await adminClient
+            .from('workspace_invites')
+            .select('*, workspaces(name, slug)')
+            .eq('token', token)
+            .eq('status', 'pending')
+            .gt('expires_at', new Date().toISOString())
+            .maybeSingle()
+
+        if (invite && invite.email.toLowerCase() === email) {
+            // Add user to workspace members
+            await adminClient
+                .from('workspace_members')
+                .insert({
+                    workspace_id: invite.workspace_id,
+                    user_id: newUserId,
+                    role_id: invite.role_id,
+                    joined_at: new Date().toISOString(),
+                })
+
+            // Mark invite as accepted
+            await adminClient
+                .from('workspace_invites')
+                .update({ 
+                    status: 'accepted', 
+                    accepted_at: new Date().toISOString(),
+                    accepted_by: newUserId
+                })
+                .eq('id', invite.id)
+
+            const workspaceName = (invite as any).workspaces?.name || 'the workspace'
+            redirect(`/login?message=Account created and you have been added to ${workspaceName}! Please log in.`)
+        }
     }
 
     // ── Redirect to login (user must log in, then choose/create a workspace) ──
