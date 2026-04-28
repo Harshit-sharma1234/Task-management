@@ -180,6 +180,7 @@ export async function createWorkspaceInvite(workspaceId: string, email: string, 
     }
 
     const adminClient = createAdminClient();
+    const normalizedEmail = email.toLowerCase().trim();
 
     // 1. Check requester permissions (Admin or PM)
     const { data: requesterProfile } = await adminClient
@@ -208,7 +209,7 @@ export async function createWorkspaceInvite(workspaceId: string, email: string, 
     const { data: targetUser } = await adminClient
         .from('users')
         .select('id')
-        .eq('email', email.toLowerCase().trim())
+        .eq('email', normalizedEmail)
         .maybeSingle();
 
     if (targetUser) {
@@ -229,17 +230,23 @@ export async function createWorkspaceInvite(workspaceId: string, email: string, 
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiry
 
-    // 4. Create Invite
+    const invitePayload = {
+        workspace_id: workspaceId,
+        email: normalizedEmail,
+        role_id: roleId,
+        token,
+        status: 'pending',
+        expires_at: expiresAt.toISOString(),
+        invited_by: requesterProfile.id,
+        accepted_at: null
+    };
+
+    // 4. Create or refresh the invite atomically so resending to the same
+    // email updates the existing row instead of hitting the unique constraint.
     const { data: invite, error: inviteError } = await adminClient
         .from('workspace_invites')
-        .insert({
-            workspace_id: workspaceId,
-            email: email.toLowerCase().trim(),
-            role_id: roleId,
-            token,
-            status: 'pending',
-            expires_at: expiresAt.toISOString(),
-            invited_by: requesterProfile.id
+        .upsert(invitePayload, {
+            onConflict: 'workspace_id,email'
         })
         .select('workspaces(name, slug)')
         .single();
@@ -258,7 +265,7 @@ export async function createWorkspaceInvite(workspaceId: string, email: string, 
     try {
         const { sendEmail } = await import('@/lib/email');
         await sendEmail({
-            to: email,
+            to: normalizedEmail,
             subject: `You've been invited to join ${workspaceName} on Tectome`,
             html: `
                 <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #1a1a1a; padding: 20px; border: 1px solid #eee; border-radius: 12px;">
@@ -280,6 +287,6 @@ export async function createWorkspaceInvite(workspaceId: string, email: string, 
     return { 
         success: true, 
         inviteLink,
-        message: `Invite created for ${email}`
+        message: `Invite created for ${normalizedEmail}`
     };
 }
