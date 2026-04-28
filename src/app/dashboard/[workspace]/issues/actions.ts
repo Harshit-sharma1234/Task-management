@@ -90,66 +90,72 @@ export async function createIssue(formData: FormData) {
     }
 
   // --- Background Operations (Parallel) ---
-  const adminClient = createAdminClient()
-  
   const runSideEffects = async () => {
     try {
       const sideEffects: Promise<any>[] = []
 
-      // 2. Parallel File Uploads
+      // 1. Parallel File Uploads
       const files = formData.getAll('attachments') as File[]
-      if (files.length > 0) {
+      if (files && files.length > 0) {
         const uploadPromises = files.filter(f => f && f.size > 0).map(async (file) => {
-          const fileExt = file.name.split('.').pop()
-          const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`
-          const filePath = `${data.id}/${fileName}`
+          const fileName = `${data.id}/${crypto.randomUUID()}-${file.name}`
+          const { error: uploadError } = await adminClient.storage
+            .from('issue-attachments')
+            .upload(fileName, file)
           
-          await adminClient.storage.from('issue-attachments').upload(filePath, file, { contentType: file.type, upsert: true })
-          const { data: { publicUrl } } = adminClient.storage.from('issue-attachments').getPublicUrl(filePath)
+          if (uploadError) {
+            console.error('[createIssue] File upload error:', uploadError)
+            return null
+          }
+
+          const { data: { publicUrl } } = adminClient.storage
+            .from('issue-attachments')
+            .getPublicUrl(fileName)
           
           return { name: file.name, url: publicUrl, type: file.type, size: file.size }
         })
 
-        const metadata = await Promise.all(uploadPromises)
+        const metadata = (await Promise.all(uploadPromises)).filter(Boolean)
         if (metadata.length > 0) {
-        const updateAttachmentPromise = adminClient.from('tickets').update({ attachments: metadata }).eq('id', data.id)
-        sideEffects.push(Promise.resolve(updateAttachmentPromise))
+          const updateAttachmentPromise = Promise.resolve(
+            adminClient.from('tickets').update({ attachments: metadata }).eq('id', data.id)
+          );
+          sideEffects.push(updateAttachmentPromise)
+        }
       }
-    }
 
-    // 3. Side effects: Activity, Notifications, Auto-Membership
-    sideEffects.push(logActivity(supabase, profile.id, data.id, 'created', 'Issue created'))
-    
-    if (assigneeId) {
-      sideEffects.push(createNotification({
-        userId: assigneeId,
-        actorId: profile.id,
-        workspaceId: (data as any).projects?.workspace_id,
-        entityType: 'ticket',
-        entityId: data.id,
-        type: 'assignment',
-        message: `${profile.name} assigned you a new issue: ${title}`
-      }))
+      // 2. Side effects: Activity, Notifications, Auto-Membership
+      sideEffects.push(logActivity(adminClient, profile.id, data.id, 'created', 'Issue created'))
       
-      // Auto-membership
-      const membershipPromise = adminClient
-        .from('project_members')
-        .upsert({ project_id: projectId, user_id: assigneeId }, { onConflict: 'project_id,user_id' })
-      sideEffects.push(Promise.resolve(membershipPromise))
-    }
-
-        await Promise.all(sideEffects)
-      } catch (err) {
-        console.error('[createIssue] Side effect error:', err)
+      if (assigneeId) {
+        sideEffects.push(createNotification({
+          userId: assigneeId,
+          actorId: profile.id,
+          workspaceId: workspaceId,
+          entityType: 'ticket',
+          entityId: data.id,
+          type: 'assignment',
+          message: `${profile.name} assigned you a new issue: ${title}`
+        }))
+        
+        // Auto-membership
+        const membershipPromise = adminClient
+          .from('project_members')
+          .upsert({ project_id: projectId, user_id: assigneeId }, { onConflict: 'project_id,user_id' })
+        sideEffects.push(Promise.resolve(membershipPromise))
       }
+
+      await Promise.all(sideEffects)
+    } catch (err) {
+      console.error('[createIssue] Side effect error:', err)
     }
+  }
 
-    // Fire and forget side effects
-    runSideEffects()
+  // Fire and forget side effects
+  runSideEffects()
 
-  // Granular revalidation only
+  // Granular revalidation
   revalidateTag('issues', 'max')
-  
   if (projectId) {
     revalidatePath(`/dashboard/projects/${projectId}`);
   }
