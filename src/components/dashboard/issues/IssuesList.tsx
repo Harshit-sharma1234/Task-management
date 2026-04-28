@@ -6,14 +6,9 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   CircleDot,
-  Circle,
-  CheckCircle2,
-  CircleEllipsis,
-  X,
   ChevronDown,
   LayoutGrid,
-  Check,
-  Paperclip
+  Check
 } from 'lucide-react';
 import { twMerge } from 'tailwind-merge';
 import { UserAvatar } from '@/components/ui/UserAvatar';
@@ -41,7 +36,7 @@ interface IssueRowProps {
   onToggleSelection: (e: React.MouseEvent, id: string) => void;
   currentUser: any;
   isMyTasks?: boolean;
-  workspaceSlug?: string;
+  workspaceSlug: string;
 }
 
 const IssueRow = memo(({
@@ -55,9 +50,8 @@ const IssueRow = memo(({
 }: IssueRowProps) => {
   const router = useRouter();
   const [isInteractive, setIsInteractive] = useState(false);
-  const issueHref = workspaceSlug
-    ? `/dashboard/${workspaceSlug}/issues/${ticket.id}`
-    : `/dashboard/issues/${ticket.id}`;
+  const issueHref = `/dashboard/${workspaceSlug}/issues/${ticket.id}`;
+
   const prefetchIssue = useCallback(() => {
     router.prefetch(issueHref);
   }, [router, issueHref]);
@@ -206,9 +200,7 @@ const IssueRow = memo(({
       >
         {/* Project Link */}
         <Link
-          href={ticket.projects?.id
-            ? (workspaceSlug ? `/dashboard/${workspaceSlug}/projects/${ticket.projects.id}` : `/dashboard/projects/${ticket.projects.id}`)
-            : '#'}
+          href={ticket.projects?.id ? `/dashboard/${workspaceSlug}/projects/${ticket.projects.id}` : '#'}
           onClick={(e) => !ticket.projects?.id && e.preventDefault()}
           className="flex items-center gap-2 px-2 py-1 bg-gray-50 rounded-md border border-gray-100 hover:bg-gray-100 hover:border-gray-200 transition-all cursor-pointer group/project"
         >
@@ -260,7 +252,7 @@ interface IssuesListProps {
   onOpenModal?: () => void;
   currentUser?: any;
   isMyTasks?: boolean;
-  workspaceSlug?: string;
+  workspaceSlug: string;
   onOptimisticDelete?: (ids: string[]) => void;
 }
 
@@ -409,8 +401,6 @@ export function IssuesList({
         }
 
         const ticket = item.data;
-        const isSelected = selectedIds.has(ticket.id);
-
         return (
           <div
             key={ticket.id}
@@ -425,7 +415,7 @@ export function IssuesList({
           >
             <div className={twMerge(
               "bg-white transition-all duration-200 relative",
-              isSelected ? "bg-indigo-50/10" : "bg-white",
+              selectedIds.has(ticket.id) ? "bg-indigo-50/10" : "bg-white",
               "border-b border-gray-100"
             )}>
               <IssueRow
@@ -434,8 +424,8 @@ export function IssuesList({
                 isSelected={selectedIds.has(item.data.id)}
                 onToggleSelection={toggleSelection}
                 currentUser={currentUser}
-                isMyTasks={displaySettings.groupBy === 'assignee'}
                 workspaceSlug={workspaceSlug}
+                isMyTasks={displaySettings.groupBy === 'assignee'}
               />
             </div>
           </div>

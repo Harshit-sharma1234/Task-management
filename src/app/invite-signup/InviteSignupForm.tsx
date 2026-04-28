@@ -12,15 +12,7 @@ interface InviteSignupFormProps {
   workspaceName: string;
 }
 
-function getRolePath(roleName: string): string {
-  switch (roleName) {
-    case 'Admin': return 'admin';
-    case 'Project Manager': return 'project-manager';
-    case 'Senior Developer': return 'senior-developer';
-    case 'Junior Developer': return 'junior-developer';
-    default: return 'junior-developer';
-  }
-}
+import { getRolePath } from '@/lib/role-utils';
 
 export default function InviteSignupForm({ token, inviteEmail, workspaceName }: InviteSignupFormProps) {
   const router = useRouter();
@@ -100,13 +92,15 @@ export default function InviteSignupForm({ token, inviteEmail, workspaceName }: 
     try {
       const supabase = createClient();
 
-      // Step 1: Create auth user
+      // Step 1: Create auth user (DB trigger auto-creates public.users profile)
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
           data: {
+            full_name: formData.name,
             name: formData.name,
+            employee_id: formData.employeeId.trim(),
           }
         }
       });
@@ -121,27 +115,14 @@ export default function InviteSignupForm({ token, inviteEmail, workspaceName }: 
         return;
       }
 
-      // Step 2: Create user profile in our system
+      // Step 2: Accept the workspace invite
+      // Profile is created by the handle_new_user() DB trigger
       if (authData.user) {
-        const { error: profileError } = await supabase
-          .from('users')
-          .insert({
-            auth_id: authData.user.id,
-            name: formData.name,
-            email: formData.email.toLowerCase(),
-            employee_id: formData.employeeId.trim(),
-            avatar_url: null,
-          });
-
-        if (profileError) {
-          console.error('Profile creation error:', profileError);
-          toast.error('Failed to create user profile. Please try again.');
-          return;
-        }
+        // Brief delay to let the DB trigger complete
+        await new Promise(resolve => setTimeout(resolve, 500));
 
         toast.success('Account created successfully! Accepting invite...');
 
-        // Step 3: Accept the workspace invite
         const response = await fetch('/api/accept-invite', {
           method: 'POST',
           headers: {

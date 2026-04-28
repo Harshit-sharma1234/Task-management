@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getCachedUsers, getCachedUserProfile } from '@/lib/cache';
 import { revalidateTag, revalidatePath } from 'next/cache';
+import { getBaseUrl } from '@/lib/urls';
 
 export async function fetchTeamData(workspaceId: string) {
     const supabase = await createClient();
@@ -94,6 +95,7 @@ export async function deleteMember(targetUserId: string, workspaceId?: string) {
 
     revalidateTag('team-members', 'max');
     if (workspaceId) {
+        revalidateTag(`team-members-${workspaceId}`, 'max');
         revalidatePath(`/dashboard/${workspaceId}/team`);
     } else {
         revalidatePath('/dashboard/team');
@@ -159,6 +161,7 @@ export async function updateUserRole(targetUserId: string, newRoleName: string, 
 
     revalidateTag('team-members', 'max');
     if (workspaceId) {
+        revalidateTag(`team-members-${workspaceId}`, 'max');
         revalidatePath(`/dashboard/${workspaceId}/team`);
     } else {
         revalidatePath('/dashboard/team');
@@ -243,11 +246,95 @@ export async function createWorkspaceInvite(workspaceId: string, email: string, 
 
     // 4. Create or refresh the invite atomically so resending to the same
     // email updates the existing row instead of hitting the unique constraint.
-    const { error: inviteError } = await adminClient
+    let inviteError: any = null;
+    const { data: refreshedRows, error: refreshInviteError } = await adminClient
         .from('workspace_invites')
-        .upsert(invitePayload, {
-            onConflict: 'workspace_id,email'
-        });
+        .update(invitePayload)
+        .eq('workspace_id', workspaceId)
+        .ilike('email', normalizedEmail)
+        .select('id');
+
+    if (refreshInviteError) {
+        console.error('[createWorkspaceInvite] Failed to refresh existing invite:', refreshInviteError);
+        return { error: `Failed to refresh existing invite: ${refreshInviteError.message}` };
+    }
+
+    if (!refreshedRows || refreshedRows.length === 0) {
+        // Some schemas enforce email-level uniqueness on invites.
+        // Reuse the latest existing invite row for this email before inserting.
+        const { data: existingByEmailRows, error: existingByEmailError } = await adminClient
+            .from('workspace_invites')
+            .select('id')
+            .ilike('email', normalizedEmail)
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+        if (existingByEmailError) {
+            console.error('[createWorkspaceInvite] Failed to lookup invite by email:', existingByEmailError);
+            return { error: `Failed to lookup existing invite: ${existingByEmailError.message}` };
+        }
+
+        const existingByEmail = existingByEmailRows && existingByEmailRows.length > 0
+            ? existingByEmailRows[0]
+            : null;
+
+        if (existingByEmail?.id) {
+            const { error: reuseExistingError } = await adminClient
+                .from('workspace_invites')
+                .update({
+                    workspace_id: workspaceId,
+                    email: normalizedEmail,
+                    ...invitePayload,
+                })
+                .eq('id', existingByEmail.id);
+
+            inviteError = reuseExistingError;
+        } else {
+            const { error: insertInviteError } = await adminClient
+                .from('workspace_invites')
+                .insert({
+                    workspace_id: workspaceId,
+                    email: normalizedEmail,
+                    ...invitePayload,
+                });
+
+            // Handle race condition where another process inserted concurrently.
+            if ((insertInviteError as any)?.code === '23505' || insertInviteError?.message?.toLowerCase().includes('duplicate key')) {
+                const { error: recoverUpdateError } = await adminClient
+                    .from('workspace_invites')
+                    .update(invitePayload)
+                    .eq('workspace_id', workspaceId)
+                    .ilike('email', normalizedEmail);
+
+                if (!recoverUpdateError) {
+                    inviteError = null;
+                } else {
+                    const { data: globalInvite, error: globalInviteLookupError } = await adminClient
+                        .from('workspace_invites')
+                        .select('id')
+                        .ilike('email', normalizedEmail)
+                        .maybeSingle();
+
+                    if (globalInviteLookupError || !globalInvite?.id) {
+                        inviteError = insertInviteError;
+                    } else {
+                        const { error: globalRecoverUpdateError } = await adminClient
+                            .from('workspace_invites')
+                            .update({
+                                workspace_id: workspaceId,
+                                email: normalizedEmail,
+                                ...invitePayload,
+                            })
+                            .eq('id', globalInvite.id);
+
+                        inviteError = globalRecoverUpdateError;
+                    }
+                }
+            } else {
+                inviteError = insertInviteError;
+            }
+        }
+    }
 
     if (inviteError) {
         console.error('[createWorkspaceInvite] Error:', inviteError);
@@ -258,7 +345,7 @@ export async function createWorkspaceInvite(workspaceId: string, email: string, 
         .from('workspace_invites')
         .select('workspaces(name, slug)')
         .eq('workspace_id', workspaceId)
-        .eq('email', normalizedEmail)
+        .ilike('email', normalizedEmail)
         .maybeSingle();
 
     if (fetchInviteError || !invite) {
@@ -268,7 +355,7 @@ export async function createWorkspaceInvite(workspaceId: string, email: string, 
 
     // 5. Send Email
     const workspaceName = (invite as any).workspaces?.name || 'a workspace';
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const baseUrl = getBaseUrl();
     const inviteLink = `${baseUrl}/invite/${token}`;
 
     try {

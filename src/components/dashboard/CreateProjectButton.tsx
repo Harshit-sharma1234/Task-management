@@ -4,7 +4,7 @@ import { useMemo, useState, useRef, useEffect, useTransition } from 'react'
 import { Plus, ChevronDown, Check, X, Users, Calendar, CircleDot, MoreHorizontal, User, Paperclip, FileIcon, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { createProject } from '@/app/dashboard/actions'
+import { createProject, fetchUsersForProject } from '@/app/dashboard/actions'
 import { useGlobalStore } from '@/lib/store/global'
 import { useTeamStore } from '@/lib/store/team'
 
@@ -46,12 +46,20 @@ export function CreateProjectButton({ variant = 'header', workspaceId }: CreateP
   const teamWorkspaceId = useTeamStore((state) => state.workspaceId)
   const resolvedWorkspaceId = workspaceId || activeWorkspaceId || teamWorkspaceId || ''
 
-  // Lazy fetch users when modal is opened to avoid blocking main page render
+  // Fetch users when modal is opened
   useEffect(() => {
     if (isOpen && users.length === 0 && resolvedWorkspaceId) {
-      import('@/app/dashboard/actions').then(mod => {
-        mod.fetchUsersForProject(resolvedWorkspaceId).then(setUsers)
-      })
+      setIsLoading(true);
+      fetchUsersForProject(resolvedWorkspaceId)
+        .then(data => {
+          setUsers(data);
+          setIsLoading(false);
+        })
+        .catch(err => {
+          console.error('[CreateProject] Failed to fetch users:', err);
+          setError('Failed to load workspace members');
+          setIsLoading(false);
+        });
     }
   }, [isOpen, users.length, resolvedWorkspaceId])
 
