@@ -19,9 +19,10 @@ interface MyTasksViewProps {
   projects: any[];
   users: any[];
   currentUser: any;
+  workspaceSlug: string;
 }
 
-export function MyTasksView({ initialTickets, projects, users, currentUser }: MyTasksViewProps) {
+export function MyTasksView({ initialTickets, projects, users, currentUser, workspaceSlug }: MyTasksViewProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState('all');
   
@@ -72,6 +73,7 @@ export function MyTasksView({ initialTickets, projects, users, currentUser }: My
               currentUser={currentUser}
               isMyTasks={true}
               emptyMessage="No tasks assigned to you"
+              workspaceSlug={workspaceSlug}
             />
           ) : (
             <IssuesBoard 
@@ -80,6 +82,7 @@ export function MyTasksView({ initialTickets, projects, users, currentUser }: My
               currentUser={currentUser}
               displaySettings={displaySettings}
               onOpenModal={() => setIsModalOpen(true)}
+              workspaceSlug={workspaceSlug}
             />
           )}
         </div>

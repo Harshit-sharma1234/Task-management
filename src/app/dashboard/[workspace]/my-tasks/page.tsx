@@ -34,6 +34,7 @@ export default async function MyTasksPage({ params }: { params: Promise<{ worksp
       <MyTasksContent 
         targetUserId={currentUser?.id || user.id} 
         workspaceId={workspace.id}
+        workspaceSlug={workspaceSlug}
         currentUser={currentUser} 
       />
     </Suspense>
@@ -43,10 +44,12 @@ export default async function MyTasksPage({ params }: { params: Promise<{ worksp
 async function MyTasksContent({
   targetUserId,
   workspaceId,
+  workspaceSlug,
   currentUser,
 }: {
   targetUserId: string;
   workspaceId: string;
+  workspaceSlug: string;
   currentUser: any;
 }) {
   const { getCachedMyTasksDetailed } = await import('@/lib/cache');
@@ -58,6 +61,7 @@ async function MyTasksContent({
       projects={projects}
       users={users}
       currentUser={currentUser}
+      workspaceSlug={workspaceSlug}
     />
   );
 }
