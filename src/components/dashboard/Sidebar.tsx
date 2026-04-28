@@ -108,6 +108,7 @@ export function Sidebar({
           .from('notifications')
           .select('*', { count: 'estimated', head: true })
           .eq('user_id', userId)
+          .eq('workspace_id', activeWorkspaceId)
           .eq('is_read', false);
         setUnreadCount(count || 0);
         didHydrate.current = true;
@@ -129,6 +130,7 @@ export function Sidebar({
           .from('notifications')
           .select('*', { count: 'estimated', head: true })
           .eq('user_id', userId)
+          .eq('workspace_id', activeWorkspaceId)
           .eq('is_read', false);
         setUnreadCount(newCount || 0);
       })
@@ -167,29 +169,35 @@ export function Sidebar({
 
         {/* Dropdown */}
         {showSwitcher && (
-          <div className="absolute top-full left-0 right-0 z-50 bg-white border border-gray-200 rounded-b-xl shadow-xl animate-in fade-in slide-in-from-top-1 duration-200">
+          <div className="absolute top-full left-0 right-0 z-[100] bg-white border border-gray-200 rounded-b-xl shadow-xl animate-in fade-in slide-in-from-top-1 duration-200">
             <div className="p-2 max-h-64 overflow-y-auto">
-              {availableWorkspaces.map((ws) => (
-                <button
-                  key={ws.id}
-                  onClick={() => {
-                    setShowSwitcher(false);
-                    router.push(`/dashboard/${ws.slug}/${getRolePath(ws.role || 'Junior Developer')}`);
-                  }}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-colors text-left group"
-                >
-                  <div className="w-7 h-7 rounded-md bg-slate-100 flex items-center justify-center text-slate-500 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
-                    <Building2 size={14} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <span className="text-sm font-medium text-slate-700 block truncate">{ws.name}</span>
-                    <span className="text-[10px] text-slate-400">{ws.role}</span>
-                  </div>
-                  {ws.id === activeWorkspaceId && (
-                    <Check size={14} className="text-indigo-600 flex-shrink-0" />
-                  )}
-                </button>
-              ))}
+              {availableWorkspaces.length === 0 ? (
+                 <div className="px-3 py-4 text-center text-xs text-slate-400 italic">
+                   No other workspaces found
+                 </div>
+              ) : (
+                availableWorkspaces.map((ws) => (
+                  <button
+                    key={ws.id}
+                    onClick={() => {
+                      setShowSwitcher(false);
+                      router.push(`/dashboard/${ws.slug}/${getRolePath(ws.role || 'Junior Developer')}`);
+                    }}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-colors text-left group"
+                  >
+                    <div className="w-7 h-7 rounded-md bg-slate-100 flex items-center justify-center text-slate-500 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
+                      <Building2 size={14} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-medium text-slate-700 block truncate">{ws.name}</span>
+                      <span className="text-[10px] text-slate-400">{ws.role}</span>
+                    </div>
+                    {ws.id === activeWorkspaceId && (
+                      <Check size={14} className="text-indigo-600 flex-shrink-0" />
+                    )}
+                  </button>
+                ))
+              )}
             </div>
             <div className="border-t border-gray-100 p-2">
               <Link
@@ -229,7 +237,7 @@ export function Sidebar({
             }`}
         >
           <div className="flex items-center gap-3">
-            <Bell size={18} strokeWidth={2} className={pathname === '/dashboard/inbox' ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'} />
+            <Bell size={18} strokeWidth={2} className={pathname === `/dashboard/${workspaceSlug}/inbox` ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'} />
             <span className="text-sm font-semibold tracking-tight">Inbox</span>
           </div>
           {unreadCount > 0 && (
@@ -247,7 +255,7 @@ export function Sidebar({
               : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
             }`}
         >
-          <FolderKanban size={18} strokeWidth={2} className={pathname.startsWith('/dashboard/projects') ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'} />
+          <FolderKanban size={18} strokeWidth={2} className={pathname.startsWith(`/dashboard/${workspaceSlug}/projects`) ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'} />
           <span className="text-sm font-semibold tracking-tight">Projects</span>
         </Link>
         <Link

@@ -294,7 +294,6 @@ export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModa
               <select
                 className="appearance-none bg-white border border-gray-200 rounded-md px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/20 pr-8 cursor-pointer w-full shadow-sm"
                 value={formData.assignee_id}
-                required
                 onChange={(e) => setFormData({ ...formData, assignee_id: e.target.value })}
               >
                 <option value="" disabled className="text-gray-400">Select assignee *</option>

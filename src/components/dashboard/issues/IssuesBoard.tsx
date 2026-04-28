@@ -5,12 +5,10 @@ import {
   MoreHorizontal,
   Plus,
   LayoutGrid,
-  Clock,
-  Paperclip,
-  Check
+  Paperclip
 } from 'lucide-react';
 import { twMerge } from 'tailwind-merge';
-import { GroupBy, STATUS_ORDER, PRIORITY_ORDER, DisplaySettings } from '@/lib/utils/issue-display-utils';
+import { DisplaySettings } from '@/lib/utils/issue-display-utils';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { IssuePrioritySelector } from './IssuePrioritySelector';
 import { IssueStatusSelector } from './IssueStatusSelector';
@@ -21,7 +19,7 @@ interface IssuesBoardProps {
   users: any[];
   currentUser: any;
   displaySettings: DisplaySettings;
-  workspaceSlug?: string;
+  workspaceSlug: string;
   onOpenModal?: () => void;
 }
 
@@ -35,12 +33,12 @@ const statusIcons: Record<string, any> = {
   'cancelled': { label: 'Cancelled', color: 'bg-red-500' },
 };
 
-function IssueCard({ ticket, users, currentUser, displaySettings, workspaceSlug }: { ticket: any, users: any[], currentUser: any, displaySettings: DisplaySettings, workspaceSlug?: string }) {
+function IssueCard({ ticket, users, currentUser, displaySettings, workspaceSlug }: { ticket: any, users: any[], currentUser: any, displaySettings: DisplaySettings, workspaceSlug: string }) {
   const showProp = (id: string) => displaySettings.showProperties.includes(id);
 
   return (
-    <Link
-      href={workspaceSlug ? `/dashboard/${workspaceSlug}/issues/${ticket.id}` : `/dashboard/issues/${ticket.id}`}
+    <Link 
+      href={`/dashboard/${workspaceSlug}/issues/${ticket.id}`}
       className="block group bg-white border border-gray-100 rounded-xl p-4 mb-3 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all cursor-pointer relative"
     >
       <div className="flex flex-col gap-3">

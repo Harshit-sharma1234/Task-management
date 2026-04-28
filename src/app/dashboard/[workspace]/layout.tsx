@@ -80,12 +80,16 @@ export default async function WorkspaceDashboardLayout({
     roles: m.roles,
   }));
 
-  const availableWorkspaces = (allWorkspacesRes.data || []).map((m: any) => ({
-    id: m.workspaces?.id,
-    name: m.workspaces?.name,
-    slug: m.workspaces?.slug,
-    role: m.roles?.role_name,
-  })).filter((w: any) => w.id);
+  const availableWorkspaces = (allWorkspacesRes.data || []).map((m: any) => {
+    const ws = Array.isArray(m.workspaces) ? m.workspaces[0] : m.workspaces;
+    const role = Array.isArray(m.roles) ? m.roles[0] : m.roles;
+    return {
+      id: ws?.id,
+      name: ws?.name,
+      slug: ws?.slug,
+      role: role?.role_name,
+    };
+  }).filter((w: any) => w.id);
 
   const snapshot = {
     projects: projectsRes.data || [],
@@ -105,7 +109,7 @@ export default async function WorkspaceDashboardLayout({
   return (
     <div className="flex h-screen bg-white text-gray-900 font-sans overflow-hidden">
       <DashboardToaster />
-      <GlobalDataSync initialData={snapshot} />
+      <GlobalDataSync key={workspace.id} initialData={snapshot} />
       <LoadingProgress />
       <Sidebar 
         userId={user.id} 

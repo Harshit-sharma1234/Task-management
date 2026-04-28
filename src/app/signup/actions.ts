@@ -6,6 +6,7 @@ import { sendEmail, sendBulkEmails } from '@/lib/email'
 import { newSignupNotificationEmail, emailVerificationEmail } from '@/lib/email-templates'
 import { randomInt } from 'crypto'
 import { getBaseUrl } from '@/lib/urls'
+import { validatePassword } from '@/lib/validation'
 
 const APP_URL = getBaseUrl()
 
@@ -29,6 +30,17 @@ export async function requestOTP(email: string) {
 
     const otpCode = randomInt(100000, 999999).toString()
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString() // 10 minutes
+
+    // Issue #7: Rate limit — max 5 OTP requests per email per hour
+    const { data: recentOtps } = await adminClient
+        .from('email_otps')
+        .select('created_at')
+        .eq('email', email.toLowerCase())
+        .gte('created_at', new Date(Date.now() - 60 * 60 * 1000).toISOString())
+
+    if (recentOtps && recentOtps.length >= 5) {
+        return { error: 'Too many verification requests. Please try again in an hour.' }
+    }
 
     const { error: otpError } = await adminClient
         .from('email_otps')
@@ -107,8 +119,12 @@ export async function signup(prevState: any, formData: FormData) {
     if (!employeeId || employeeId.length < 2) {
         return { error: 'Employee ID is required.' }
     }
-    if (!password || password.length < 6) {
-        return { error: 'Password must be at least 6 characters.' }
+    if (!password) {
+        return { error: 'Password is required.' }
+    }
+    const passwordCheck = validatePassword(password)
+    if (!passwordCheck.valid) {
+        return { error: passwordCheck.error }
     }
 
     const adminClient = createAdminClient()

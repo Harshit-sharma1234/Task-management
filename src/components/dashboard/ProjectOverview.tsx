@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, useTransition } from 'react';
-import { Building2, Check, X } from 'lucide-react';
+import { Building2, Check, X, Pencil } from 'lucide-react';
 import { updateProjectDescription } from '@/app/dashboard/actions';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
@@ -31,23 +31,40 @@ interface ProjectOverviewProps {
 
 export function ProjectOverview({ project, users, currentMemberIds, currentUser, resources }: ProjectOverviewProps) {
   const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
   const [descriptionValue, setDescriptionValue] = useState(project.description || '');
+  const [nameValue, setNameValue] = useState(project.project_name);
   const [isPending, startTransition] = useTransition();
   const supabase = useMemo(() => createClient(), []);
+
+  // Listen for header-triggered edit
+  useEffect(() => {
+    const handler = () => {
+      setIsEditingDescription(true);
+      setIsEditingName(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    window.addEventListener('trigger-project-edit', handler);
+    return () => window.removeEventListener('trigger-project-edit', handler);
+  }, []);
 
   // Realtime: project description updates (other users) -> update local description instantly.
   useEffect(() => {
     if (!project?.id) return;
     const channel = supabase
-      .channel(`project_description_${project.id}`)
+      .channel(`project_content_${project.id}`)
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'projects', filter: `id=eq.${project.id}` },
         (payload) => {
-          if (isEditingDescription) return;
           const next = payload?.new as any;
-          if (next && typeof next.description !== 'undefined') {
-            setDescriptionValue(next.description || '');
+          if (next) {
+            if (!isEditingDescription && typeof next.description !== 'undefined') {
+                setDescriptionValue(next.description || '');
+            }
+            if (!isEditingName && typeof next.project_name !== 'undefined') {
+                setNameValue(next.project_name || '');
+            }
           }
         }
       )
@@ -57,7 +74,7 @@ export function ProjectOverview({ project, users, currentMemberIds, currentUser,
       channel.unsubscribe();
       supabase.removeChannel(channel);
     };
-  }, [project?.id, supabase, isEditingDescription]);
+  }, [project?.id, supabase, isEditingDescription, isEditingName]);
 
   const handleSaveDescription = () => {
     if (descriptionValue === project.description) {
@@ -75,6 +92,27 @@ export function ProjectOverview({ project, users, currentMemberIds, currentUser,
     });
   };
 
+  const handleSaveName = () => {
+    if (!nameValue.trim()) {
+        toast.error("Project name cannot be empty");
+        return;
+    }
+    if (nameValue === project.project_name) {
+      setIsEditingName(false);
+      return;
+    }
+
+    startTransition(async () => {
+        const { updateProjectName } = await import('@/app/dashboard/actions');
+        const res = await updateProjectName(project.id, nameValue);
+        if (res.error) {
+          toast.error(res.error);
+        } else {
+          setIsEditingName(false);
+        }
+    });
+  };
+
   return (
     <div className="p-8 max-w-4xl mx-auto space-y-12 bg-white">
       {/* Title Section */}
@@ -83,8 +121,49 @@ export function ProjectOverview({ project, users, currentMemberIds, currentUser,
           <div className="w-12 h-12 rounded-lg bg-indigo-50 flex items-center justify-center border border-indigo-100">
             <Building2 className="text-indigo-600" size={24} />
           </div>
-          <div className="flex flex-col">
-            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">{project.project_name}</h1>
+          <div className="flex-1 min-w-0">
+            {isEditingName ? (
+                <div className="flex items-center gap-2">
+                    <input
+                        type="text"
+                        value={nameValue}
+                        onChange={(e) => setNameValue(e.target.value)}
+                        autoFocus
+                        className="text-3xl font-bold text-gray-900 tracking-tight bg-gray-50 border-b-2 border-indigo-500 outline-none w-full px-1"
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSaveName();
+                            if (e.key === 'Escape') {
+                                setNameValue(project.project_name);
+                                setIsEditingName(false);
+                            }
+                        }}
+                    />
+                    <button onClick={handleSaveName} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-md">
+                        <Check size={20} />
+                    </button>
+                    <button onClick={() => {
+                        setNameValue(project.project_name);
+                        setIsEditingName(false);
+                    }} className="p-1.5 text-gray-400 hover:bg-gray-50 rounded-md">
+                        <X size={20} />
+                    </button>
+                </div>
+            ) : (
+                <div className="flex items-center justify-between group">
+                    <h1 
+                        className="text-3xl font-bold text-gray-900 tracking-tight cursor-text"
+                        onClick={() => setIsEditingName(true)}
+                    >
+                        {nameValue}
+                    </h1>
+                    <button 
+                        onClick={() => setIsEditingName(true)}
+                        className="p-1.5 text-gray-300 opacity-0 group-hover:opacity-100 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-all"
+                    >
+                        <Pencil size={14} />
+                    </button>
+                </div>
+            )}
           </div>
         </div>
 
@@ -108,10 +187,13 @@ export function ProjectOverview({ project, users, currentMemberIds, currentUser,
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Description</h3>
-          {isEditingDescription && (
+          {isEditingDescription ? (
             <div className="flex items-center gap-2">
               <button 
-                onClick={() => setIsEditingDescription(false)}
+                onClick={() => {
+                    setDescriptionValue(project.description || '');
+                    setIsEditingDescription(false);
+                }}
                 className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
                 disabled={isPending}
               >
@@ -125,6 +207,13 @@ export function ProjectOverview({ project, users, currentMemberIds, currentUser,
                 <Check size={16} />
               </button>
             </div>
+          ) : (
+            <button 
+                onClick={() => setIsEditingDescription(true)}
+                className="p-1.5 text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-all"
+            >
+                <Pencil size={12} />
+            </button>
           )}
         </div>
         
@@ -132,14 +221,17 @@ export function ProjectOverview({ project, users, currentMemberIds, currentUser,
           <textarea
             value={descriptionValue}
             onChange={(e) => setDescriptionValue(e.target.value)}
-            onBlur={(e) => {
-              // Only save if clicking outside the save button area
-              // For simplicity, we'll rely on the buttons for now
-            }}
             placeholder="Add description..."
             autoFocus
             className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm text-gray-600 focus:outline-none focus:ring-1 focus:ring-indigo-500/30 focus:border-indigo-500/50 transition-all min-h-[120px] resize-none"
             disabled={isPending}
+            onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSaveDescription();
+                if (e.key === 'Escape') {
+                    setDescriptionValue(project.description || '');
+                    setIsEditingDescription(false);
+                }
+            }}
           />
         ) : (
           <div 

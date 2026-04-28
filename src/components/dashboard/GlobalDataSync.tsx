@@ -23,13 +23,14 @@ interface GlobalDataSyncProps {
  */
 export function GlobalDataSync({ initialData }: GlobalDataSyncProps) {
     const hasHydrated = useRef(false);
+    const activeWorkspaceIdRef = useRef<string | null>(null);
     const { setProjects, setTeam, setInitialLoadComplete, setActiveWorkspaceId, updateProject } = useGlobalStore();
     const { setTeamData } = useTeamStore();
     const { setUnreadCount } = useNotificationStore();
     const supabase = createClient();
 
-    // IMMEDIATE HYDRATION
-    if (initialData && !hasHydrated.current) {
+    // IMMEDIATE HYDRATION / RE-HYDRATION ON WORKSPACE CHANGE
+    if (initialData && (initialData.activeWorkspaceId !== activeWorkspaceIdRef.current)) {
         setProjects(initialData.projects);
         setTeam(initialData.team);
         setTeamData(
@@ -43,7 +44,7 @@ export function GlobalDataSync({ initialData }: GlobalDataSyncProps) {
             setActiveWorkspaceId(initialData.activeWorkspaceId);
         }
         setInitialLoadComplete(true);
-        hasHydrated.current = true;
+        activeWorkspaceIdRef.current = initialData.activeWorkspaceId || null;
     }
 
     useEffect(() => {

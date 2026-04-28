@@ -17,8 +17,9 @@ export function DeleteIssueButton({ id }: { id: string }) {
     const res = await deleteIssue(id);
     if (res.success) {
       toast.success('Issue deleted successfully');
-      // Use window.location as a fallback if router.push doesn't trigger refresh enough
-      window.location.href = '/dashboard/issues';
+      // Redirect back to the issues list within the current workspace
+      const workspaceSlug = window.location.pathname.split('/')[2];
+      window.location.href = `/dashboard/${workspaceSlug}/issues`;
     } else {
       toast.error(res.error);
       setIsDeleting(false);
