@@ -1,9 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { X, UserPlus, Mail, Shield, BadgeCheck, Copy, Check } from 'lucide-react'
 import { createWorkspaceInvite } from '@/app/dashboard/[workspace]/team/actions'
-import { useParams } from 'next/navigation'
 import { toast } from 'sonner'
 
 interface InviteMemberModalProps {
@@ -20,12 +19,26 @@ const ROLES = [
 ]
 
 export function InviteMemberModal({ isOpen, onClose, workspaceId }: InviteMemberModalProps) {
-    const params = useParams()
-    
+    const formRef = useRef<HTMLFormElement>(null)
+
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [inviteLink, setInviteLink] = useState<string | null>(null)
     const [copied, setCopied] = useState(false)
+
+    const resetModalState = () => {
+        setIsSubmitting(false)
+        setError(null)
+        setInviteLink(null)
+        setCopied(false)
+        formRef.current?.reset()
+    }
+
+    useEffect(() => {
+        if (!isOpen) {
+            resetModalState()
+        }
+    }, [isOpen])
 
     if (!isOpen) return null
 
@@ -90,7 +103,7 @@ export function InviteMemberModal({ isOpen, onClose, workspaceId }: InviteMember
                 </div>
 
                 {!inviteLink ? (
-                    <form onSubmit={handleSubmit} className="p-8 space-y-6">
+                    <form ref={formRef} onSubmit={handleSubmit} className="p-8 space-y-6">
                         {error && (
                             <div className="p-4 bg-red-50 border border-red-100 text-red-600 text-sm rounded-2xl flex items-center gap-3 animate-in shake duration-300">
                                 <X size={16} className="shrink-0" />
@@ -183,12 +196,22 @@ export function InviteMemberModal({ isOpen, onClose, workspaceId }: InviteMember
                             </button>
                         </div>
 
-                        <button 
-                            onClick={onClose}
-                            className="w-full py-4 text-[14px] font-bold text-gray-500 hover:text-gray-900 transition-colors"
-                        >
-                            Close
-                        </button>
+                        <div className="flex gap-3">
+                            <button
+                                type="button"
+                                onClick={resetModalState}
+                                className="flex-1 py-4 text-[14px] font-bold text-indigo-600 hover:text-indigo-700 transition-colors"
+                            >
+                                Invite another member
+                            </button>
+                            <button 
+                                type="button"
+                                onClick={onClose}
+                                className="flex-1 py-4 text-[14px] font-bold text-gray-500 hover:text-gray-900 transition-colors"
+                            >
+                                Close
+                            </button>
+                        </div>
                     </div>
                 )}
 
