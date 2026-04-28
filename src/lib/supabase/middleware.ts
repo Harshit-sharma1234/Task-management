@@ -42,7 +42,7 @@ export async function updateSession(request: NextRequest) {
 
     // Protected routes that require authentication
     // Note: invite links must be accessible to new users without an account.
-    // The invite pages themselves handle redirecting to /invite-signup or /login as appropriate.
+    // The invite pages themselves handle redirecting to /signup or /login as appropriate.
     const isProtectedRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/workspace')
     
     // Auth routes that should redirect if already logged in

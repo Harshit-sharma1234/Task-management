@@ -7,6 +7,7 @@ import { getRolePath } from '@/lib/role-utils'
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
+  const token = searchParams.get('token')
   const rawNext = searchParams.get('next') ?? '/'
 
   // Issue #2: Validate redirect path to prevent open redirects
@@ -56,7 +57,54 @@ export async function GET(request: Request) {
             .eq('user_id', userProfile.id)
 
           if (memberships && memberships.length > 0) {
-            if (isInviteRedirect) {
+            if (isInviteRedirect || token) {
+              // Handle Invite Token for existing users
+              if (token) {
+                const { data: invite } = await adminClient
+                  .from('workspace_invites')
+                  .select('*, workspaces(name, slug), roles(role_name)')
+                  .eq('token', token)
+                  .eq('status', 'pending')
+                  .gt('expires_at', new Date().toISOString())
+                  .maybeSingle()
+
+                if (invite && invite.email.toLowerCase() === user.email?.toLowerCase()) {
+                  // Join workspace (if not already a member)
+                  const { data: existing } = await adminClient
+                    .from('workspace_members')
+                    .select('id')
+                    .eq('workspace_id', invite.workspace_id)
+                    .eq('user_id', user.id)
+                    .maybeSingle()
+
+                  if (!existing) {
+                    await adminClient
+                      .from('workspace_members')
+                      .insert({
+                        workspace_id: invite.workspace_id,
+                        user_id: user.id,
+                        role_id: invite.role_id,
+                        joined_at: new Date().toISOString(),
+                      })
+
+                    await adminClient
+                      .from('workspace_invites')
+                      .update({ 
+                        status: 'accepted', 
+                        accepted_at: new Date().toISOString(),
+                        accepted_by: user.id
+                      })
+                      .eq('id', invite.id)
+                  }
+
+                  const slug = (invite as any).workspaces?.slug
+                  const roleName = (invite as any).roles?.role_name || 'Junior Developer'
+                  const rolePath = getRolePath(roleName)
+                  
+                  return NextResponse.redirect(`${origin}/dashboard/${slug}/${rolePath}`)
+                }
+              }
+
               return NextResponse.redirect(`${origin}${next}`)
             }
 
@@ -94,6 +142,45 @@ export async function GET(request: Request) {
             avatar_url: fallbackAvatar,
             employee_id: fallbackEmployeeId,
           }, { onConflict: 'id' })
+
+        // Handle Invite Token
+        if (token) {
+          const { data: invite } = await adminClient
+            .from('workspace_invites')
+            .select('*, workspaces(name, slug), roles(role_name)')
+            .eq('token', token)
+            .eq('status', 'pending')
+            .gt('expires_at', new Date().toISOString())
+            .maybeSingle()
+
+          if (invite && invite.email.toLowerCase() === user.email?.toLowerCase()) {
+            // Join workspace
+            await adminClient
+              .from('workspace_members')
+              .insert({
+                workspace_id: invite.workspace_id,
+                user_id: user.id,
+                role_id: invite.role_id,
+                joined_at: new Date().toISOString(),
+              })
+
+            // Accept invite
+            await adminClient
+              .from('workspace_invites')
+              .update({ 
+                status: 'accepted', 
+                accepted_at: new Date().toISOString(),
+                accepted_by: user.id
+              })
+              .eq('id', invite.id)
+
+            const slug = (invite as any).workspaces?.slug
+            const roleName = (invite as any).roles?.role_name || 'Junior Developer'
+            const rolePath = getRolePath(roleName)
+            
+            return NextResponse.redirect(`${origin}/dashboard/${slug}/${rolePath}`)
+          }
+        }
 
         // After repair, redirect to workspace onboarding (no memberships yet)
         if (isInviteRedirect) {
