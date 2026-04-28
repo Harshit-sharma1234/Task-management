@@ -39,6 +39,7 @@ interface ProjectListProps {
     users: User[];
     userMap: Record<string, string>;
     userRole: AppRole | null;
+    workspaceId?: string;
 }
 
 import { UserAvatar } from '@/components/ui/UserAvatar';
@@ -204,7 +205,6 @@ const ProjectRow = memo(({
                     {project.status ? project.status.replace('_', ' ') : 'backlog'}
                 </span>
             </div>
-
             {/* Actions */}
             <div className="flex items-center justify-end pr-5 relative z-10">
                 {canDelete && (
@@ -242,7 +242,7 @@ const ProjectRow = memo(({
 
 ProjectRow.displayName = 'ProjectRow';
 
-export function ProjectList({ projects, users, userMap, userRole }: ProjectListProps) {
+export function ProjectList({ projects, users, userMap, userRole, workspaceId }: ProjectListProps) {
     const [searchTerm, setSearchTerm] = useState('');
     const [localProjects, setLocalProjects] = useState<Project[]>(projects);
     const supabase = useMemo(() => createClient(), []);
@@ -328,7 +328,7 @@ export function ProjectList({ projects, users, userMap, userRole }: ProjectListP
                             className="pl-9 pr-4 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 w-64 bg-gray-50/50"
                         />
                     </div>
-                    <CreateProjectButton variant="header" />
+                    <CreateProjectButton variant="header" workspaceId={workspaceId} />
                 </div>
             </header>
 
@@ -348,7 +348,7 @@ export function ProjectList({ projects, users, userMap, userRole }: ProjectListP
                                     ? `We couldn't find any projects matching "${searchTerm}".`
                                     : "You haven't created any projects yet. Start by creating a project to organize your team's tasks."}
                             </p>
-                            {!searchTerm && <CreateProjectButton variant="header" />}
+                            {!searchTerm && <CreateProjectButton variant="header" workspaceId={workspaceId} />}
                         </div>
                     ) : (
                         <div className="bg-white rounded-lg shadow-sm border border-gray-200">

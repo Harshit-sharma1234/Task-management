@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getServerUser } from '@/lib/auth-server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getRolePath } from '@/lib/role-utils'
 
 /**
  * Catch-all /dashboard route.
@@ -56,12 +57,3 @@ export default async function Dashboard() {
   redirect(`/dashboard/${slug}/${rolePath}`);
 }
 
-function getRolePath(roleName: string): string {
-  switch (roleName) {
-    case 'Admin': return 'admin'
-    case 'Project Manager': return 'project-manager'
-    case 'Senior Developer': return 'senior-developer'
-    case 'Junior Developer': return 'junior-developer'
-    default: return 'junior-developer'
-  }
-}

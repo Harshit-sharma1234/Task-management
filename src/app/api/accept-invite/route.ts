@@ -13,7 +13,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Issue #3: Verify the caller is actually the authenticated user
     const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    if (user.id !== userId) {
+      return NextResponse.json(
+        { error: 'User ID mismatch — you can only accept invites for your own account' },
+        { status: 403 }
+      );
+    }
+
     const adminClient = createAdminClient();
 
     // Validate the token
@@ -54,6 +71,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if already a member
+    const { data: existingMember } = await adminClient
+      .from('workspace_members')
+      .select('id')
+      .eq('workspace_id', invite.workspace_id)
+      .eq('user_id', userProfile.id)
+      .maybeSingle();
+
+    if (existingMember) {
+      return NextResponse.json({
+        success: true,
+        workspaceName: (invite as any).workspaces?.name,
+        workspaceSlug: (invite as any).workspaces?.slug,
+        roleName: (invite as any).roles?.role_name,
+        message: 'Already a member of this workspace',
+      });
+    }
+
     // Add user to workspace members
     const { error: memberError } = await adminClient
       .from('workspace_members')
@@ -84,7 +119,6 @@ export async function POST(request: NextRequest) {
 
     if (updateError) {
       console.error('Invite update error:', updateError);
-      // Don't fail the whole operation if just the update fails
     }
 
     return NextResponse.json({

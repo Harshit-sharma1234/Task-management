@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Link as LinkIcon, Share2, MoreHorizontal, Check, Trash2, ExternalLink } from 'lucide-react';
+import { Link as LinkIcon, Share2, MoreHorizontal, Check, Trash2, ExternalLink, Pencil } from 'lucide-react';
 import { deleteIssue } from '@/app/dashboard/[workspace]/issues/actions';
 import { toast } from 'sonner';
 import { useRouter, useParams } from 'next/navigation';
@@ -64,6 +64,16 @@ export function IssueHeaderActions({ ticketId, canDelete }: IssueHeaderActionsPr
             <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
             <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-100 rounded-xl shadow-lg z-20 py-1 flex flex-col">
               <button
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent('trigger-issue-edit'));
+                  setShowMenu(false);
+                }}
+                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left font-medium"
+              >
+                <Pencil size={14} className="text-gray-400" />
+                Edit issue
+              </button>
+              <button 
                 onClick={() => {
                   window.open(`/dashboard/${workspaceSlug}/issues/${ticketId}`, '_blank');
                   setShowMenu(false);

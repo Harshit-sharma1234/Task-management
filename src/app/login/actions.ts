@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getRolePath } from '@/lib/role-utils'
+import { isSafeRedirectPath } from '@/lib/validation'
 
 export async function login(prevState: any, formData: FormData) {
   const supabase = await createClient()
@@ -12,6 +14,9 @@ export async function login(prevState: any, formData: FormData) {
     email: (formData.get('email') as string).trim().toLowerCase(),
     password: formData.get('password') as string,
   }
+
+  // Issue #10: Read the next URL from the form
+  const nextUrl = formData.get('next') as string | null
 
   // 1. Authenticate
   const authResponse = await Promise.race([
@@ -36,6 +41,12 @@ export async function login(prevState: any, formData: FormData) {
   if (!userProfile) {
     await supabase.auth.signOut()
     return { error: 'No profile found for this email. Please sign up.' }
+  }
+
+  // Issue #10: If there's a valid next URL (e.g. invite link), redirect there
+  if (nextUrl && isSafeRedirectPath(nextUrl)) {
+    revalidatePath('/', 'layout')
+    return redirect(nextUrl)
   }
 
   // Try to get last_workspace_id (may not exist if migration hasn't run)
@@ -83,17 +94,4 @@ export async function login(prevState: any, formData: FormData) {
 
   revalidatePath('/', 'layout')
   return redirect(`/dashboard/${workspaceSlug}/${rolePath}`)
-}
-
-/**
- * Convert role name to URL-safe path segment
- */
-function getRolePath(roleName: string): string {
-  switch (roleName) {
-    case 'Admin': return 'admin'
-    case 'Project Manager': return 'project-manager'
-    case 'Senior Developer': return 'senior-developer'
-    case 'Junior Developer': return 'junior-developer'
-    default: return 'junior-developer'
-  }
 }
