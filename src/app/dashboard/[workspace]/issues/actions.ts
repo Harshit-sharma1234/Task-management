@@ -8,6 +8,67 @@ import { createNotification, parseMentions } from '@/app/dashboard/[workspace]/n
 
 import { getCachedUserProfile } from '@/lib/cache'
 
+type WorkspaceRole = 'Admin' | 'Project Manager' | 'Senior Developer' | 'Junior Developer' | null
+
+async function getIssueAccessContext(ticketId: string, userEmail: string, authId?: string) {
+  const supabase = await createClient()
+  const adminClient = createAdminClient()
+
+  // Prefer resolving by auth_id (most reliable), then fall back to email.
+  let profile: any = null
+  if (authId) {
+    const { data } = await adminClient
+      .from('users')
+      .select('id, auth_id, email, name, employee_id, avatar_url')
+      .eq('auth_id', authId)
+      .maybeSingle()
+    profile = data || null
+  }
+  if (!profile) {
+    const fallback = await getUserProfile(supabase, userEmail, authId)
+    profile = fallback || null
+  }
+  if (!profile) return { error: 'User profile not found' as const }
+
+  const { data: ticket } = await adminClient
+    .from('tickets')
+    .select('id, title, description, attachments, status, priority, assignee_id, reviewer_id, created_by, project_id, projects(workspace_id)')
+    .eq('id', ticketId)
+    .single()
+
+  if (!ticket) return { error: 'Ticket not found' as const }
+
+  const workspaceId = Array.isArray((ticket as any).projects)
+    ? (ticket as any).projects?.[0]?.workspace_id
+    : (ticket as any).projects?.workspace_id
+
+  if (!workspaceId) return { error: 'Workspace not found for this issue' as const }
+
+  const { data: membership } = await adminClient
+    .from('workspace_members')
+    .select('roles(role_name)')
+    .eq('workspace_id', workspaceId)
+    .eq('user_id', profile.id)
+    .maybeSingle()
+
+  const role = ((Array.isArray((membership as any)?.roles) ? (membership as any)?.roles?.[0] : (membership as any)?.roles)?.role_name || null) as WorkspaceRole
+  const isAdminOrPm = role === 'Admin' || role === 'Project Manager'
+  const isAssignee = profile.id === ticket.assignee_id
+  const isReviewer = profile.id === ticket.reviewer_id
+  const canAccessIssue = isAdminOrPm || isAssignee || isReviewer
+
+  return {
+    profile,
+    ticket,
+    workspaceId,
+    role,
+    isAdminOrPm,
+    isAssignee,
+    isReviewer,
+    canAccessIssue
+  }
+}
+
 export async function createIssue(formData: FormData) {
   console.log('[Server Action] createIssue started');
   const supabase = await createClient()
@@ -157,25 +218,15 @@ export async function updateIssueContent(formData: FormData) {
   const ticketId = formData.get('id') as string
   if (!ticketId) return { error: 'Ticket ID is required' }
 
-  // Fetch profile and current ticket in parallel
-  const [profile, { data: ticket }] = await Promise.all([
-    getUserProfile(supabase, user.email!),
-    supabase
-      .from('tickets')
-      .select('id, title, description, created_by, assignee_id, attachments, project_id, projects(workspace_id)')
-      .eq('id', ticketId)
-      .single()
-  ])
+  const context = await getIssueAccessContext(ticketId, user.email!, user.id)
+  if ('error' in context) {
+    return { error: context.error }
+  }
 
-  if (!profile) return { error: 'User profile not found' }
-  if (!ticket) return { error: 'Ticket not found' }
+  const { profile, ticket, workspaceId, canAccessIssue } = context
 
-  // ACCESS GATE: Workspace layout verifies membership; allow edit for all members + creator
-  const isCreator = profile.id === ticket.created_by
-  const canEdit = true // Workspace membership already verified in layout
-
-  if (!canEdit && !isCreator) {
-    return { error: 'Only workspace members can edit this issue.' }
+  if (!canAccessIssue) {
+    return { error: 'Only the Assignee, Reviewer, Admin, or Project Manager can edit this issue.' }
   }
 
   const title = formData.get('title') as string
@@ -275,7 +326,7 @@ export async function updateIssueContent(formData: FormData) {
     postUpdatePromises.push(createNotification({
       userId: ticket.assignee_id,
       actorId: profile.id,
-      workspaceId: (ticket as any).projects?.workspace_id,
+      workspaceId,
       entityType: 'ticket',
       entityId: ticketId,
       type: 'status_change',
@@ -302,33 +353,19 @@ export async function addComment(ticketId: string, comment: string, formData?: F
     return { error: 'You must be logged in to post a comment' }
   }
 
-  const profile = await getUserProfile(supabase, user.email!)
-  if (!profile) {
-    return { error: 'User profile not found.' }
-  }
-
   const commentText = comment.trim()
   if (!commentText && (!formData || !formData.has('attachments'))) {
     return { error: 'Comment cannot be empty' }
   }
 
-  const { data: ticket, error: ticketError } = await supabase
-    .from('tickets')
-    .select('id, title, created_by, assignee_id, reviewer_id, projects(workspace_id)')
-    .eq('id', ticketId)
-    .single()
-
-  if (ticketError || !ticket) {
-    return { error: 'Ticket not found.' }
+  const context = await getIssueAccessContext(ticketId, user.email!, user.id)
+  if ('error' in context) {
+    return { error: context.error }
   }
 
-  // Roles are now workspace-scoped; commenting is allowed for all workspace members
-  const isAdmin = true // Workspace role verified at layout level
-  const isPM = false
-  const isTicketAssignee = profile.id === ticket.assignee_id
-  const isTicketReviewer = profile.id === ticket.reviewer_id
+  const { profile, ticket, isAdminOrPm, isAssignee, isReviewer, workspaceId } = context
 
-  if (!isAdmin && !isPM && !isTicketAssignee && !isTicketReviewer) {
+  if (!isAdminOrPm && !isAssignee && !isReviewer) {
     return { error: 'Only the Assignee, Reviewer, Admin, or Project Manager can post comments on an issue!' }
   }
 
@@ -406,7 +443,7 @@ export async function addComment(ticketId: string, comment: string, formData?: F
               notificationPromises.push(createNotification({
                 userId: mUser.id,
                 actorId: profile.id,
-                workspaceId: (ticket as any).projects?.workspace_id,
+                workspaceId,
                 entityType: 'ticket',
                 entityId: ticketId,
                 type: 'mention',
@@ -421,7 +458,7 @@ export async function addComment(ticketId: string, comment: string, formData?: F
         notificationPromises.push(createNotification({
           userId: rid,
           actorId: profile.id,
-          workspaceId: (ticket as any).projects?.workspace_id,
+          workspaceId,
           entityType: 'ticket',
           entityId: ticketId,
           type: 'comment',
@@ -551,23 +588,16 @@ export async function updateIssue(ticketId: string, updates: {
     return { error: 'You must be logged in to update an issue' }
   }
 
-  // Fetch profile and current ticket state in parallel
-  const [profile, { data: ticket }] = await Promise.all([
-    getUserProfile(supabase, user.email!),
-    supabase
-      .from('tickets')
-      .select('id, title, status, priority, assignee_id, reviewer_id, created_by, project_id, projects(workspace_id)')
-      .eq('id', ticketId)
-      .single()
-  ])
-  if (!profile) return { error: 'User profile not found' }
+  const context = await getIssueAccessContext(ticketId, user.email!, user.id)
+  if ('error' in context) {
+    return { error: context.error }
+  }
 
-  if (!ticket) return { error: 'Ticket not found' }
+  const { profile, ticket, workspaceId, role, isAdminOrPm, isAssignee, isReviewer, canAccessIssue } = context
 
-  // ACCESS GATE: Workspace layout verifies membership; allow updates for assignee, reviewer, or any member
-  const isTicketAssignee = profile.id === ticket.assignee_id
-  const isTicketReviewer = profile.id === ticket.reviewer_id
-  const isCreator = profile.id === ticket.created_by
+  if (!canAccessIssue) {
+    return { error: 'Only the Assignee, Reviewer, Admin, or Project Manager can update this issue.' }
+  }
 
   // CONSTRAINT: Assignee can't be the reviewer
   const newAssigneeId = updates.assignee_id !== undefined ? updates.assignee_id : ticket.assignee_id
@@ -576,8 +606,29 @@ export async function updateIssue(ticketId: string, updates: {
     return { error: 'The assignee and reviewer cannot be the same person' }
   }
 
-  // Reviewer role validation is now handled via workspace_members
-  // TODO: Validate reviewer role from workspace context
+  if (updates.status && isAssignee && !isAdminOrPm && ['in_review', 'done'].includes(updates.status)) {
+    return { error: 'Assignees cannot move issues to In Review or Done.' }
+  }
+
+  if (updates.reviewer_id) {
+    const { data: reviewerMembership } = await createAdminClient()
+      .from('workspace_members')
+      .select('roles(role_name)')
+      .eq('workspace_id', workspaceId)
+      .eq('user_id', updates.reviewer_id)
+      .maybeSingle()
+
+    const reviewerRole = ((Array.isArray((reviewerMembership as any)?.roles) ? (reviewerMembership as any)?.roles?.[0] : (reviewerMembership as any)?.roles)?.role_name || null) as WorkspaceRole
+    const reviewerAllowed = reviewerRole === 'Admin' || reviewerRole === 'Project Manager' || reviewerRole === 'Senior Developer'
+
+    if (!reviewerAllowed) {
+      return { error: 'Only Admin, Project Manager, or Senior Developer can be assigned as reviewer.' }
+    }
+
+    if (role === 'Senior Developer' && isAssignee && updates.reviewer_id === profile.id) {
+      return { error: 'Senior Developers cannot assign their own ticket to themselves for review.' }
+    }
+  }
 
   const { data, error } = await supabase
     .from('tickets')
@@ -630,7 +681,7 @@ export async function updateIssue(ticketId: string, updates: {
       postUpdatePromises.push(createNotification({
         userId: ticket.assignee_id,
         actorId: profile.id,
-        workspaceId: (ticket as any).projects?.workspace_id,
+        workspaceId,
         entityType: 'ticket',
         entityId: ticketId,
         type: 'status_change',
@@ -646,7 +697,7 @@ export async function updateIssue(ticketId: string, updates: {
       postUpdatePromises.push(createNotification({
         userId: updates.assignee_id,
         actorId: profile.id,
-        workspaceId: (ticket as any).projects?.workspace_id,
+        workspaceId,
         entityType: 'ticket',
         entityId: ticketId,
         type: 'assignment',
@@ -679,8 +730,14 @@ export async function deleteIssue(ticketId: string) {
     return { error: 'You must be logged in to delete an issue' }
   }
 
-  const profile = await getUserProfile(supabase, user.email!)
-  if (!profile) return { error: 'User profile not found' }
+  const context = await getIssueAccessContext(ticketId, user.email!, user.id)
+  if ('error' in context) {
+    return { error: context.error }
+  }
+
+  if (!context.isAdminOrPm) {
+    return { error: 'Only Admin or Project Manager can delete this issue.' }
+  }
 
   // Use admin client to bypass RLS for deletion
   const { createAdminClient } = await import('@/lib/supabase/admin')
