@@ -64,10 +64,11 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
     redirect(`/signup?token=${token}&message=Please create an account to join the workspace`);
   }
 
+  const adminClient = createAdminClient();
   // Validate the token
   const { data: invite } = await adminClient
     .from('workspace_invites')
-    .select('*, workspaces(name, slug), roles(role_name)')
+    .select('*, workspaces(id, name, slug), roles(role_name)')
     .eq('token', token)
     .eq('status', 'pending')
     .gt('expires_at', new Date().toISOString())
@@ -90,6 +91,21 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
         </div>
       </main>
     );
+  }
+
+  // Check if user is already a member
+  const { data: existingMember } = await adminClient
+    .from('workspace_members')
+    .select('id, roles(role_name)')
+    .eq('workspace_id', invite.workspace_id)
+    .eq('user_id', userProfile.id)
+    .maybeSingle();
+
+  if (existingMember) {
+    const roleName = (existingMember as any).roles?.role_name || 'Junior Developer';
+    const { getRolePath } = await import('@/lib/role-utils');
+    const rolePath = getRolePath(roleName);
+    redirect(`/dashboard/${(invite as any).workspaces?.slug}/${rolePath}`);
   }
 
   const emailMatch = userProfile?.email?.toLowerCase() === invite.email.toLowerCase();
