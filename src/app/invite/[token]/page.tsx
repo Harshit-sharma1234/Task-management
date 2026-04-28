@@ -13,9 +13,9 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  // If not logged in, redirect to invite signup page
+  // If not logged in, redirect to main signup page
   if (!user) {
-    redirect(`/invite-signup?token=${token}`);
+    redirect(`/signup?token=${token}&message=Please create an account to join the workspace`);
   }
 
   // Check if user has an account in our system
@@ -59,9 +59,9 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
     userProfile = repairedProfile;
   }
 
-  // If still missing profile, send to invite signup flow.
+  // If still missing profile, send to main signup page.
   if (!userProfile) {
-    redirect(`/invite-signup?token=${token}`);
+    redirect(`/signup?token=${token}&message=Please create an account to join the workspace`);
   }
 
   // Validate the token

@@ -1,7 +1,7 @@
 'use client';
 
 import { useActionState, useEffect, useState, useMemo, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Mail, Lock, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { login } from './actions';
 import { ForgotPasswordFlow } from './ForgotPasswordFlow';
@@ -31,6 +31,8 @@ export default function LoginForm({ initialMessage, nextUrl, isError: initialIsE
   const [showForgot, setShowForgot] = useState(false);
   const [isOAuthLoading, setIsOAuthLoading] = useState<string | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const token = searchParams.get('token');
 
   // Issue #11: Memoize the Supabase client
   const supabase = useMemo(() => createClient(), []);
@@ -38,16 +40,21 @@ export default function LoginForm({ initialMessage, nextUrl, isError: initialIsE
   // Issue #12: Add loading states for social login
   const handleSocialLogin = useCallback(async (provider: 'google' | 'azure') => {
     setIsOAuthLoading(provider);
+    const callbackUrl = new URL(`${window.location.origin}/auth/callback`);
+    if (nextUrl) callbackUrl.searchParams.set('next', nextUrl);
+    if (token) callbackUrl.searchParams.set('token', token);
+
     await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: `${window.location.origin}/auth/callback${nextUrl ? `?next=${encodeURIComponent(nextUrl)}` : ''}`,
+        redirectTo: callbackUrl.toString(),
         queryParams: {
+          prompt: 'select_account',
           scope: 'openid email profile'
-        }
+        },
       },
     });
-  }, [supabase, nextUrl]);
+  }, [supabase, nextUrl, token]);
 
   const displayMessage = state?.error || initialMessage;
   const isActuallyError = !!state?.error || initialIsError || (initialMessage?.toLowerCase().includes('failed') || initialMessage?.toLowerCase().includes('invalid'));
