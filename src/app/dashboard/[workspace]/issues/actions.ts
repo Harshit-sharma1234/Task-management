@@ -102,7 +102,7 @@ export async function createIssue(formData: FormData) {
           const { error: uploadError } = await adminClient.storage
             .from('issue-attachments')
             .upload(fileName, file)
-          
+
           if (uploadError) {
             console.error('[createIssue] File upload error:', uploadError)
             return null
@@ -139,10 +139,12 @@ export async function createIssue(formData: FormData) {
         }))
         
         // Auto-membership
-        const membershipPromise = adminClient
-          .from('project_members')
-          .upsert({ project_id: projectId, user_id: assigneeId }, { onConflict: 'project_id,user_id' })
-        sideEffects.push(Promise.resolve(membershipPromise))
+        const membershipPromise = Promise.resolve(
+          adminClient
+            .from('project_members')
+            .upsert({ project_id: projectId, user_id: assigneeId }, { onConflict: 'project_id,user_id' })
+        );
+        sideEffects.push(membershipPromise)
       }
 
       await Promise.all(sideEffects)
