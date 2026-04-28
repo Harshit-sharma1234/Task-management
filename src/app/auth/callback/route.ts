@@ -122,6 +122,11 @@ export async function GET(request: Request) {
 
                   const slug = (invite as any).workspaces?.slug
                   const roleName = (invite as any).roles?.role_name || 'Junior Developer'
+                  
+                  const { revalidatePath } = await import('next/cache')
+                  revalidatePath('/', 'layout')
+
+                  const { getRolePath } = await import('@/lib/role-utils')
                   const rolePath = getRolePath(roleName)
                   
                   return NextResponse.redirect(`${origin}/dashboard/${slug}/${rolePath}`)
@@ -200,6 +205,11 @@ export async function GET(request: Request) {
 
             const slug = (invite as any).workspaces?.slug
             const roleName = (invite as any).roles?.role_name || 'Junior Developer'
+            
+            const { revalidatePath } = await import('next/cache')
+            revalidatePath('/', 'layout')
+
+            const { getRolePath } = await import('@/lib/role-utils')
             const rolePath = getRolePath(roleName)
             
             return NextResponse.redirect(`${origin}/dashboard/${slug}/${rolePath}`)

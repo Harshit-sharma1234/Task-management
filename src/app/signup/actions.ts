@@ -235,10 +235,14 @@ export async function signup(prevState: any, formData: FormData) {
                 .eq('id', invite.id)
 
             const workspaceName = (invite as any).workspaces?.name || 'the workspace'
+            const { revalidatePath } = await import('next/cache')
+            revalidatePath('/', 'layout')
             redirect(`/login?message=Account created and you have been added to ${workspaceName}! Please log in.`)
         }
     }
 
     // ── Redirect to login (user must log in, then choose/create a workspace) ──
+    const { revalidatePath } = await import('next/cache')
+    revalidatePath('/', 'layout')
     redirect('/login?message=Account created successfully! Please log in.')
 }
