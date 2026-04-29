@@ -39,208 +39,203 @@ export async function GET(request: Request) {
     const adminClient = createAdminClient()
     const isInviteRedirect = next.startsWith('/invite/')
         
-        // Add a small delay to ensure the DB trigger (social_auth_sync.sql) has finished
-        // especially in high-latency production environments.
-        await new Promise(resolve => setTimeout(resolve, 500))
+    // Add a small delay to ensure the DB trigger (social_auth_sync.sql) has finished
+    // especially in high-latency production environments.
+    await new Promise(resolve => setTimeout(resolve, 500))
 
-        // 1. Get internal user profile
-        let { data: userProfile } = await adminClient
+    // 1. Get internal user profile
+    let { data: userProfile } = await adminClient
+      .from('users')
+      .select('id, last_workspace_id')
+      .eq('auth_id', user.id)
+      .maybeSingle()
+
+    if (!userProfile) {
+      // If still not found, try one more time after another brief wait
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      const { data: retryProfile } = await adminClient
+        .from('users')
+        .select('id, last_workspace_id')
+        .eq('auth_id', user.id)
+        .maybeSingle()
+      
+      if (retryProfile) {
+        userProfile = retryProfile
+      }
+    }
+
+    // Issue #6: Sync OAuth profile data on every login
+    if (userProfile) {
+      const oauthName = user.user_metadata?.full_name || user.user_metadata?.name
+      const oauthAvatar = user.user_metadata?.avatar_url || user.user_metadata?.picture
+
+      if (oauthName || oauthAvatar) {
+        const updates: Record<string, string> = {}
+        if (oauthName) updates.name = oauthName
+        if (oauthAvatar) updates.avatar_url = oauthAvatar
+
+        await adminClient
           .from('users')
-          .select('id, last_workspace_id')
-          .eq('auth_id', user.id)
-          .maybeSingle()
+          .update(updates)
+          .eq('id', userProfile.id)
+      }
+    }
 
-        if (!userProfile) {
-          // If still not found, try one more time after another brief wait
-          await new Promise(resolve => setTimeout(resolve, 1000))
-          const { data: retryProfile } = await adminClient
-            .from('users')
-            .select('id, last_workspace_id')
-            .eq('auth_id', user.id)
-            .maybeSingle()
-          
-          if (retryProfile) {
-            userProfile = retryProfile
-          }
-        }
+    if (userProfile) {
+      const lastWorkspaceId = (userProfile as any).last_workspace_id
 
-        // Issue #6: Sync OAuth profile data on every login
-        if (userProfile) {
-          const oauthName = user.user_metadata?.full_name || user.user_metadata?.name
-          const oauthAvatar = user.user_metadata?.avatar_url || user.user_metadata?.picture
+      const { data: memberships } = await adminClient
+        .from('workspace_members')
+        .select('workspace_id, role_id, workspaces(slug), roles(role_name)')
+        .eq('user_id', userProfile.id)
 
-          if (oauthName || oauthAvatar) {
-            const updates: Record<string, string> = {}
-            if (oauthName) updates.name = oauthName
-            if (oauthAvatar) updates.avatar_url = oauthAvatar
+      if (memberships && memberships.length > 0) {
+        if (isInviteRedirect || token) {
+          // Handle Invite Token for existing users
+          if (token) {
+            const { data: invite } = await adminClient
+              .from('workspace_invites')
+              .select('*, workspaces(name, slug), roles(role_name)')
+              .eq('token', token)
+              .eq('status', 'pending')
+              .gt('expires_at', new Date().toISOString())
+              .maybeSingle()
 
-            await adminClient
-              .from('users')
-              .update(updates)
-              .eq('id', userProfile.id)
-          }
-        }
+            if (invite && invite.email.toLowerCase() === user.email?.toLowerCase()) {
+              // Join workspace (if not already a member)
+              const { data: existing } = await adminClient
+                .from('workspace_members')
+                .select('id')
+                .eq('workspace_id', invite.workspace_id)
+                .eq('user_id', user.id)
+                .maybeSingle()
 
-        if (userProfile) {
-          const lastWorkspaceId = (userProfile as any).last_workspace_id
+              if (!existing) {
+                await adminClient
+                  .from('workspace_members')
+                  .insert({
+                    workspace_id: invite.workspace_id,
+                    user_id: user.id,
+                    role_id: invite.role_id,
+                    joined_at: new Date().toISOString(),
+                  })
 
-          const { data: memberships } = await adminClient
-            .from('workspace_members')
-            .select('workspace_id, role_id, workspaces(slug), roles(role_name)')
-            .eq('user_id', userProfile.id)
-
-          if (memberships && memberships.length > 0) {
-            if (isInviteRedirect || token) {
-              // Handle Invite Token for existing users
-              if (token) {
-                const { data: invite } = await adminClient
+                await adminClient
                   .from('workspace_invites')
-                  .select('*, workspaces(name, slug), roles(role_name)')
-                  .eq('token', token)
-                  .eq('status', 'pending')
-                  .gt('expires_at', new Date().toISOString())
-                  .maybeSingle()
-
-                if (invite && invite.email.toLowerCase() === user.email?.toLowerCase()) {
-                  // Join workspace (if not already a member)
-                  const { data: existing } = await adminClient
-                    .from('workspace_members')
-                    .select('id')
-                    .eq('workspace_id', invite.workspace_id)
-                    .eq('user_id', user.id)
-                    .maybeSingle()
-
-                  if (!existing) {
-                    await adminClient
-                      .from('workspace_members')
-                      .insert({
-                        workspace_id: invite.workspace_id,
-                        user_id: user.id,
-                        role_id: invite.role_id,
-                        joined_at: new Date().toISOString(),
-                      })
-
-                    await adminClient
-                      .from('workspace_invites')
-                      .update({ 
-                        status: 'accepted', 
-                        accepted_at: new Date().toISOString(),
-                        accepted_by: user.id
-                      })
-                      .eq('id', invite.id)
-                  }
-
-                  const slug = (invite as any).workspaces?.slug
-                  const roleName = (invite as any).roles?.role_name || 'Junior Developer'
-                  
-                  const { revalidatePath } = await import('next/cache')
-                  revalidatePath('/', 'layout')
-
-                  const { getRolePath } = await import('@/lib/role-utils')
-                  const rolePath = getRolePath(roleName)
-                  
-                  return NextResponse.redirect(`${origin}/dashboard/${slug}/${rolePath}`)
-                }
+                  .update({ 
+                    status: 'accepted', 
+                    accepted_at: new Date().toISOString(),
+                    accepted_by: user.id
+                  })
+                  .eq('id', invite.id)
               }
 
-              return NextResponse.redirect(`${origin}${next}`)
+              const slug = (invite as any).workspaces?.slug
+              const roleName = (invite as any).roles?.role_name || 'Junior Developer'
+              
+              const { revalidatePath } = await import('next/cache')
+              revalidatePath('/', 'layout')
+
+              const { getRolePath } = await import('@/lib/role-utils')
+              const rolePath = getRolePath(roleName)
+              
+              return NextResponse.redirect(`${origin}/dashboard/${slug}/${rolePath}`)
             }
-
-            let target = memberships[0]
-            if (lastWorkspaceId) {
-              const matched = memberships.find((m: any) => m.workspace_id === lastWorkspaceId)
-              if (matched) target = matched
-            }
-
-            const slug = (target as any).workspaces?.slug
-            const roleName = (target as any).roles?.role_name || 'Junior Developer'
-            const rolePath = getRolePath(roleName)
-
-            return NextResponse.redirect(`${origin}/dashboard/${slug}/${rolePath}`)
           }
-          return handleAuthenticatedUser(userProfile, adminClient, origin)
-        }
 
-        // Issue #14: Profile missing after OAuth — attempt repair before redirecting
-        console.warn(`[auth/callback] No profile found for auth user ${user.id}. DB trigger may have failed.`)
-        
-        // Attempt auto-repair using OAuth metadata
-        const fallbackName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'User'
-        const fallbackAvatar = user.user_metadata?.avatar_url || user.user_metadata?.picture || null
-        const fallbackEmployeeId = `EXT-${user.id.slice(0, 8).toUpperCase()}`
-
-        const { data: repairedProfile } = await adminClient
-          .from('users')
-          .upsert({
-            id: user.id,
-            auth_id: user.id,
-            email: (user.email || '').toLowerCase(),
-            name: fallbackName,
-            avatar_url: fallbackAvatar,
-            employee_id: fallbackEmployeeId,
-          }, { onConflict: 'id' })
-          .select()
-          .single()
-
-        // Handle Invite Token
-        if (token) {
-          const { data: invite } = await adminClient
-            .from('workspace_invites')
-            .select('*, workspaces(name, slug), roles(role_name)')
-            .eq('token', token)
-            .eq('status', 'pending')
-            .gt('expires_at', new Date().toISOString())
-            .maybeSingle()
-
-          if (invite && invite.email.toLowerCase() === user.email?.toLowerCase()) {
-            // Join workspace
-            await adminClient
-              .from('workspace_members')
-              .insert({
-                workspace_id: invite.workspace_id,
-                user_id: user.id,
-                role_id: invite.role_id,
-                joined_at: new Date().toISOString(),
-              })
-
-            // Accept invite
-            await adminClient
-              .from('workspace_invites')
-              .update({ 
-                status: 'accepted', 
-                accepted_at: new Date().toISOString(),
-                accepted_by: user.id
-              })
-              .eq('id', invite.id)
-
-            const slug = (invite as any).workspaces?.slug
-            const roleName = (invite as any).roles?.role_name || 'Junior Developer'
-            
-            const { revalidatePath } = await import('next/cache')
-            revalidatePath('/', 'layout')
-
-            const { getRolePath } = await import('@/lib/role-utils')
-            const rolePath = getRolePath(roleName)
-            
-            return NextResponse.redirect(`${origin}/dashboard/${slug}/${rolePath}`)
-          }
-        }
-
-        // After repair, redirect to workspace onboarding (no memberships yet)
-        if (isInviteRedirect) {
           return NextResponse.redirect(`${origin}${next}`)
         }
-        
-        if (repairedProfile) {
-          return handleAuthenticatedUser(repairedProfile, adminClient, origin)
+
+        let target = memberships[0]
+        if (lastWorkspaceId) {
+          const matched = memberships.find((m: any) => m.workspace_id === lastWorkspaceId)
+          if (matched) target = matched
         }
 
-        return NextResponse.redirect(`${origin}/workspace`)
+        const slug = (target as any).workspaces?.slug
+        const roleName = (target as any).roles?.role_name || 'Junior Developer'
+        const rolePath = getRolePath(roleName)
+
+        return NextResponse.redirect(`${origin}/dashboard/${slug}/${rolePath}`)
       }
-      
-      // User is null after exchange — shouldn't happen, fallback
+      return handleAuthenticatedUser(userProfile, adminClient, origin)
+    }
+
+    // Issue #14: Profile missing after OAuth — attempt repair before redirecting
+    console.warn(`[auth/callback] No profile found for auth user ${user.id}. DB trigger may have failed.`)
+    
+    // Attempt auto-repair using OAuth metadata
+    const fallbackName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'User'
+    const fallbackAvatar = user.user_metadata?.avatar_url || user.user_metadata?.picture || null
+    const fallbackEmployeeId = `EXT-${user.id.slice(0, 8).toUpperCase()}`
+
+    const { data: repairedProfile } = await adminClient
+      .from('users')
+      .upsert({
+        id: user.id,
+        auth_id: user.id,
+        email: (user.email || '').toLowerCase(),
+        name: fallbackName,
+        avatar_url: fallbackAvatar,
+        employee_id: fallbackEmployeeId,
+      }, { onConflict: 'id' })
+      .select()
+      .single()
+
+    // Handle Invite Token
+    if (token) {
+      const { data: invite } = await adminClient
+        .from('workspace_invites')
+        .select('*, workspaces(name, slug), roles(role_name)')
+        .eq('token', token)
+        .eq('status', 'pending')
+        .gt('expires_at', new Date().toISOString())
+        .maybeSingle()
+
+      if (invite && invite.email.toLowerCase() === user.email?.toLowerCase()) {
+        // Join workspace
+        await adminClient
+          .from('workspace_members')
+          .insert({
+            workspace_id: invite.workspace_id,
+            user_id: user.id,
+            role_id: invite.role_id,
+            joined_at: new Date().toISOString(),
+          })
+
+        // Accept invite
+        await adminClient
+          .from('workspace_invites')
+          .update({ 
+            status: 'accepted', 
+            accepted_at: new Date().toISOString(),
+            accepted_by: user.id
+          })
+          .eq('id', invite.id)
+
+        const slug = (invite as any).workspaces?.slug
+        const roleName = (invite as any).roles?.role_name || 'Junior Developer'
+        
+        const { revalidatePath } = await import('next/cache')
+        revalidatePath('/', 'layout')
+
+        const { getRolePath } = await import('@/lib/role-utils')
+        const rolePath = getRolePath(roleName)
+        
+        return NextResponse.redirect(`${origin}/dashboard/${slug}/${rolePath}`)
+      }
+    }
+
+    // After repair, redirect to workspace onboarding (no memberships yet)
+    if (isInviteRedirect) {
       return NextResponse.redirect(`${origin}${next}`)
     }
+    
+    if (repairedProfile) {
+      return handleAuthenticatedUser(repairedProfile, adminClient, origin)
+    }
+
+    return NextResponse.redirect(`${origin}/workspace`)
   }
 
   // Auth failed
