@@ -282,17 +282,17 @@ export async function updateIssueContent(formData: FormData) {
 
   if (updatePayload.title) {
     postUpdatePromises.push(
-      logActivity(supabase, profile.id, ticketId, 'content_edit', `Updated title from "${ticket.title}" to "${updatePayload.title}"`)
+      logActivity(adminClient, profile.id, ticketId, 'content_edit', `Updated title from "${ticket.title}" to "${updatePayload.title}"`)
     )
   }
   if (updatePayload.description !== undefined) {
     postUpdatePromises.push(
-      logActivity(supabase, profile.id, ticketId, 'content_edit', 'Updated issue description')
+      logActivity(adminClient, profile.id, ticketId, 'content_edit', 'Updated issue description')
     )
   }
   if (newAttachmentsMetadata.length > 0) {
     postUpdatePromises.push(
-      logActivity(supabase, profile.id, ticketId, 'content_edit', `Added ${newAttachmentsMetadata.length} new attachment(s)`)
+      logActivity(adminClient, profile.id, ticketId, 'content_edit', `Added ${newAttachmentsMetadata.length} new attachment(s)`)
     )
   }
 
@@ -333,32 +333,24 @@ export async function addComment(ticketId: string, comment: string, formData?: F
     return { error: 'Comment cannot be empty' }
   }
 
-  const { data: ticket, error: ticketError } = await supabase
-    .from('tickets')
-    .select('id, title, created_by, assignee_id, reviewer_id, projects(workspace_id)')
-    .eq('id', ticketId)
-    .single()
-
-  if (ticketError || !ticket) {
-    return { error: 'Ticket not found.' }
+  const context = await getIssueAccessContext(ticketId, user.email!, user.id)
+  if ('error' in context) {
+    return { error: context.error }
   }
 
-  // Roles are now workspace-scoped; commenting is allowed for all workspace members
-  const isAdmin = true // Workspace role verified at layout level
-  const isPM = false
-  const isTicketAssignee = profile.id === ticket.assignee_id
-  const isTicketReviewer = profile.id === ticket.reviewer_id
+  const { profile, ticket, workspaceId, isAdminOrPm, isAssignee, isReviewer } = context
 
-  if (!isAdmin && !isPM && !isTicketAssignee && !isTicketReviewer) {
+  if (!isAdminOrPm && !isAssignee && !isReviewer) {
     return { error: 'Only the Assignee, Reviewer, Admin, or Project Manager can post comments on an issue!' }
   }
+
+  const adminClient = createAdminClient()
 
   // Handle attachments if present
   let attachmentsMetadata: any[] = []
   if (formData) {
     const files = formData.getAll('attachments') as File[]
     if (files.length > 0) {
-      const adminClient = createAdminClient()
       for (const file of files) {
         if (!file || file.size === 0) continue
 
@@ -391,7 +383,9 @@ export async function addComment(ticketId: string, comment: string, formData?: F
     .from('comments')
     .insert({
       ticket_id: ticketId,
-      comment: commentText
+      comment: commentText,
+      user_id: profile.id,
+      attachments: attachmentsMetadata
     })
     .select('id, comment, created_at, user_id, attachments')
     .single()
@@ -406,7 +400,7 @@ export async function addComment(ticketId: string, comment: string, formData?: F
   ; (async () => {
     try {
       // Log comment
-      await logActivity(supabase, profile.id, ticketId, 'commented', 'Added a comment')
+      await logActivity(adminClient, profile.id, ticketId, 'commented', 'Added a comment')
 
       const notifyIds = new Set<string>()
       if (ticket.created_by && ticket.created_by !== profile.id) notifyIds.add(ticket.created_by)
@@ -581,6 +575,9 @@ export async function updateIssue(ticketId: string, updates: {
 
   if (!ticket) return { error: 'Ticket not found' }
 
+  const workspaceId = (ticket as any).projects?.workspace_id
+  const adminClient = createAdminClient()
+
   // ACCESS GATE: Workspace layout verifies membership; allow updates for assignee, reviewer, or any member
   const isTicketAssignee = profile.id === ticket.assignee_id
   const isTicketReviewer = profile.id === ticket.reviewer_id
@@ -613,7 +610,6 @@ export async function updateIssue(ticketId: string, updates: {
 
   // Auto-Project Membership for new Assignee or Reviewer
   if (updates.assignee_id || updates.reviewer_id) {
-    const adminClient = createAdminClient();
     const projectIdQuery = await adminClient.from('tickets').select('project_id').eq('id', ticketId).single();
 
     if (projectIdQuery.data?.project_id) {
@@ -645,7 +641,7 @@ export async function updateIssue(ticketId: string, updates: {
   const postUpdatePromises = []
 
   if (updates.status && updates.status !== ticket.status) {
-    postUpdatePromises.push(logActivity(supabase, profile.id, ticketId, 'status_change', `Changed status from ${ticket.status} to ${updates.status}`))
+    postUpdatePromises.push(logActivity(adminClient, profile.id, ticketId, 'status_change', `Changed status from ${ticket.status} to ${updates.status}`))
 
     if (ticket.assignee_id && ticket.assignee_id !== profile.id) {
       postUpdatePromises.push(createNotification({
@@ -661,7 +657,7 @@ export async function updateIssue(ticketId: string, updates: {
   }
 
   if (updates.assignee_id !== undefined && updates.assignee_id !== ticket.assignee_id) {
-    postUpdatePromises.push(logActivity(supabase, profile.id, ticketId, 'assignee_change', 'Updated assignee'))
+    postUpdatePromises.push(logActivity(adminClient, profile.id, ticketId, 'assignee_change', 'Updated assignee'))
 
     if (updates.assignee_id) {
       postUpdatePromises.push(createNotification({
@@ -677,7 +673,7 @@ export async function updateIssue(ticketId: string, updates: {
   }
 
   if (updates.priority && updates.priority !== ticket.priority) {
-    postUpdatePromises.push(logActivity(supabase, profile.id, ticketId, 'priority_change', `Updated priority to ${updates.priority}`))
+    postUpdatePromises.push(logActivity(adminClient, profile.id, ticketId, 'priority_change', `Updated priority to ${updates.priority}`))
   }
 
   // Fire all log + notification writes — don't await them
