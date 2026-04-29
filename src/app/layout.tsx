@@ -16,7 +16,14 @@ import type { Metadata } from 'next';
 import { getBaseUrl } from '@/lib/urls';
 
 export const metadata: Metadata = {
-  metadataBase: new URL(getBaseUrl()),
+  metadataBase: (() => {
+    try {
+      return new URL(getBaseUrl());
+    } catch (e) {
+      console.error('[layout] Failed to construct metadataBase from:', getBaseUrl());
+      return new URL('http://localhost:3000');
+    }
+  })(),
   alternates: {
     canonical: '/',
   },
