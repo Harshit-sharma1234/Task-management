@@ -172,7 +172,7 @@ export const IssueAssigneeSelector = memo(({
 
                             {filteredUsers.length === 0 && search && (
                                 <div className="px-3 py-4 text-center text-xs text-gray-400 italic">
-                                    No users found matching "{search}"
+                                    No users found matching &quot;{search}&quot;
                                 </div>
                             )}
                         </div>
