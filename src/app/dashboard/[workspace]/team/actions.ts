@@ -93,9 +93,9 @@ export async function deleteMember(targetUserId: string, workspaceId?: string) {
         }
     }
 
-    revalidateTag('team-members', 'max');
+    revalidateTag('team-members');
     if (workspaceId) {
-        revalidateTag(`team-members-${workspaceId}`, 'max');
+        revalidateTag(`team-members-${workspaceId}`);
         revalidatePath(`/dashboard/${workspaceId}/team`);
     } else {
         revalidatePath('/dashboard/team');
@@ -159,9 +159,9 @@ export async function updateUserRole(targetUserId: string, newRoleName: string, 
         }
     }
 
-    revalidateTag('team-members', 'max');
+    revalidateTag('team-members');
     if (workspaceId) {
-        revalidateTag(`team-members-${workspaceId}`, 'max');
+        revalidateTag(`team-members-${workspaceId}`);
         revalidatePath(`/dashboard/${workspaceId}/team`);
     } else {
         revalidatePath('/dashboard/team');
