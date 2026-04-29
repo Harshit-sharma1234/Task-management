@@ -157,7 +157,7 @@ export async function createIssue(formData: FormData) {
   runSideEffects()
 
   // Granular revalidation
-  revalidateTag('issues')
+  revalidateTag('issues', "max")
   if (projectId) {
     revalidatePath(`/dashboard/projects/${projectId}`);
   }
@@ -316,7 +316,7 @@ export async function updateIssueContent(formData: FormData) {
     revalidatePath(`/dashboard/projects/${ticket.project_id}`);
   }
   revalidatePath('/dashboard');
-  revalidateTag('issues')
+  revalidateTag('issues', "max")
   return { success: true, data }
 }
 
@@ -632,7 +632,7 @@ export async function updateIssue(ticketId: string, updates: {
       }
 
       await Promise.all(membershipUpserts);
-      revalidateTag('projects');
+      revalidateTag('projects', "max");
     }
   }
 
@@ -684,7 +684,7 @@ export async function updateIssue(ticketId: string, updates: {
     revalidatePath(`/dashboard/projects/${ticket.project_id}`);
   }
   revalidatePath('/dashboard');
-  revalidateTag('issues')
+  revalidateTag('issues', "max")
   return { success: true, data }
 }
 
@@ -727,7 +727,7 @@ export async function deleteIssue(ticketId: string) {
   }
 
   function revalidateProjectDataTags(tags: string[] = ['projects', 'tickets']) {
-    tags.forEach(tag => revalidateTag(tag));
+    tags.forEach(tag => revalidateTag(tag, "max"));
   }
   revalidateProjectDataTags(['issues', 'dashboard-stats']);
 
@@ -783,7 +783,7 @@ export async function bulkUpdateIssues(
   }
   revalidatePath('/dashboard');
 
-  revalidateTag('issues')
+  revalidateTag('issues', "max")
   return { success: true, updatedCount: data?.length || 0 }
 }
 
@@ -829,8 +829,8 @@ export async function bulkDeleteIssues(ticketIds: string[]) {
   revalidatePath('/dashboard/issues', 'page');
   revalidatePath('/dashboard');
 
-  revalidateTag('issues')
-  revalidateTag('dashboard-stats')
+  revalidateTag('issues', "max")
+  revalidateTag('dashboard-stats', "max")
   return { success: true, deletedCount: ticketIds.length }
 }
 

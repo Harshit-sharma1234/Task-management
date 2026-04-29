@@ -97,7 +97,7 @@ export async function deleteWorkspaceAction(workspaceId: string) {
     }
 
     // 3. Cleanup & Redirect
-    revalidateTag('workspaces');
+    revalidateTag('workspaces', "max");
     revalidatePath('/dashboard');
     
     // Check if user has other workspaces to redirect properly
@@ -163,7 +163,7 @@ export async function updateWorkspaceAction(workspaceId: string, newName: string
 
     // 3. Revalidate
     revalidatePath('/dashboard/[workspace]', 'layout');
-    revalidateTag('workspaces');
+    revalidateTag('workspaces', "max");
 
     return { success: true };
 }
