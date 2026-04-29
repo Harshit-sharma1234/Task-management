@@ -19,15 +19,25 @@ export async function GET(request: Request) {
   const next = isSafeRedirectPath(rawNext) ? rawNext : '/'
 
   if (code) {
+    console.log(`[auth/callback] Exchanging code for session... (Origin: ${origin})`)
     const supabase = await createClient()
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
     
-    if (!error) {
-      const { data: { user } } = await supabase.auth.getUser()
-      
-      if (user) {
-        const adminClient = createAdminClient()
-        const isInviteRedirect = next.startsWith('/invite/')
+    if (exchangeError) {
+      console.error('[auth/callback] Exchange error:', exchangeError.message)
+      return NextResponse.redirect(`${origin}/login?error=auth-exchange-failed&message=${encodeURIComponent(exchangeError.message)}`)
+    }
+
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    
+    if (userError || !user) {
+      console.error('[auth/callback] User retrieval error:', userError?.message || 'No user found')
+      return NextResponse.redirect(`${origin}/login?error=user-retrieval-failed`)
+    }
+
+    console.log(`[auth/callback] Authenticated user: ${user.id} (${user.email})`)
+    const adminClient = createAdminClient()
+    const isInviteRedirect = next.startsWith('/invite/')
         
         // Add a small delay to ensure the DB trigger (social_auth_sync.sql) has finished
         // especially in high-latency production environments.
