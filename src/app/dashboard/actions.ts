@@ -14,7 +14,7 @@ import { insertProjectLog } from './[workspace]/logging/actions'
  * Corrected to use a single argument as per Next.js API.
  */
 function revalidateProjectDataTags(tags: string[] = ['projects', 'tickets', 'project-resources']) {
-    tags.forEach(tag => revalidateTag(tag, 'max'));
+    tags.forEach(tag => revalidateTag(tag));
 }
 
 import { getCachedUsers, getCachedUserProfile } from '../../lib/cache'
@@ -191,8 +191,8 @@ export async function createProject(formData: FormData) {
     runSideEffects()
 
     // Instant Revalidation
-    revalidateTag('projects', 'max')
-    revalidateTag(`workspace-${workspaceId}`, 'max')
+    revalidateTag('projects')
+    revalidateTag(`workspace-${workspaceId}`)
     revalidatePath('/dashboard')
     
     return { success: true, id: newProject.id }
@@ -466,7 +466,7 @@ export async function updateProjectName(projectId: string, projectName: string) 
     revalidatePath('/dashboard/projects', 'page')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
     revalidatePath('/dashboard')
-    revalidateTag('projects', 'max')
+    revalidateTag('projects')
     
     return { success: true }
 }
@@ -749,9 +749,9 @@ export async function updateUserAvatar(userId: string, avatarUrl: string) {
     }
 
     // Invalidate all caches that include avatar data
-    revalidateTag(`user-profile-${user.email}`, 'max')
-    revalidateTag('team-members', 'max')
-    revalidateTag('issues', 'max')
+    revalidateTag(`user-profile-${user.email}`)
+    revalidateTag('team-members')
+    revalidateTag('issues')
     revalidatePath('/dashboard', 'layout')
     revalidatePath('/dashboard')
     return { success: true, avatarUrl }
@@ -818,7 +818,7 @@ export async function provisionEmployee(formData: FormData) {
     }
 
     // Only invalidate cached team members list; no need to re-fetch on every navigation.
-    revalidateTag('team-members', 'max')
+    revalidateTag('team-members')
     revalidatePath('/dashboard/admin', 'page')
     revalidatePath('/dashboard')
     return { success: true, message: `Account created for ${name}. Temporary password: ${tempPassword}` }

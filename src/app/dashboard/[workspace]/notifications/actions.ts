@@ -54,7 +54,7 @@ export async function markAsRead(notificationId: string) {
     revalidatePath('/dashboard/[workspace]/inbox', 'page')
     // Invalidate cached unread count used by the layout/sidebar
     const { data: { user } } = await supabase.auth.getUser()
-    if (user) revalidateTag(`notifications-${user.id}`, 'max')
+    if (user) revalidateTag(`notifications-${user.id}`)
     return { success: true }
 }
 
@@ -78,7 +78,7 @@ export async function markAllAsRead(workspaceId: string) {
     }
 
     revalidatePath('/dashboard/[workspace]/inbox', 'page')
-    revalidateTag(`notifications-${user.id}`, 'max')
+    revalidateTag(`notifications-${user.id}`)
     return { success: true }
 }
 
@@ -114,7 +114,7 @@ export async function deleteAllNotifications(workspaceId: string) {
     }
 
     revalidatePath('/dashboard/[workspace]/inbox', 'page')
-    revalidateTag(`notifications-${user.id}`, 'max')
+    revalidateTag(`notifications-${user.id}`)
     return { success: true }
 }
 
@@ -139,7 +139,7 @@ export async function deleteAllReadNotifications(workspaceId: string) {
     }
 
     revalidatePath('/dashboard/[workspace]/inbox', 'page')
-    revalidateTag(`notifications-${user.id}`, 'max')
+    revalidateTag(`notifications-${user.id}`)
     return { success: true }
 }
 
@@ -161,6 +161,6 @@ export async function deleteNotification(notificationId: string) {
     revalidatePath('/dashboard/[workspace]/inbox', 'page')
     // Invalidate cached unread count — we don't know the user_id here so invalidate via auth
     const { data: { user } } = await supabase.auth.getUser()
-    if (user) revalidateTag(`notifications-${user.id}`, 'max')
+    if (user) revalidateTag(`notifications-${user.id}`)
     return { success: true }
 }
