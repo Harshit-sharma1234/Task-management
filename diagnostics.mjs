@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
   'https://hkvolrsnqttkmysalbha.supabase.co',
-  'sb_secret_Fb-_1x3VN-B9UFrPGaLMGw_vC-gHL_K'
+  process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
 async function migrateData() {
