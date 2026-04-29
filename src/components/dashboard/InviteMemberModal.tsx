@@ -52,9 +52,11 @@ export function InviteMemberModal({ isOpen, onClose, workspaceId }: InviteMember
 
         const currentVersion = requestVersionRef.current
         const formData = new FormData(e.currentTarget)
+        const email = formData.get('email') as string
+        const roleName = formData.get('roleName') as string
 
         try {
-            const result = await createWorkspaceInvite(null, formData)
+            const result = await createWorkspaceInvite(workspaceId, email, roleName)
             
             // Prevent state updates if modal was closed or re-opened
             if (currentVersion !== requestVersionRef.current) return

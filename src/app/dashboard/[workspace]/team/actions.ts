@@ -174,7 +174,7 @@ export async function updateUserRole(targetUserId: string, newRoleName: string, 
  * Creates an invite for a user to join a workspace.
  * Restricted to Admin and Project Manager roles.
  */
-export async function createWorkspaceInvite(workspaceId: string, email: string, roleId: string) {
+export async function createWorkspaceInvite(workspaceId: string, email: string, roleName: string) {
     const supabase = await createClient();
     const { data: { user: authUser } } = await supabase.auth.getUser();
     
@@ -184,6 +184,18 @@ export async function createWorkspaceInvite(workspaceId: string, email: string, 
 
     const adminClient = createAdminClient();
     const normalizedEmail = email.toLowerCase().trim();
+
+    // 0. Lookup role ID
+    const { data: roleRecord } = await adminClient
+        .from('roles')
+        .select('id')
+        .eq('role_name', roleName)
+        .single();
+
+    if (!roleRecord) {
+        return { error: 'Invalid role name specified' };
+    }
+    const roleId = roleRecord.id;
 
     // 1. Check requester permissions (Admin or PM)
     const { data: requesterProfile } = await adminClient
@@ -281,22 +293,14 @@ export async function createWorkspaceInvite(workspaceId: string, email: string, 
         if (existingByEmail?.id) {
             const { error: reuseExistingError } = await adminClient
                 .from('workspace_invites')
-                .update({
-                    workspace_id: workspaceId,
-                    email: normalizedEmail,
-                    ...invitePayload,
-                })
+                .update(invitePayload)
                 .eq('id', existingByEmail.id);
 
             inviteError = reuseExistingError;
         } else {
             const { error: insertInviteError } = await adminClient
                 .from('workspace_invites')
-                .insert({
-                    workspace_id: workspaceId,
-                    email: normalizedEmail,
-                    ...invitePayload,
-                });
+                .insert(invitePayload);
 
             // Handle race condition where another process inserted concurrently.
             if ((insertInviteError as any)?.code === '23505' || insertInviteError?.message?.toLowerCase().includes('duplicate key')) {
@@ -320,11 +324,7 @@ export async function createWorkspaceInvite(workspaceId: string, email: string, 
                     } else {
                         const { error: globalRecoverUpdateError } = await adminClient
                             .from('workspace_invites')
-                            .update({
-                                workspace_id: workspaceId,
-                                email: normalizedEmail,
-                                ...invitePayload,
-                            })
+                            .update(invitePayload)
                             .eq('id', globalInvite.id);
 
                         inviteError = globalRecoverUpdateError;
