@@ -20,9 +20,10 @@ interface MyTasksViewProps {
   users: any[];
   currentUser: any;
   workspaceSlug: string;
+  workspaceId: string;
 }
 
-export function MyTasksView({ initialTickets, projects, users, currentUser, workspaceSlug }: MyTasksViewProps) {
+export function MyTasksView({ initialTickets, projects, users, currentUser, workspaceSlug, workspaceId }: MyTasksViewProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState('all');
 
@@ -94,6 +95,7 @@ export function MyTasksView({ initialTickets, projects, users, currentUser, work
           onClose={() => setIsModalOpen(false)}
           projects={projects}
           users={users}
+          workspaceId={workspaceId}
         />
       )}
     </div>

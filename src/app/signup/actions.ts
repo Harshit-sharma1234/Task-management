@@ -6,13 +6,14 @@ import { sendEmail, sendBulkEmails } from '@/lib/email'
 import { newSignupNotificationEmail, emailVerificationEmail } from '@/lib/email-templates'
 import { randomInt } from 'crypto'
 import { getBaseUrl } from '@/lib/urls'
-import { validatePassword } from '@/lib/validation'
+import { validatePassword, validateEmail } from '@/lib/validation'
 
 const APP_URL = getBaseUrl()
 
 export async function requestOTP(email: string) {
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        return { error: 'A valid email address is required.' }
+    const emailCheck = validateEmail(email)
+    if (!emailCheck.valid) {
+        return { error: emailCheck.error || 'Invalid email address' }
     }
 
     const adminClient = createAdminClient()
@@ -235,14 +236,16 @@ export async function signup(prevState: any, formData: FormData) {
                 .eq('id', invite.id)
 
             const workspaceName = (invite as any).workspaces?.name || 'the workspace'
-            const { revalidatePath } = await import('next/cache')
-            revalidatePath('/', 'layout')
-            redirect(`/login?message=Account created and you have been added to ${workspaceName}! Please log in.`)
+            redirect(`/login?next=/invite/${token}&message=Account created and you have been added to ${workspaceName}! Please log in.`)
+        } else if (token) {
+            // Token exists but email didn't match or invite invalid/expired
+            // Redirect to invite page anyway so they see the specific error there
+            redirect(`/login?next=/invite/${token}&message=Account created! Please log in to complete joining the workspace.`)
         }
     }
 
     // ── Redirect to login (user must log in, then choose/create a workspace) ──
-    const { revalidatePath } = await import('next/cache')
-    revalidatePath('/', 'layout')
+    const { revalidatePath: rpFallback } = await import('next/cache')
+    rpFallback('/', 'layout')
     redirect('/login?message=Account created successfully! Please log in.')
 }
