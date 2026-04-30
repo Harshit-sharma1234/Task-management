@@ -93,6 +93,31 @@ export async function deleteMember(targetUserId: string, workspaceId?: string) {
             return { error: `Unauthorized: Your role is ${callerRole || 'Unknown'}. Only Admins and Project Managers can remove members.` };
         }
 
+        // 1.5 Prevent removing the last Admin
+        const { data: targetMember } = await adminClient
+            .from('workspace_members')
+            .select('roles(role_name)')
+            .eq('workspace_id', workspaceId)
+            .eq('user_id', targetUserId)
+            .single();
+            
+        const rawTargetRole = (targetMember as any)?.roles;
+        const targetRoleName = Array.isArray(rawTargetRole)
+            ? rawTargetRole[0]?.role_name
+            : rawTargetRole?.role_name;
+        
+        if (targetRoleName === 'Admin') {
+            const { data: admins } = await adminClient
+                .from('workspace_members')
+                .select('user_id, roles!inner(role_name)')
+                .eq('workspace_id', workspaceId)
+                .eq('roles.role_name', 'Admin');
+                
+            if (admins && admins.length <= 1) {
+                return { error: 'Cannot remove the last Admin from the workspace.' };
+            }
+        }
+
         // 2. Cleanup: Remove from all projects and issues in this workspace
         // We do this using subqueries to ensure all projects in this workspace are covered
         const { data: projectIdsData } = await adminClient
@@ -241,6 +266,31 @@ export async function updateUserRole(targetUserId: string, newRoleName: string, 
     }
 
     if (workspaceId) {
+        // 2.5 Prevent demoting the last Admin
+        const { data: currentMember } = await adminClient
+            .from('workspace_members')
+            .select('roles(role_name)')
+            .eq('workspace_id', workspaceId)
+            .eq('user_id', targetUserId)
+            .single();
+            
+        const rawCurrentRole = (currentMember as any)?.roles;
+        const currentRoleName = Array.isArray(rawCurrentRole)
+            ? rawCurrentRole[0]?.role_name
+            : rawCurrentRole?.role_name;
+        
+        if (currentRoleName === 'Admin' && newRoleName !== 'Admin') {
+            const { data: admins } = await adminClient
+                .from('workspace_members')
+                .select('user_id, roles!inner(role_name)')
+                .eq('workspace_id', workspaceId)
+                .eq('roles.role_name', 'Admin');
+                
+            if (admins && admins.length <= 1) {
+                return { error: 'Cannot change role: A workspace must have at least one Admin.' };
+            }
+        }
+
         // Update workspace_members role (workspace-scoped)
         const { data: updatedRows, error: dbError } = await adminClient
             .from('workspace_members')
