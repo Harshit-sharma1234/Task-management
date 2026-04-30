@@ -624,17 +624,27 @@ export async function updateUserPassword(oldPassword: string, newPassword: strin
         return { error: 'You must be logged in to update your password.' }
     }
 
-    // 2. Verify OLD password first
-    const { error: verifyError } = await supabase.auth.signInWithPassword({
-        email: user.email!,
-        password: oldPassword
-    })
+    // 2. Check if the user HAS a password already
+    // OAuth users might not have a password yet.
+    const hasPassword = user.identities?.some(id => id.provider === 'email');
 
-    if (verifyError) {
-        return { error: 'Incorrect old password. Please try again.' }
+    // 3. Verify OLD password ONLY if they already have one
+    if (hasPassword) {
+        if (!oldPassword) {
+            return { error: 'Current password is required to update your account.' }
+        }
+
+        const { error: verifyError } = await supabase.auth.signInWithPassword({
+            email: user.email!,
+            password: oldPassword
+        })
+
+        if (verifyError) {
+            return { error: 'Incorrect current password. Please try again.' }
+        }
     }
 
-    // 3. Update to NEW password
+    // 4. Update to NEW password
     const { error } = await supabase.auth.updateUser({ password: newPassword })
     
     if (error) {

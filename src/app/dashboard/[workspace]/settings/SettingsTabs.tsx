@@ -13,7 +13,7 @@ import { DeleteWorkspaceModal } from '@/components/dashboard/DeleteWorkspaceModa
 import { ForgotPasswordFlow } from '@/app/login/ForgotPasswordFlow'
 import { toast } from 'sonner'
 
-export function SettingsTabs({ user }: { user: { id: string, name: string, email: string, avatar_url: string | null, workspacerole: string, activeWorkspace: { id: string, name: string, slug: string } } }) {
+export function SettingsTabs({ user }: { user: { id: string, name: string, email: string, avatar_url: string | null, workspacerole: string, hasPassword: boolean, activeWorkspace: { id: string, name: string, slug: string } } }) {
     const setUserData = useSettingsStore((s) => s.setUserData)
     const setGlobalAvatar = useAvatarStore((s) => s.setAvatarUrl)
     const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'workspace'>('profile')
@@ -98,7 +98,7 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
     }
 
     const handlePasswordSubmit = async () => {
-        if (!oldPassword) {
+        if (user.hasPassword && !oldPassword) {
             setPasswordError("Current password is required")
             return
         }
@@ -524,16 +524,16 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
                                             <Lock size={18} />
                                         </div>
                                         <div>
-                                            <p className="text-sm font-bold text-gray-900">Account Password</p>
-                                            {!isChangingPassword && <p className="text-xs text-gray-500">Last updated recently</p>}
+                                            <p className="text-sm font-bold text-gray-900">{user.hasPassword ? 'Account Password' : 'Set Account Password'}</p>
+                                            {!isChangingPassword && <p className="text-xs text-gray-500">{user.hasPassword ? 'Last updated recently' : 'No password set yet (Social Login)'}</p>}
                                         </div>
                                     </div>
                                     {!isChangingPassword && (
                                         <button 
                                             onClick={() => setIsChangingPassword(true)}
-                                            className="px-5 py-2 text-xs font-bold text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all"
+                                            className="px-5 py-2 text-xs font-bold text-gray-900 bg-gray-50 hover:bg-gray-100 rounded-lg transition-all"
                                         >
-                                            Change
+                                            {user.hasPassword ? 'Change' : 'Set Password'}
                                         </button>
                                     )}
                                 </div>
@@ -552,16 +552,18 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
                                         )}
 
                                         <div className="space-y-4">
-                                            <div className="space-y-1.5">
-                                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Current Password</label>
-                                                <input 
-                                                    type="password" 
-                                                    value={oldPassword}
-                                                    onChange={(e) => setOldPassword(e.target.value)}
-                                                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm font-medium focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all shadow-inner"
-                                                    placeholder="Required to continue"
-                                                />
-                                            </div>
+                                            {user.hasPassword && (
+                                                <div className="space-y-1.5">
+                                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Current Password</label>
+                                                    <input 
+                                                        type="password" 
+                                                        value={oldPassword}
+                                                        onChange={(e) => setOldPassword(e.target.value)}
+                                                        className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm font-medium focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all shadow-inner"
+                                                        placeholder="Required to continue"
+                                                    />
+                                                </div>
+                                            )}
                                             <div className="grid grid-cols-2 gap-4">
                                                 <div className="space-y-1.5">
                                                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">New Password</label>
@@ -602,10 +604,10 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
                                             </button>
                                             <button 
                                                 onClick={handlePasswordSubmit}
-                                                disabled={isSavingPassword || !oldPassword || newPassword.length < 8 || newPassword !== confirmPassword}
+                                                disabled={isSavingPassword || (user.hasPassword && !oldPassword) || newPassword.length < 8 || newPassword !== confirmPassword}
                                                 className="px-6 py-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-600/30 transition-all active:scale-95 disabled:bg-gray-400 disabled:shadow-none disabled:cursor-not-allowed"
                                             >
-                                                {isSavingPassword ? 'Saving Changes...' : 'Update Password'}
+                                                {isSavingPassword ? 'Saving Changes...' : (user.hasPassword ? 'Update Password' : 'Set Password')}
                                             </button>
                                         </div>
                                     </div>
