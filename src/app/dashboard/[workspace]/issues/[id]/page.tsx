@@ -141,15 +141,11 @@ export default async function IssueDetailsPage({ params }: { params: Promise<{ i
   const isAdmin = userRole === 'Admin' || userRole === 'Project Manager';
   const isAssignee = profile?.id === ticket.assignee_id;
   const isReviewer = profile?.id === (ticket as any).reviewer_id;
-  const canAccessIssue = isAdmin || isAssignee || isReviewer;
-  const canComment = canAccessIssue;
-
-  if (!canAccessIssue) {
-    redirect(`/dashboard/${workspaceSlug}/issues`);
-  }
-
+  
+  // Workspace members can view and comment, but only specific roles can edit/delete
+  const canEdit = isAdmin || isAssignee || isReviewer;
+  const canComment = true; 
   const canDelete = isAdmin;
-  const canEdit = canAccessIssue;
 
   const currentUserForActivity = {
     id: profile?.id || '',

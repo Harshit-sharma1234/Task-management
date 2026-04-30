@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import InboxClient from './InboxClient';
 import { getServerUser } from '@/lib/auth-server';
-import { getCachedUsersMinimal, getCachedWorkspaceBySlug } from '@/lib/cache';
+import { getCachedUsersMinimal, getCachedWorkspaceBySlug, getCachedUserProfile } from '@/lib/cache';
 
 export default async function InboxPage({ params }: { params: Promise<{ workspace: string }> }) {
     // 1. Get current user (Deduplicated with Layout)
@@ -19,7 +19,7 @@ export default async function InboxPage({ params }: { params: Promise<{ workspac
     const supabase = await createClient();
 
     // 2. Fetch notifications + workspace users in parallel
-    const [notificationsRes, allUsers] = await Promise.all([
+    const [notificationsRes, allUsers, userProfile] = await Promise.all([
         supabase
             .from('notifications')
             .select(`
@@ -29,7 +29,8 @@ export default async function InboxPage({ params }: { params: Promise<{ workspac
             .eq('user_id', user.id)
             .eq('workspace_id', workspace.id)
             .order('created_at', { ascending: false }),
-        getCachedUsersMinimal(workspace.id)
+        getCachedUsersMinimal(workspace.id),
+        getCachedUserProfile(user.email!)
     ]);
 
     const notifications = (notificationsRes.data || []).map(n => {
@@ -47,6 +48,7 @@ export default async function InboxPage({ params }: { params: Promise<{ workspac
             allUsers={allUsers}
             workspaceId={workspace.id}
             currentUser={user}
+            currentUserProfile={userProfile}
             initialSelectedId={initialSelectedId}
             initialEntityDetail={null}
             initialEntityActivity={[]}
