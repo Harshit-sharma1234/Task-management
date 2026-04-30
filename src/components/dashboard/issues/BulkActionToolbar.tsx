@@ -30,7 +30,7 @@ export function BulkActionToolbar({ selectedIds, onClear, totalTickets, currentU
     const role = currentUser?.roles?.role_name;
     const canBulkAction = role === 'Admin' || role === 'Project Manager';
 
-    if (selectedIds.length === 0) return null;
+    if (selectedIds.length === 0 || !canBulkAction) return null;
 
     const handleBulkStatusUpdate = async (status: string, actionKey: string = 'status') => {
         setLoadingAction(actionKey);
@@ -61,26 +61,45 @@ export function BulkActionToolbar({ selectedIds, onClear, totalTickets, currentU
     };
 
     const handleBulkDelete = async () => {
-        if (!confirm(`Are you sure you want to delete ${selectedIds.length} issues? This action cannot be undone.`)) {
-            return;
-        }
-
-        setLoadingAction('delete');
-        // Optimistically remove from UI
-        if (onOptimisticDelete) {
-            onOptimisticDelete(selectedIds);
-        }
-        
-        const result = await bulkDeleteIssues(selectedIds);
-
-        if (result.error) {
-            toast.error(result.error);
-        } else {
-            toast.success(`Deleted ${result.deletedCount || selectedIds.length} issues`);
-        }
-
-        setLoadingAction(null);
-        onClear();
+        toast.custom((t) => (
+            <div className="bg-gradient-to-br from-indigo-600 to-purple-700 text-white p-5 rounded-2xl shadow-2xl border border-white/20 backdrop-blur-xl max-w-sm w-full animate-in slide-in-from-top-4 duration-300">
+                <div className="flex items-start gap-4">
+                    <div className="bg-white/10 p-3 rounded-xl border border-white/10">
+                        <Trash2 size={20} className="text-red-200" />
+                    </div>
+                    <div className="flex-1">
+                        <h3 className="text-sm font-bold tracking-tight mb-1">Confirm Bulk Delete</h3>
+                        <p className="text-xs text-indigo-100 leading-relaxed mb-4">
+                            Are you sure you want to delete <span className="font-bold text-white underline decoration-red-400/50 underline-offset-2">{selectedIds.length} issues</span>? This action is permanent and cannot be undone.
+                        </p>
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => {
+                                    toast.dismiss(t);
+                                    setLoadingAction('delete');
+                                    if (onOptimisticDelete) onOptimisticDelete(selectedIds);
+                                    bulkDeleteIssues(selectedIds).then(result => {
+                                        if (result.error) toast.error(result.error);
+                                        else toast.success(`Deleted ${result.deletedCount || selectedIds.length} issues`);
+                                        setLoadingAction(null);
+                                        onClear();
+                                    });
+                                }}
+                                className="flex-1 bg-white text-indigo-700 py-2 rounded-lg text-xs font-bold hover:bg-red-50 hover:text-red-600 transition-all active:scale-95 shadow-lg shadow-black/10"
+                            >
+                                Confirm Delete
+                            </button>
+                            <button
+                                onClick={() => toast.dismiss(t)}
+                                className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-bold transition-all border border-white/10"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        ), { duration: 10000, position: 'top-center' });
     };
 
     return (

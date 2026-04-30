@@ -224,7 +224,7 @@ const IssueRow = memo(({
             />
           ) : (
             <UserAvatar
-              name={ticket.assignees?.name || 'Unassigned'}
+              name={ticket.assignees?.name || 'Assignee'}
               avatarUrl={ticket.assignees?.avatar_url}
               size="sm"
             />

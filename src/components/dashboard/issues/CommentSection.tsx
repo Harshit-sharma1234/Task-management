@@ -443,19 +443,19 @@ export function CommentSection({ ticketId, initialComments, initialLogs = [], cu
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="relative">
-              <div className="flex items-center gap-2 border border-gray-200/60 rounded-xl pl-3 pr-1.5 py-1.5 focus-within:border-gray-400 focus-within:ring-1 focus-within:ring-gray-400 transition-all bg-white shadow-sm">
+            <form onSubmit={handleSubmit} className="relative mt-2">
+              <div className="flex items-center gap-2 border border-gray-200 rounded-xl pl-4 pr-2 py-2 focus-within:border-indigo-400 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all bg-white shadow-sm">
                 <input
                   type="text"
                   placeholder="Leave a comment (paste images or use icon)..."
-                  className="w-full bg-transparent text-[13px] text-gray-900 placeholder-gray-400 focus:outline-none py-1"
+                  className="w-full bg-transparent text-[14px] text-gray-900 placeholder-gray-400 focus:outline-none py-1"
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
                   onPaste={handlePaste}
                   disabled={isSubmitting}
                 />
                 
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5 shrink-0">
                   <input 
                     type="file" 
                     ref={fileInputRef} 
@@ -467,20 +467,20 @@ export function CommentSection({ ticketId, initialComments, initialLogs = [], cu
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isSubmitting}
-                    className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                    className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
                     title="Attach files"
                   >
-                    <Paperclip size={14} />
+                    <Paperclip size={16} />
                   </button>
                   <button
                     type="submit"
                     disabled={(!newComment.trim() && attachments.length === 0) || isSubmitting}
-                    className="p-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                    className="p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all active:scale-95 shadow-md shadow-indigo-600/20 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-indigo-600 disabled:active:scale-100 disabled:shadow-none"
                   >
                     {isSubmitting ? (
-                      <Loader2 size={13} className="animate-spin" />
+                      <Loader2 size={16} className="animate-spin" />
                     ) : (
-                      <Send size={13} />
+                      <Send size={16} className="ml-0.5" />
                     )}
                   </button>
                 </div>
