@@ -1,4 +1,6 @@
 'use server';
+// Rebuild trigger: 1
+
 
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -6,6 +8,8 @@ import { getCachedUsers, getCachedUserProfile } from '@/lib/cache';
 import { revalidateTag, revalidatePath } from 'next/cache';
 import { getBaseUrl } from '@/lib/urls';
 import { validateEmail } from '@/lib/validation';
+import crypto from 'crypto';
+
 
 export async function fetchTeamData(workspaceId: string) {
     const supabase = await createClient();
@@ -411,7 +415,7 @@ export async function createWorkspaceInvite(workspaceId: string, email: string, 
     }
 
     // 3. Generate token and expiry
-    const token = require('crypto').randomBytes(32).toString('hex');
+    const token = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiry
 
