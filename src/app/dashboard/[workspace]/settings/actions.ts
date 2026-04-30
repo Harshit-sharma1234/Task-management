@@ -215,6 +215,7 @@ export async function resetPasswordAction() {
           </div>
         </div>
     `);
+;
 
     // Non-blocking email send
     (async () => {

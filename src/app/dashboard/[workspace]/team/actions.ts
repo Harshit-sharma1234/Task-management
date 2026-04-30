@@ -533,6 +533,7 @@ export async function createWorkspaceInvite(workspaceId: string, email: string, 
     const workspaceName = (invite as any).workspaces?.name || 'a workspace';
     const baseUrl = getBaseUrl();
     const inviteLink = `${baseUrl}/invite/${token}`;
+;
 
     // Fire and forget email to avoid blocking the UI response
     (async () => {
