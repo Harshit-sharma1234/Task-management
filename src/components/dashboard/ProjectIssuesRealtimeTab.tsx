@@ -27,6 +27,7 @@ export function ProjectIssuesRealtimeTab({
   initialTickets,
   users,
   currentUser,
+  workspaceId,
   initialLimit = 40,
   totalLimit = 120,
   initialFilter = 'all',
@@ -36,6 +37,7 @@ export function ProjectIssuesRealtimeTab({
   initialTickets: any[];
   users: any[];
   currentUser: any;
+  workspaceId: string;
   initialLimit?: number;
   totalLimit?: number;
   initialFilter?: string;
@@ -312,6 +314,7 @@ export function ProjectIssuesRealtimeTab({
           onClose={() => setIsModalOpen(false)}
           projects={[{ id: projectId, project_name: projectName }]}
           users={users}
+          workspaceId={workspaceId}
         />
       )}
     </div>

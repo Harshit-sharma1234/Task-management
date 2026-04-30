@@ -12,6 +12,7 @@ interface NotificationStore {
   isHydrated: boolean;
   setUnreadCount: (count: number) => void;
   decrementUnreadCount: () => void;
+  incrementUnreadCount: () => void;
   resetUnreadCount: () => void;
   markHydrated: () => void;
 }
@@ -22,6 +23,8 @@ export const useNotificationStore = create<NotificationStore>((set) => ({
   setUnreadCount: (count) => set({ unreadCount: count, isHydrated: true }),
   decrementUnreadCount: () =>
     set((state) => ({ unreadCount: Math.max(0, state.unreadCount - 1) })),
+  incrementUnreadCount: () =>
+    set((state) => ({ unreadCount: state.unreadCount + 1 })),
   resetUnreadCount: () => set({ unreadCount: 0 }),
   markHydrated: () => set({ isHydrated: true }),
 }));

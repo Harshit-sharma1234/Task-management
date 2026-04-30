@@ -69,6 +69,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
             currentUser={profile}
             ticketsPromise={ticketsPromise}
             activeFilter={activeFilter}
+            workspaceId={workspace.id}
           />
         </Suspense>
       ) : (
@@ -94,6 +95,7 @@ async function ProjectIssuesTab({
   currentUser,
   ticketsPromise,
   activeFilter,
+  workspaceId,
 }: {
   projectId: string;
   users: any[];
@@ -101,6 +103,7 @@ async function ProjectIssuesTab({
   currentUser: any;
   ticketsPromise: Promise<any[]>;
   activeFilter: string;
+  workspaceId: string;
 }) {
   const INITIAL_LIMIT = 40;
   const TOTAL_LIMIT = 120;
@@ -115,6 +118,7 @@ async function ProjectIssuesTab({
       initialTickets={tickets}
       users={users}
       currentUser={currentUser}
+      workspaceId={workspaceId}
       initialLimit={INITIAL_LIMIT}
       totalLimit={TOTAL_LIMIT}
       initialFilter={activeFilter}

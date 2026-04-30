@@ -105,7 +105,7 @@ export const IssueAssigneeSelector = memo(({
             >
                 <div className="relative">
                     <UserAvatar
-                        name={optimisticAssignee?.name || 'Unassigned'}
+                        name={optimisticAssignee?.name || 'Assignee'}
                         avatarUrl={optimisticAssignee?.avatar_url}
                         size="sm"
                     />
@@ -135,18 +135,7 @@ export const IssueAssigneeSelector = memo(({
                         </div>
                         
                         <div className="max-h-64 overflow-y-auto p-1 py-1.5 custom-scrollbar">
-                            <button 
-                                onClick={(e) => handleSelect(e, null)}
-                                className={twMerge(
-                                    "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-colors",
-                                    !optimisticAssigneeId ? "bg-gray-50" : "hover:bg-gray-50"
-                                )}
-                            >
-                                <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-gray-400">
-                                    <User size={12} />
-                                </div>
-                                <span className="text-xs font-medium text-gray-600">Unassigned</span>
-                            </button>
+
 
                             {filteredUsers.map((u) => (
                                 <button

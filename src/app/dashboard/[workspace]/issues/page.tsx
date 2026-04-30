@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { IssuesView } from '@/components/dashboard/issues/IssuesView';
 import { IssueListSkeleton } from '@/components/dashboard/issues/IssueListSkeleton';
 import { Metadata } from 'next';
-import { getCachedIssueProjects, getCachedIssueUsers, getCachedIssuesList, getCachedUserProfile, getCachedWorkspaceBySlug } from '@/lib/cache';
+import { getCachedIssueProjects, getCachedIssueUsers, getCachedIssuesList, getCachedUserProfile, getCachedWorkspaceBySlug, getCachedWorkspaceMember } from '@/lib/cache';
 
 export const metadata: Metadata = {
   title: 'Issues',
@@ -52,12 +52,15 @@ export default async function IssuesPage({
 
 async function IssueListContent({ filter, userEmail, workspaceId, workspaceSlug }: { filter: string; userEmail: string; workspaceId: string; workspaceSlug: string }) {
   // Fetch all required data in parallel including user profile
-  const [ticketsRes, cachedProjects, cachedUsers, currentUser] = await Promise.all([
+  const [ticketsRes, cachedProjects, cachedUsers, profile] = await Promise.all([
     getCachedIssuesList(workspaceId, INITIAL_ISSUES_LIMIT),
     getCachedIssueProjects(workspaceId),
     getCachedIssueUsers(workspaceId),
     getCachedUserProfile(userEmail)
   ]);
+
+  const member = profile?.id ? await getCachedWorkspaceMember(workspaceId, profile.id) : null;
+  const currentUser = profile ? { ...profile, roles: member?.roles || null } : null;
 
   const tickets = ticketsRes || [];
   const projects = (cachedProjects || []).map((p: any) => ({ id: p.id, name: p.project_name }));

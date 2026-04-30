@@ -348,7 +348,6 @@ export function ProjectList({ projects, users, userMap, userRole, workspaceId }:
                                     ? `We couldn't find any projects matching "${searchTerm}".`
                                     : "You haven't created any projects yet. Start by creating a project to organize your team's tasks."}
                             </p>
-                            {!searchTerm && <CreateProjectButton variant="header" workspaceId={workspaceId} />}
                         </div>
                     ) : (
                         <div className="bg-white rounded-lg shadow-sm border border-gray-200">

@@ -33,6 +33,7 @@ export function TeamHeader({ isAdmin, currentUserRole, workspaceId }: TeamHeader
                         isOpen={isModalOpen} 
                         onClose={() => setIsModalOpen(false)} 
                         workspaceId={workspaceId}
+                        isAdmin={isAdmin}
                     />
                 </>
             )}
