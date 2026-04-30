@@ -94,17 +94,43 @@ export async function fetchEntityDetailAction(entityId: string, entityType: stri
 
         return { detail: detailData, activity, error: null };
     } else if (normalizedType === 'project') {
-        // Fetch project and its lead in a single query
+        // Fetch project, its lead, and resources in parallel
+        const [projectRes, resourcesRes] = await Promise.all([
+            supabase
+                .from('projects')
+                .select('*, lead:users!lead_id(id, name, email, avatar_url)')
+                .eq('id', entityId)
+                .maybeSingle(),
+            supabase
+                .from('project_resources')
+                .select('*')
+                .eq('project_id', entityId)
+        ]);
+
+        if (projectRes.error || !projectRes.data) {
+            console.error(`[Inbox] Project fetch error for ${entityId}:`, projectRes.error);
+            return { detail: null, activity: [], error: 'Project not found' };
+        }
+        
+        // Add resources to the project detail
+        const detail = {
+            ...projectRes.data,
+            resources: resourcesRes.data || []
+        };
+        
+        return { detail, activity: [], error: null };
+    }
+
+    else if (normalizedType === 'workspace') {
         const { data, error } = await supabase
-            .from('projects')
-            .select('*, lead:users!lead_id(id, name, email, avatar_url)')
+            .from('workspaces')
+            .select('*')
             .eq('id', entityId)
             .maybeSingle();
 
         if (error || !data) {
-            // Log once and return minimal error state or fallback
-            console.error(`[Inbox] Project fetch error for ${entityId}:`, error);
-            return { detail: null, activity: [], error: 'Project not found' };
+            console.error(`[Inbox] Workspace fetch error for ${entityId}:`, error);
+            return { detail: null, activity: [], error: 'Workspace not found' };
         }
         
         return { detail: data, activity: [], error: null };

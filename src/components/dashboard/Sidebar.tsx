@@ -97,8 +97,9 @@ export function Sidebar({
   }, []);
 
   // Hydrate notification count
+  // Hydrate notification count
   useEffect(() => {
-    if (didHydrate.current) return;
+    // If we have an initial count from props (passed by layout), use it and mark as hydrated for this workspace
     if (initialUnreadCount !== undefined) {
       setUnreadCount(initialUnreadCount);
       didHydrate.current = true;
@@ -115,7 +116,12 @@ export function Sidebar({
       };
       fetchInitialCount();
     }
-  }, [initialUnreadCount, setUnreadCount, userId, supabase]);
+    
+    // When workspaceId changes, we want to allow re-hydration
+    return () => {
+      didHydrate.current = false;
+    };
+  }, [initialUnreadCount, setUnreadCount, userId, supabase, activeWorkspaceId]);
 
   // Realtime subscription
   useEffect(() => {
@@ -158,9 +164,6 @@ export function Sidebar({
             <div className="flex flex-col text-left">
               <span className="text-sm font-bold text-slate-800 leading-tight tracking-tight truncate max-w-[140px]">
                 {workspaceName || 'Tectome'}
-              </span>
-              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none mt-0.5">
-                {userRole || 'Workspace'}
               </span>
             </div>
           </div>

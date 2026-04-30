@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, memo } from 'react'
-import { Search, Trash2, Loader2 } from 'lucide-react'
+import { Search, Trash2, Loader2, ShieldCheck } from 'lucide-react'
 import { useTeamStore } from '@/lib/store/team'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { deleteMember, updateUserRole } from '@/app/dashboard/[workspace]/team/actions'
@@ -21,47 +21,76 @@ const TeamMemberRow = memo(({ user, isAdmin, currentUserRole }: { user: any, isA
     const rawRole = user.roles?.role_name || 'User'
     const displayRole = rawRole === 'Admin' ? 'Workspace admin' : rawRole
 
-    const canDelete = isAdmin || (currentUserRole === 'Project Manager' && (rawRole === 'Junior Developer' || rawRole === 'Senior Developer'));
-    const canChangeRole = isAdmin || (currentUserRole === 'Project Manager' && (rawRole === 'Junior Developer' || rawRole === 'Senior Developer'));
+    const canDelete = isAdmin || (currentUserRole === 'Project Manager' && (rawRole === 'Junior Developer' || rawRole === 'Senior Developer' || rawRole === 'Project Manager'));
+    const canChangeRole = isAdmin || (currentUserRole === 'Project Manager' && (rawRole === 'Junior Developer' || rawRole === 'Senior Developer' || rawRole === 'Project Manager'));
 
-    const handleRoleChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const handleRoleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const newRole = e.target.value;
-        // Keep confirm for now or add another modal later if needed, 
-        // focus is on fixing the delete error and standardizing that UI first.
-        if (!confirm(`Are you sure you want to change ${user.name || user.email}'s role to ${newRole}?`)) {
-            e.target.value = rawRole; // Reset
-            return;
-        }
-
-        setIsUpdatingRole(true);
-        try {
-            // Optimistic update
-            useTeamStore.getState().updateRole(user.id, newRole);
-
-            const result = await updateUserRole(user.id, newRole);
-            if (result.error) {
-                toast.error(result.error);
-                // Sync back on error
-                refresh();
-            } else {
-                toast.success('Role updated successfully');
-            }
-        } catch (err) {
-            console.error('Update role error:', err);
-            toast.error('Failed to update member role');
-            refresh();
-        } finally {
-            setIsUpdatingRole(false);
-        }
+        const selectId = `role-select-${user.id}`;
+        
+        toast.custom((t) => (
+            <div className="bg-gradient-to-br from-indigo-600 to-purple-700 text-white p-5 rounded-2xl shadow-2xl border border-white/20 backdrop-blur-xl max-w-sm w-full animate-in slide-in-from-top-4 duration-300">
+                <div className="flex items-start gap-4">
+                    <div className="bg-white/10 p-3 rounded-xl border border-white/10">
+                        <ShieldCheck size={20} className="text-emerald-300" />
+                    </div>
+                    <div className="flex-1">
+                        <h3 className="text-sm font-bold tracking-tight mb-1">Confirm Role Change</h3>
+                        <p className="text-xs text-indigo-100 leading-relaxed mb-4">
+                            Change <span className="font-bold text-white underline decoration-emerald-400/50 underline-offset-2">{user.name || user.email}'s</span> role to <span className="font-bold text-white">{newRole}</span>?
+                        </p>
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={async () => {
+                                    toast.dismiss(t);
+                                    setIsUpdatingRole(true);
+                                    try {
+                                        const store = useTeamStore.getState();
+                                        store.updateRole(user.id, newRole);
+                                        const result = await updateUserRole(user.id, newRole, store.workspaceId!);
+                                        if (result.error) {
+                                            toast.error(result.error);
+                                            refresh();
+                                        } else {
+                                            toast.success('Role updated successfully');
+                                        }
+                                    } catch (err) {
+                                        console.error('Update role error:', err);
+                                        toast.error('Failed to update member role');
+                                        refresh();
+                                    } finally {
+                                        setIsUpdatingRole(false);
+                                    }
+                                }}
+                                className="flex-1 bg-white text-indigo-700 py-2 rounded-lg text-xs font-bold hover:bg-indigo-50 transition-all active:scale-95 shadow-lg shadow-black/10"
+                            >
+                                Confirm Change
+                            </button>
+                            <button
+                                onClick={() => {
+                                    toast.dismiss(t);
+                                    const select = document.getElementById(selectId) as HTMLSelectElement;
+                                    if (select) select.value = rawRole;
+                                }}
+                                className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-bold transition-all border border-white/10"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        ), { duration: 10000, position: 'top-center' });
     };
 
     const confirmDelete = async () => {
         setIsDeleting(true);
         // Optimistic update
-        useTeamStore.getState().removeUser(user.id);
+        const store = useTeamStore.getState();
+        store.removeUser(user.id);
 
         try {
-            const result = await deleteMember(user.id);
+            const result = await deleteMember(user.id, store.workspaceId!);
             if (result.error) {
                 toast.error(result.error);
                 // Rollback on error
@@ -108,13 +137,16 @@ const TeamMemberRow = memo(({ user, isAdmin, currentUserRole }: { user: any, isA
                 {canChangeRole ? (
                     <div className="relative inline-block w-full max-w-[140px]">
                         <select
-                            defaultValue={rawRole}
+                            id={`role-select-${user.id}`}
+                            value={rawRole}
                             onChange={handleRoleChange}
                             disabled={isUpdatingRole}
                             className={`appearance-none w-full bg-indigo-50/50 border border-indigo-100/50 rounded px-2 py-0.5 text-[10px] font-bold text-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-500/30 transition-all ${isUpdatingRole ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-indigo-100/30'} pr-6`}
                         >
                             {isAdmin && <option value="Admin">Admin</option>}
-                            {isAdmin && <option value="Project Manager">Project Manager</option>}
+                            {(isAdmin || currentUserRole === 'Project Manager') && (
+                                <option value="Project Manager">Project Manager</option>
+                            )}
                             <option value="Senior Developer">Senior Developer</option>
                             <option value="Junior Developer">Junior Developer</option>
                         </select>

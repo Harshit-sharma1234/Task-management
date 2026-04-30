@@ -4,21 +4,23 @@ import React, { useState, useEffect, useRef } from 'react'
 import { X, UserPlus, Mail, Shield, BadgeCheck, Copy, Check } from 'lucide-react'
 import { createWorkspaceInvite } from '@/app/dashboard/[workspace]/team/actions'
 import { toast } from 'sonner'
+import { validateEmail } from '@/lib/validation'
 
 interface InviteMemberModalProps {
     isOpen: boolean
     onClose: () => void
     workspaceId: string
+    isAdmin?: boolean
 }
 
 const ROLES = [
-    { id: 'Junior Developer', label: 'Junior Developer', desc: 'Can view and update assigned tickets' },
-    { id: 'Senior Developer', label: 'Senior Developer', desc: 'Can manage issues and review code' },
-    { id: 'Project Manager', label: 'Project Manager', desc: 'Can manage projects and team members' },
-    { id: 'Admin', label: 'Admin', desc: 'Full access to all workspace settings' },
+    { id: 'Junior Developer', label: 'Junior Developer' },
+    { id: 'Senior Developer', label: 'Senior Developer' },
+    { id: 'Project Manager', label: 'Project Manager' },
+    { id: 'Admin', label: 'Admin' },
 ]
 
-export function InviteMemberModal({ isOpen, onClose, workspaceId }: InviteMemberModalProps) {
+export function InviteMemberModal({ isOpen, onClose, workspaceId, isAdmin = false }: InviteMemberModalProps) {
     const formRef = useRef<HTMLFormElement>(null)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -52,8 +54,16 @@ export function InviteMemberModal({ isOpen, onClose, workspaceId }: InviteMember
 
         const currentVersion = requestVersionRef.current
         const formData = new FormData(e.currentTarget)
-        const email = formData.get('email') as string
+        const email = (formData.get('email') as string || '').trim()
         const roleName = formData.get('roleName') as string
+
+        // Validation
+        const emailCheck = validateEmail(email)
+        if (!emailCheck.valid) {
+            setError(emailCheck.error || 'Invalid email address')
+            setIsSubmitting(false)
+            return
+        }
 
         try {
             const result = await createWorkspaceInvite(workspaceId, email, roleName)
@@ -137,7 +147,7 @@ export function InviteMemberModal({ isOpen, onClose, workspaceId }: InviteMember
                         <div className="space-y-3">
                             <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest px-1">Assign Role</label>
                             <div className="grid grid-cols-1 gap-2">
-                                {ROLES.map((role) => (
+                                {ROLES.filter(r => isAdmin || r.id !== 'Admin').map((role) => (
                                     <label 
                                         key={role.id}
                                         className="relative flex items-center gap-4 p-4 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors border-2 border-transparent has-[:checked]:border-indigo-500/20 has-[:checked]:bg-indigo-50/30 group"
@@ -153,8 +163,7 @@ export function InviteMemberModal({ isOpen, onClose, workspaceId }: InviteMember
                                             {role.id === 'Admin' ? <Shield size={18} /> : <BadgeCheck size={18} />}
                                         </div>
                                         <div className="flex-1">
-                                            <div className="text-[14px] font-bold text-gray-900 leading-none mb-1">{role.label}</div>
-                                            <div className="text-[11px] font-medium text-gray-500">{role.desc}</div>
+                                            <div className="text-[14px] font-bold text-gray-900 leading-none">{role.label}</div>
                                         </div>
                                         <div className="w-5 h-5 rounded-full border-2 border-gray-200 group-has-[:checked]:border-indigo-600 group-has-[:checked]:bg-indigo-600 flex items-center justify-center transition-all">
                                             <div className="w-2 h-2 rounded-full bg-white opacity-0 group-has-[:checked]:opacity-100 transition-opacity" />

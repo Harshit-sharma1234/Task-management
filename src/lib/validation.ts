@@ -37,10 +37,20 @@ export function validatePassword(password: string): PasswordValidation {
 }
 
 /**
- * Validates an email address format.
+ * Validates an email address format with detailed feedback.
  */
-export function validateEmail(email: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+export function validateEmail(email: string): { valid: boolean; error?: string } {
+  if (!email || email.trim() === '') {
+    return { valid: false, error: 'Email address is required.' };
+  }
+  
+  // Robust email regex
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  if (!emailRegex.test(email)) {
+    return { valid: false, error: 'Invalid email address format.' };
+  }
+  
+  return { valid: true };
 }
 
 /**

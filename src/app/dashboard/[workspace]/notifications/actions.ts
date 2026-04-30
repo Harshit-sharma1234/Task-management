@@ -39,11 +39,11 @@ export async function createNotification(params: {
 /**
  * Mark a specific notification as read.
  */
-export async function markAsRead(notificationId: string) {
+export async function markAsRead(notificationId: string, isRead: boolean = true) {
     const supabase = await createClient()
     const { error } = await supabase
         .from('notifications')
-        .update({ is_read: true })
+        .update({ is_read: isRead })
         .eq('id', notificationId)
 
     if (error) {

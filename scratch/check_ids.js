@@ -1,0 +1,20 @@
+const { createClient } = require('@supabase/supabase-js');
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+async function checkIds() {
+    const email = 'harshit.sharma@tectome.co.uk';
+    const { data, error } = await supabase
+        .from('users')
+        .select('id, auth_id, email')
+        .ilike('email', email)
+        .maybeSingle();
+    
+    if (error) console.error(error);
+    else console.log('User IDs:', JSON.stringify(data, null, 2));
+}
+
+checkIds();
