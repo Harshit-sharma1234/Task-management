@@ -102,7 +102,8 @@ export async function deleteAllNotifications(workspaceId: string) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: 'Not authenticated' }
 
-    const { error } = await supabase
+    const adminClient = createAdminClient()
+    const { error } = await adminClient
         .from('notifications')
         .delete()
         .eq('user_id', user.id)
@@ -126,7 +127,8 @@ export async function deleteAllReadNotifications(workspaceId: string) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: 'Not authenticated' }
 
-    const { error } = await supabase
+    const adminClient = createAdminClient()
+    const { error } = await adminClient
         .from('notifications')
         .delete()
         .eq('user_id', user.id)
@@ -151,7 +153,8 @@ export async function deleteNotification(notificationId: string) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: 'Not authenticated' }
 
-    const { error } = await supabase
+    const adminClient = createAdminClient()
+    const { error } = await adminClient
         .from('notifications')
         .delete()
         .eq('id', notificationId)
@@ -163,6 +166,7 @@ export async function deleteNotification(notificationId: string) {
     }
 
     revalidatePath('/dashboard/[workspace]/inbox', 'page')
-    revalidateTag(`notifications-${user.id}`, "max")
+    // Invalidate cached unread count
+    if (user) revalidateTag(`notifications-${user.id}`, "max")
     return { success: true }
 }
