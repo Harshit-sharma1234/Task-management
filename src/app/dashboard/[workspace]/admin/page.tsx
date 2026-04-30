@@ -19,10 +19,12 @@ export const revalidate = 60;
 
 export default async function AdminDashboard({ params }: { params: Promise<{ workspace: string }> }) {
     const { workspace: workspaceSlug } = await params;
-    const user = await getServerUser()
-    if (!user) redirect('/login')
+    const [user, workspace] = await Promise.all([
+        getServerUser(),
+        getCachedWorkspaceBySlug(workspaceSlug)
+    ]);
 
-    const workspace = await getCachedWorkspaceBySlug(workspaceSlug)
+    if (!user) redirect('/login')
     if (!workspace) redirect('/dashboard')
 
     const userName = user.user_metadata?.full_name || user.email;
@@ -39,9 +41,9 @@ export default async function AdminDashboard({ params }: { params: Promise<{ wor
                     </p>
                 </div>
                 <div className="flex items-center gap-4">
-                    <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl shadow-sm">
-                        <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">System Administrator</span>
+                    <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white border border-indigo-100 rounded-xl shadow-sm shadow-indigo-50/50">
+                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
+                        <span className="text-[11px] font-extrabold text-indigo-600 uppercase tracking-widest">System Administrator</span>
                     </div>
                     <CreateProjectButton variant="header" workspaceId={workspace.id} />
                 </div>

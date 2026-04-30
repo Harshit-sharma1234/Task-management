@@ -5,6 +5,8 @@ import { sendEmail } from '@/lib/email'
 import { randomInt } from 'crypto'
 import { baseLayout } from '@/lib/email-templates' // Re-import baseLayout logic or similar
 
+import { validateEmail } from '@/lib/validation'
+
 /**
  * Custom template for Password Reset OTP
  */
@@ -33,23 +35,36 @@ function passwordResetEmail(params: { otpCode: string; expiresInMinutes: number 
 }
 
 export async function requestPasswordResetOTP(email: string) {
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        return { error: 'A valid email address is required.' }
+    const emailCheck = validateEmail(email)
+    if (!emailCheck.valid) {
+        return { error: emailCheck.error || 'Invalid email address' }
     }
 
     const adminClient = createAdminClient()
 
     // 1. Verify user exists
-    const { data: user } = await adminClient
+    const searchEmail = email.trim().toLowerCase()
+    
+    // Debug: check admin client and env vars
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        console.error('[Reset OTP] CRITICAL: SUPABASE_SERVICE_ROLE_KEY is missing in server environment!')
+        return { error: 'Server configuration error. Please contact support.' }
+    }
+
+    const { data: user, error: dbError } = await adminClient
         .from('users')
         .select('id')
-        .eq('email', email.toLowerCase())
+        .ilike('email', searchEmail)
         .maybeSingle()
 
+    if (dbError) {
+        console.error('[Reset OTP] DB Error:', dbError)
+        return { error: `Database error: ${dbError.message}` }
+    }
+
     if (!user) {
-        // Issue #13: Don't reveal whether the user exists — always return success
-        // to prevent email enumeration attacks.
-        return { success: true }
+        console.log(`[Reset OTP] User not found for: "${searchEmail}"`)
+        return { error: `Invalid email: No account found for ${searchEmail}` }
     }
 
     const otpCode = randomInt(100000, 999999).toString()

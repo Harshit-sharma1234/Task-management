@@ -253,6 +253,7 @@ export function IssuesView({
           onClose={() => setIsModalOpen(false)}
           projects={projects}
           users={users}
+          workspaceId={workspaceId}
         />
       )}
     </div>

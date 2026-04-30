@@ -4,13 +4,21 @@ import nodemailer from 'nodemailer';
  * Configure the SMTP transporter for Gmail.
  * Using Port 465 with SSL for maximum reliability.
  */
+const SMTP_HOST = process.env.SMTP_HOST || 'smtp.gmail.com';
+const SMTP_PORT = parseInt(process.env.SMTP_PORT || '465');
+const SMTP_SECURE = SMTP_PORT === 465; // True for 465, false for 587
+
 const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true, // Gmail uses SSL on 465
+  host: SMTP_HOST,
+  port: SMTP_PORT,
+  secure: SMTP_SECURE, 
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASSWORD,
+  },
+  // Add TLS options for better compatibility with different servers
+  tls: {
+    rejectUnauthorized: false, // Helps with some corporate environments/Outlook
   },
 });
 
@@ -21,10 +29,12 @@ interface SendEmailParams {
   subject: string;
   html: string;
   replyTo?: string;
+  priority?: 'high' | 'normal' | 'low';
 }
 
 /**
- * Send an email via Gmail SMTP with automatic retry (up to 3 attempts).
+ * Send an email via SMTP with automatic retry (up to 3 attempts).
+ * Optimized for high deliverability to Outlook/Gmail.
  */
 export async function sendEmail(params: SendEmailParams) {
   const MAX_RETRIES = 3;
@@ -32,15 +42,24 @@ export async function sendEmail(params: SendEmailParams) {
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
+      const isHighPriority = params.priority === 'high' || params.subject.toLowerCase().includes('verification');
+      
       const info = await transporter.sendMail({
         from: FROM_ADDRESS,
         to: Array.isArray(params.to) ? params.to.join(', ') : params.to,
         subject: params.subject,
         html: params.html,
         replyTo: params.replyTo,
+        // High priority headers to help with Outlook deliverability
+        priority: isHighPriority ? 'high' : 'normal',
+        headers: isHighPriority ? {
+          'X-Priority': '1 (Highest)',
+          'X-MSMail-Priority': 'High',
+          'Importance': 'high',
+        } : {},
       });
 
-      console.log('[Email] Sent successfully via Gmail:', info.messageId);
+      console.log(`[Email] Sent successfully via ${SMTP_HOST}:`, info.messageId);
       return { success: true, id: info.messageId };
     } catch (err) {
       lastError = err as Error;

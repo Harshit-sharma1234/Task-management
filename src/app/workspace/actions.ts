@@ -26,27 +26,25 @@ export async function createWorkspace(prevState: any, formData: FormData) {
 
     const adminClient = createAdminClient()
 
-    // Get internal user ID
-    const { data: userProfile } = await adminClient
-        .from('users')
-        .select('id')
-        .eq('auth_id', user.id)
-        .single()
+    // 1. Parallelize initial checks and role fetching to eliminate waterfalls
+    const [
+        { data: userProfile, error: profileError },
+        { data: existing, error: slugCheckError },
+        { data: adminRole, error: roleError }
+    ] = await Promise.all([
+        adminClient.from('users').select('id').eq('auth_id', user.id).single(),
+        adminClient.from('workspaces').select('id').eq('slug', slug).maybeSingle(),
+        adminClient.from('roles').select('id').eq('role_name', 'Admin').single()
+    ]);
 
-    if (!userProfile) return { error: 'User profile not found.' }
-
-    // Check slug availability
-    const { data: existing } = await adminClient
-        .from('workspaces')
-        .select('id')
-        .eq('slug', slug)
-        .maybeSingle()
-
+    if (profileError || !userProfile) return { error: 'User profile not found.' }
+    if (slugCheckError) return { error: 'Error checking workspace availability.' }
     if (existing) {
         return { error: 'This workspace URL is already taken. Try a different one.' }
     }
+    if (roleError || !adminRole) return { error: 'Admin role not found in database.' }
 
-    // Create workspace
+    // 2. Create workspace (Atomic operation)
     const { data: workspace, error: wsError } = await adminClient
         .from('workspaces')
         .insert({ name, slug, created_by: userProfile.id })
@@ -58,34 +56,20 @@ export async function createWorkspace(prevState: any, formData: FormData) {
         return { error: 'Failed to create workspace.' }
     }
 
-    // Get Admin role ID
-    const { data: adminRole } = await adminClient
-        .from('roles')
-        .select('id')
-        .eq('role_name', 'Admin')
-        .single()
-
-    if (!adminRole) return { error: 'Admin role not found in database.' }
-
-    // Add creator as Admin member
-    const { error: memberError } = await adminClient
-        .from('workspace_members')
-        .insert({
+    // 3. Add creator as Admin and update last visited (Parallel side effects)
+    const [memberRes, updateRes] = await Promise.all([
+        adminClient.from('workspace_members').insert({
             workspace_id: workspace.id,
             user_id: userProfile.id,
             role_id: adminRole.id,
-        })
+        }),
+        adminClient.from('users').update({ last_workspace_id: workspace.id }).eq('id', userProfile.id)
+    ]);
 
-    if (memberError) {
-        console.error('[createWorkspace] Member insert error:', memberError)
+    if (memberRes.error) {
+        console.error('[createWorkspace] Member insert error:', memberRes.error)
         return { error: 'Failed to add you as workspace admin.' }
     }
-
-    // Set as last visited workspace
-    await adminClient
-        .from('users')
-        .update({ last_workspace_id: workspace.id })
-        .eq('id', userProfile.id)
 
     revalidatePath('/', 'layout')
     redirect(`/dashboard/${slug}/admin`)
