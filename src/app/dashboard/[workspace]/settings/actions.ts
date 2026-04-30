@@ -43,6 +43,7 @@ export async function fetchSettingsData(workspaceSlug: string) {
         email: authUser.email || '',
         avatar_url: profile?.avatar_url || null,
         workspacerole: (membership as any)?.roles?.role_name || 'Member',
+        hasPassword: authUser.identities?.some(id => id.provider === 'email') || false,
         activeWorkspace: {
             id: workspace.id,
             name: workspace.name,
