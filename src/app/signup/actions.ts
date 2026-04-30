@@ -3,7 +3,7 @@
 import { redirect } from 'next/navigation'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail, sendBulkEmails } from '@/lib/email'
-import { newSignupNotificationEmail, emailVerificationEmail } from '@/lib/email-templates'
+import { newSignupNotificationEmail, emailVerificationEmail as getVerificationEmail } from '@/lib/email-templates'
 import { randomInt } from 'crypto'
 import { getBaseUrl } from '@/lib/urls'
 import { validatePassword, validateEmail } from '@/lib/validation'
@@ -57,7 +57,7 @@ export async function requestOTP(email: string) {
         return { error: 'Failed to generate verification code.' }
     }
 
-    const html = emailVerificationEmail({ otpCode, expiresInMinutes: 10 })
+    const html = getVerificationEmail({ otpCode, expiresInMinutes: 10 });
     
     // Non-blocking email send
     (async () => {
