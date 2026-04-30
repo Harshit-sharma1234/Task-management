@@ -43,6 +43,7 @@ interface AddIssueModalProps {
   onClose: () => void;
   projects: Project[];
   users: User[];
+  workspaceId: string;
 }
 
 const statusOptions = [
@@ -63,7 +64,7 @@ const priorityOptions = [
   { value: 'urgent', label: 'Urgent', icon: SignalHigh, color: 'text-red-600' },
 ];
 
-export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModalProps) {
+export function AddIssueModal({ isOpen, onClose, projects, users, workspaceId }: AddIssueModalProps) {
   console.log('[AddIssueModal] Rendering - Version 1.1 (Optimistic Fix)');
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -81,6 +82,7 @@ export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModa
     priority: '',
     project_id: '',
     assignee_id: '',
+    reviewer_id: '',
   });
 
   const [isProjectDropdownOpen, setIsProjectDropdownOpen] = useState(false);
@@ -113,6 +115,7 @@ export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModa
 
     const data = new FormData();
     Object.entries(formData).forEach(([key, value]) => data.append(key, value));
+    data.append('workspace_id', workspaceId);
 
     // Append files
     selectedFiles.forEach((file) => data.append('attachments', file));
@@ -297,7 +300,7 @@ export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModa
                 onChange={(e) => setFormData({ ...formData, assignee_id: e.target.value })}
               >
                 <option value="" disabled className="text-gray-400">Select assignee *</option>
-                <option value="" className="text-gray-900">Unassigned</option>
+
                 {users.map((u) => (
                   <option key={u.id} value={u.id} className="text-gray-900">
                     {u.name}
@@ -306,6 +309,25 @@ export function AddIssueModal({ isOpen, onClose, projects, users }: AddIssueModa
               </select>
               <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
                 <User size={14} />
+              </div>
+            </div>
+
+            {/* Reviewer Selector */}
+            <div className="relative group min-w-[120px]">
+              <select
+                className="appearance-none bg-white border border-gray-200 rounded-md px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/20 pr-8 cursor-pointer w-full shadow-sm"
+                value={formData.reviewer_id}
+                onChange={(e) => setFormData({ ...formData, reviewer_id: e.target.value })}
+              >
+                <option value="">Select reviewer (optional)</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id} className="text-gray-900" disabled={u.id === formData.assignee_id}>
+                    {u.name}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                <User size={14} className="text-fuchsia-400" />
               </div>
             </div>
 

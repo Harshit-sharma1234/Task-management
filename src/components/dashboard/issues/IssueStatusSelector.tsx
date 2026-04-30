@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, memo, useCallback, startTransition } from 'react';
+import { useState, useRef, useEffect, memo, useCallback, startTransition, useMemo } from 'react';
 import { updateIssue } from '@/app/dashboard/[workspace]/issues/actions';
 import { toast } from 'sonner';
 import { 
@@ -45,17 +45,23 @@ export const IssueStatusSelector = memo(({
     const [optimisticStatus, setOptimisticStatus] = useState(currentStatus);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
-    const role = currentUser?.roles?.role_name;
+    // Safety checks for roles
+    const roleData = currentUser?.roles;
+    const role = (Array.isArray(roleData) ? roleData[0]?.role_name : roleData?.role_name) || '';
+    
     const isAdmin = role === 'Admin' || role === 'Project Manager';
     const isAssignee = currentUser?.id === assigneeId;
     const isReviewer = currentUser?.id === reviewerId;
     const canUpdate = isAdmin || isAssignee || isReviewer;
 
-    // Restricted statuses for assignees
-    const isRestrictedAssignee = currentUser?.id === assigneeId && !isAdmin;
-    const restrictedStatuses = ['in_review', 'done'];
+    const isRestrictedUser = !isAdmin && !isReviewer;
+    const restrictedStatuses = ['review', 'in_review', 'done'];
 
-    // Sync with server props when they arrive
+    const availableOptions = useMemo(() => {
+        if (!isRestrictedUser) return statusOptions;
+        return statusOptions.filter(opt => !restrictedStatuses.includes(opt.value));
+    }, [isRestrictedUser]);
+
     useEffect(() => { setOptimisticStatus(currentStatus); }, [currentStatus]);
 
     const activeStatus = statusOptions.find(s => s.value === optimisticStatus) || statusOptions[1];
@@ -75,13 +81,17 @@ export const IssueStatusSelector = memo(({
     const handleSelect = useCallback((e: React.MouseEvent, value: string) => {
         e.preventDefault();
         e.stopPropagation();
+
+        if (isRestrictedUser && restrictedStatuses.includes(value)) {
+            toast.error("Only the Reviewer, Admin, or Project Manager can move issues to this status.");
+            return;
+        }
         
         if (value === optimisticStatus) {
             setIsOpen(false);
             return;
         }
 
-        // Optimistic: instantly update the UI
         const previousStatus = optimisticStatus;
         setOptimisticStatus(value);
         setIsOpen(false);
@@ -90,18 +100,17 @@ export const IssueStatusSelector = memo(({
         startTransition(async () => {
             const res = await updateIssue(issueId, { status: value });
             if (res.error) {
-                // Revert on failure
                 setOptimisticStatus(previousStatus);
                 toast.error(res.error);
             }
             setIsUpdating(false);
-            // No router.refresh() — revalidatePath in the server action already handles revalidation
         });
-    }, [issueId, optimisticStatus]);
+    }, [issueId, optimisticStatus, isRestrictedUser]);
 
     return (
-        <div className="relative" ref={dropdownRef}>
+        <div className="relative inline-block text-left" ref={dropdownRef}>
             <button
+                type="button"
                 onClick={(e) => {
                     if (!canUpdate) return;
                     e.preventDefault();
@@ -138,29 +147,17 @@ export const IssueStatusSelector = memo(({
                 <>
                     <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
                     <div className="absolute left-0 top-full mt-1 w-40 bg-white shadow-xl border border-gray-100 rounded-lg py-1.5 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
-                        {statusOptions.map((opt) => (
+                        {availableOptions.map((opt) => (
                             <button
                                 key={opt.value}
-                                onClick={(e) => {
-                                    if (isRestrictedAssignee && restrictedStatuses.includes(opt.value)) {
-                                        toast.error(`Assignees cannot move issues to ${opt.label}`);
-                                        return;
-                                    }
-                                    handleSelect(e, opt.value);
-                                }}
+                                onClick={(e) => handleSelect(e, opt.value)}
                                 className={twMerge(
-                                    "w-full flex items-center gap-2.5 px-3 py-1.5 text-left transition-colors",
-                                    currentStatus === opt.value ? "bg-gray-50" : "hover:bg-gray-50",
-                                    isRestrictedAssignee && restrictedStatuses.includes(opt.value) && "opacity-40 cursor-not-allowed grayscale"
+                                    "w-full flex items-center gap-2.5 px-3 py-2 text-[11px] font-bold uppercase tracking-wider transition-colors",
+                                    optimisticStatus === opt.value ? "bg-gray-50 text-indigo-600" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                                 )}
                             >
-                                <div className={twMerge("w-2 h-2 rounded-full", opt.dot)}></div>
-                                <span className={twMerge(
-                                    "text-[11px] font-semibold",
-                                    currentStatus === opt.value ? "text-gray-900" : "text-gray-500"
-                                )}>
-                                    {opt.label}
-                                </span>
+                                <div className={twMerge("w-1.5 h-1.5 rounded-full shrink-0", opt.dot)}></div>
+                                {opt.label}
                             </button>
                         ))}
                     </div>
@@ -168,6 +165,6 @@ export const IssueStatusSelector = memo(({
             )}
         </div>
     );
-})
+});
 
 IssueStatusSelector.displayName = 'IssueStatusSelector';
