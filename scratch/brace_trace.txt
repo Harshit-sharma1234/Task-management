@@ -168,391 +168,393 @@
 168: [3]         if (authError && !authError.message?.includes('not found')) {
 169: [3]             console.error('[deleteMember] Auth Error:', authError);
 170: [2]         }
-171: [2]     revalidateTag('team-members');
-172: [2]     revalidateTag('users');
-173: [3]     if (workspaceId) {
-174: [3]         revalidateTag(`team-members-${workspaceId}`);
-175: [3]         revalidateTag(`workspace-${workspaceId}`);
-176: [3]         // Invalidate all projects in the workspace to refresh their member lists
-177: [3]         revalidateTag('projects');
-178: [3]         revalidatePath(`/dashboard/${workspaceId}`);
-179: [3]         revalidatePath(`/dashboard/${workspaceId}/team`);
-180: [3]         revalidatePath(`/dashboard/${workspaceId}/projects`);
-181: [2]     }
-182: [2]     revalidatePath('/dashboard');
-183: [2]     return { success: true };
-184: [1] }
-185: [1] 
-186: [1] /**
-187: [1]  * Updates a team member's role within a workspace.
-188: [1]  * Updates workspace_members.role_id instead of the global users.role_id.
-189: [1]  */
-190: [2] export async function updateUserRole(targetUserId: string, newRoleName: string, workspaceId?: string) {
-191: [2]     const supabase = await createClient();
-192: [2]     const { data: authData } = await supabase.auth.getUser();
-193: [2]     
-194: [3]     if (!authData?.user?.email) {
-195: [3]         return { error: 'Not authenticated' };
-196: [2]     }
-197: [2] 
-198: [2]     const profile = await getCachedUserProfile(authData.user.email);
-199: [3]     if (!profile) {
-200: [3]         return { error: 'Profile not found' };
-201: [2]     }
-202: [2] 
-203: [2]     const adminClient = createAdminClient();
-204: [2] 
-205: [2]     // 1. Permission check: Only Admin or PM can change roles
-206: [2]     const { data: callerMembership } = await adminClient
-207: [2]         .from('workspace_members')
-208: [2]         .select('roles(role_name)')
-209: [2]         .eq('workspace_id', workspaceId)
-210: [2]         .eq('user_id', profile.id)
-211: [2]         .single();
-212: [2] 
-213: [2]     const rawCallerRole = (callerMembership as any)?.roles;
-214: [2]     const callerRole = Array.isArray(rawCallerRole) 
-215: [2]         ? rawCallerRole[0]?.role_name 
-216: [2]         : rawCallerRole?.role_name;
-217: [2] 
-218: [3]     if (callerRole !== 'Admin' && callerRole !== 'Project Manager') {
-219: [3]         return { error: `Unauthorized: Your role is ${callerRole || 'Unknown'}. Only Admins and Project Managers can change roles.` };
-220: [2]     }
-221: [2] 
-222: [2]     // New restriction: Only Admin can promote to Admin
-223: [3]     if (newRoleName === 'Admin' && callerRole !== 'Admin') {
-224: [3]         return { error: 'Unauthorized: Only Admins can promote a user to the Admin role.' };
-225: [2]     }
-226: [2] 
-227: [2]     // 2. Lookup role ID
-228: [2]     const { data: roleRecord } = await adminClient
-229: [2]         .from('roles')
-230: [2]         .select('id')
-231: [2]         .eq('role_name', newRoleName)
-232: [2]         .single();
-233: [2] 
-234: [3]     if (!roleRecord) {
-235: [3]         return { error: 'Invalid role name specified' };
-236: [2]     }
-237: [2] 
-238: [3]     if (workspaceId) {
-239: [3]         // Update workspace_members role (workspace-scoped)
-240: [3]         const { error: dbError, count } = await adminClient
-241: [3]             .from('workspace_members')
-242: [3]             .update({ role_id: roleRecord.id })
-243: [3]             .eq('workspace_id', workspaceId)
-244: [3]             .eq('user_id', targetUserId)
-245: [3]             .select('*', { count: 'exact', head: true });
-246: [3] 
-247: [4]         if (dbError) {
-248: [4]             console.error('[updateUserRole] DB Error (workspace_members):', dbError);
-249: [4]             return { error: `Database Error: ${dbError.message}` };
-250: [3]         }
-251: [3]         
-252: [3]         console.log(`[updateUserRole] Updated workspace_members for user ${targetUserId}: ${count} rows`);
-253: [3] 
-254: [4]         if (count === 0) {
-255: [4]             console.warn(`[updateUserRole] No rows updated for user ${targetUserId} in workspace ${workspaceId}`);
-256: [4]             // Check if member exists at all
-257: [4]             const { data: exists } = await adminClient
-258: [4]                 .from('workspace_members')
-259: [4]                 .select('id')
-260: [4]                 .eq('workspace_id', workspaceId)
-261: [4]                 .eq('user_id', targetUserId)
-262: [4]                 .maybeSingle();
-263: [4]             
-264: [5]             if (!exists) {
-265: [5]                 return { error: 'Member not found in this workspace' };
-266: [4]             }
-267: [3]         }
-268: [3] 
-269: [3]         // Also update the global users table for consistency (legacy but still read in some places)
-270: [3]         await adminClient
-271: [3]             .from('users')
-272: [3]             .update({ role_id: roleRecord.id })
-273: [3]             .eq('id', targetUserId);
-274: [3] 
-275: [3]         // 3. Send Notification to User Inbox
-276: [4]         try {
-277: [4]             // Get workspace name for the notification message
-278: [4]             const { data: workspace } = await adminClient
-279: [4]                 .from('workspaces')
-280: [4]                 .select('name')
-281: [4]                 .eq('id', workspaceId)
-282: [4]                 .single();
-283: [4] 
-284: [5]             if (workspace) {
-285: [5]                 await adminClient
-286: [5]                     .from('notifications')
-287: [6]                     .insert({
-288: [6]                         user_id: targetUserId,
-289: [6]                         actor_id: profile.id,
-290: [6]                         entity_type: 'workspace',
-291: [6]                         entity_id: workspaceId,
-292: [6]                         workspace_id: workspaceId,
-293: [6]                         type: 'role_change',
-294: [6]                         message: `${profile.name || 'An admin'} changed your role to ${newRoleName} in workspace: ${workspace.name}`,
-295: [6]                         is_read: false
-296: [5]                     });
-297: [4]             }
-298: [4]         } catch (notifyError) {
-299: [4]             console.error('[updateUserRole] Notification Error:', notifyError);
-300: [4]             // Don't fail the whole action if notification fails
-301: [3]         }
-302: [3]     } else {
-303: [3]         // Fallback: update users.role_id (legacy — will be removed after migration)
-304: [3]         const { error: dbError } = await adminClient
-305: [3]             .from('users')
-306: [3]             .update({ role_id: roleRecord.id })
-307: [3]             .eq('id', targetUserId);
-308: [3] 
-309: [4]         if (dbError) {
-310: [4]             console.error('[updateUserRole] DB Error:', dbError);
-311: [4]             return { error: `Database Error: ${dbError.message}` };
-312: [3]         }
-313: [2]     }
-314: [2] 
-315: [2]     revalidateTag('team-members');
-316: [2]     revalidateTag('users');
-317: [3]     if (workspaceId) {
-318: [3]         revalidateTag(`team-members-${workspaceId}`);
-319: [3]         revalidateTag(`workspace-${workspaceId}`);
-320: [3]         revalidatePath(`/dashboard/${workspaceId}`);
-321: [3]         revalidatePath(`/dashboard/${workspaceId}/team`);
-322: [2]     }
-323: [2]     revalidatePath('/dashboard');
-324: [2]     return { success: true };
-325: [1] }
-326: [1] 
-327: [1] /**
-328: [1]  * Creates an invite for a user to join a workspace.
-329: [1]  * Restricted to Admin and Project Manager roles.
-330: [1]  */
-331: [2] export async function createWorkspaceInvite(workspaceId: string, email: string, roleName: string) {
-332: [2]     const supabase = await createClient();
-333: [2]     const { data: { user: authUser } } = await supabase.auth.getUser();
-334: [2]     
-335: [3]     if (!authUser?.email) {
-336: [3]         return { error: 'Not authenticated' };
-337: [2]     }
-338: [2] 
-339: [2]     const adminClient = createAdminClient();
-340: [2]     const normalizedEmail = email.toLowerCase().trim();
-341: [2] 
-342: [2]     // Validation
-343: [2]     const emailCheck = validateEmail(normalizedEmail);
-344: [3]     if (!emailCheck.valid) {
-345: [3]         return { error: emailCheck.error || 'Invalid email address' };
-346: [2]     }
-347: [2] 
-348: [2]     // 0. Lookup role ID
-349: [2]     const { data: roleRecord } = await adminClient
-350: [2]         .from('roles')
-351: [2]         .select('id')
-352: [2]         .eq('role_name', roleName)
-353: [2]         .single();
-354: [2] 
-355: [3]     if (!roleRecord) {
-356: [3]         return { error: 'Invalid role name specified' };
-357: [2]     }
-358: [2]     const roleId = roleRecord.id;
-359: [2] 
-360: [2]     // 1. Check requester permissions (Admin or PM)
-361: [2]     const { data: requesterProfile } = await adminClient
-362: [2]         .from('users')
-363: [2]         .select('id')
-364: [2]         .eq('auth_id', authUser.id)
-365: [2]         .single();
-366: [2] 
-367: [2]     if (!requesterProfile) return { error: 'Requester profile not found' };
-368: [2] 
-369: [2]     const { data: requesterMembership } = await adminClient
-370: [2]         .from('workspace_members')
-371: [2]         .select('roles(role_name)')
-372: [2]         .eq('workspace_id', workspaceId)
-373: [2]         .eq('user_id', requesterProfile.id)
-374: [2]         .single();
-375: [2] 
-376: [2]     const rawRequesterRole = (requesterMembership as any)?.roles;
-377: [2]     const requesterRole = Array.isArray(rawRequesterRole) 
-378: [2]         ? rawRequesterRole[0]?.role_name 
-379: [2]         : rawRequesterRole?.role_name;
-380: [2] 
-381: [2]     const isAuthorized = requesterRole === 'Admin' || requesterRole === 'Project Manager';
-382: [2] 
-383: [3]     if (!isAuthorized) {
-384: [3]         return { error: `Unauthorized: Your role is ${requesterRole || 'Unknown'}. Only Admin and Project Managers can invite members.` };
-385: [2]     }
-386: [2] 
-387: [2]     // New restriction: Only Admin can invite someone as Admin
-388: [3]     if (roleName === 'Admin' && requesterRole !== 'Admin') {
-389: [3]         return { error: 'Unauthorized: Only Admins can invite users with the Admin role.' };
-390: [2]     }
-391: [2] 
-392: [2]     // 2. Check if email is already a member
-393: [2]     const { data: targetUser } = await adminClient
-394: [2]         .from('users')
-395: [2]         .select('id')
-396: [2]         .eq('email', normalizedEmail)
-397: [2]         .maybeSingle();
-398: [2] 
-399: [3]     if (targetUser) {
-400: [3]         const { data: existingMember } = await adminClient
-401: [3]             .from('workspace_members')
-402: [3]             .select('id')
-403: [3]             .eq('workspace_id', workspaceId)
-404: [3]             .eq('user_id', targetUser.id)
-405: [3]             .maybeSingle();
-406: [3] 
-407: [4]         if (existingMember) {
-408: [4]             return { error: 'This user is already a member of the workspace' };
-409: [3]         }
-410: [2]     }
-411: [2] 
-412: [2]     // 3. Generate token and expiry
-413: [2]     const token = require('crypto').randomBytes(32).toString('hex');
-414: [2]     const expiresAt = new Date();
-415: [2]     expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiry
-416: [2] 
-417: [3]     const invitePayload = {
-418: [3]         workspace_id: workspaceId,
-419: [3]         email: normalizedEmail,
-420: [3]         role_id: roleId,
-421: [3]         token,
-422: [3]         status: 'pending',
-423: [3]         expires_at: expiresAt.toISOString(),
-424: [3]         invited_by: requesterProfile.id,
-425: [3]         accepted_at: null
-426: [2]     };
-427: [2] 
-428: [2]     // 4. Create or refresh the invite atomically so resending to the same
-429: [2]     // email updates the existing row instead of hitting the unique constraint.
-430: [2]     let inviteError: any = null;
-431: [2]     const { data: refreshedRows, error: refreshInviteError } = await adminClient
-432: [2]         .from('workspace_invites')
-433: [2]         .update(invitePayload)
-434: [2]         .eq('workspace_id', workspaceId)
-435: [2]         .ilike('email', normalizedEmail)
-436: [2]         .select('id');
-437: [2] 
-438: [3]     if (refreshInviteError) {
-439: [3]         console.error('[createWorkspaceInvite] Failed to refresh existing invite:', refreshInviteError);
-440: [3]         return { error: `Failed to refresh existing invite: ${refreshInviteError.message}` };
-441: [2]     }
-442: [2] 
-443: [3]     if (!refreshedRows || refreshedRows.length === 0) {
-444: [3]         // Some schemas enforce email-level uniqueness on invites.
-445: [3]         // Reuse the latest existing invite row for this email before inserting.
-446: [3]         const { data: existingByEmailRows, error: existingByEmailError } = await adminClient
-447: [3]             .from('workspace_invites')
-448: [3]             .select('id')
-449: [3]             .ilike('email', normalizedEmail)
-450: [3]             .order('created_at', { ascending: false })
-451: [3]             .limit(1);
-452: [3] 
-453: [4]         if (existingByEmailError) {
-454: [4]             console.error('[createWorkspaceInvite] Failed to lookup invite by email:', existingByEmailError);
-455: [4]             return { error: `Failed to lookup existing invite: ${existingByEmailError.message}` };
-456: [3]         }
-457: [3] 
-458: [3]         const existingByEmail = existingByEmailRows && existingByEmailRows.length > 0
-459: [3]             ? existingByEmailRows[0]
-460: [3]             : null;
-461: [3] 
-462: [4]         if (existingByEmail?.id) {
-463: [4]             const { error: reuseExistingError } = await adminClient
-464: [4]                 .from('workspace_invites')
-465: [4]                 .update(invitePayload)
-466: [4]                 .eq('id', existingByEmail.id);
-467: [4] 
-468: [4]             inviteError = reuseExistingError;
-469: [4]         } else {
-470: [4]             const { error: insertInviteError } = await adminClient
-471: [4]                 .from('workspace_invites')
-472: [4]                 .insert(invitePayload);
-473: [4] 
-474: [4]             // Handle race condition where another process inserted concurrently.
-475: [5]             if ((insertInviteError as any)?.code === '23505' || insertInviteError?.message?.toLowerCase().includes('duplicate key')) {
-476: [5]                 const { error: recoverUpdateError } = await adminClient
-477: [5]                     .from('workspace_invites')
-478: [5]                     .update(invitePayload)
-479: [5]                     .eq('workspace_id', workspaceId)
-480: [5]                     .ilike('email', normalizedEmail);
-481: [5] 
-482: [6]                 if (!recoverUpdateError) {
-483: [6]                     inviteError = null;
-484: [6]                 } else {
-485: [6]                     const { data: globalInvite, error: globalInviteLookupError } = await adminClient
-486: [6]                         .from('workspace_invites')
-487: [6]                         .select('id')
-488: [6]                         .ilike('email', normalizedEmail)
-489: [6]                         .maybeSingle();
-490: [6] 
-491: [7]                     if (globalInviteLookupError || !globalInvite?.id) {
-492: [7]                         inviteError = insertInviteError;
-493: [7]                     } else {
-494: [7]                         const { error: globalRecoverUpdateError } = await adminClient
-495: [7]                             .from('workspace_invites')
-496: [7]                             .update(invitePayload)
-497: [7]                             .eq('id', globalInvite.id);
-498: [7] 
-499: [7]                         inviteError = globalRecoverUpdateError;
-500: [6]                     }
-501: [5]                 }
-502: [5]             } else {
-503: [5]                 inviteError = insertInviteError;
-504: [4]             }
-505: [3]         }
-506: [2]     }
-507: [2] 
-508: [3]     if (inviteError) {
-509: [3]         console.error('[createWorkspaceInvite] Error:', inviteError);
-510: [3]         return { error: `Failed to create invite: ${inviteError.message}` };
-511: [2]     }
-512: [2] 
-513: [2]     const { data: invite, error: fetchInviteError } = await adminClient
-514: [2]         .from('workspace_invites')
-515: [2]         .select('workspaces(name, slug)')
-516: [2]         .eq('workspace_id', workspaceId)
-517: [2]         .ilike('email', normalizedEmail)
-518: [2]         .maybeSingle();
-519: [2] 
-520: [3]     if (fetchInviteError || !invite) {
-521: [3]         console.error('[createWorkspaceInvite] Fetch invite details failed:', fetchInviteError);
-522: [3]         return { error: 'Failed to fetch invite details after creating invite' };
-523: [2]     }
-524: [2] 
-525: [2]     // 5. Send Email
-526: [2]     const workspaceName = (invite as any).workspaces?.name || 'a workspace';
-527: [2]     const baseUrl = getBaseUrl();
-528: [2]     const inviteLink = `${baseUrl}/invite/${token}`;
-529: [2] 
-530: [3]     try {
-531: [3]         const { sendEmail } = await import('@/lib/email');
-532: [4]         await sendEmail({
-533: [4]             to: normalizedEmail,
-534: [4]             subject: `You've been invited to join ${workspaceName} on Tectome`,
-535: [4]             html: `
-536: [4]                 <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #1a1a1a; padding: 20px; border: 1px solid #eee; border-radius: 12px;">
-537: [4]                     <h2 style="color: #4f46e5;">Workspace Invitation</h2>
-538: [4]                     <p>You have been invited to join the <strong>${workspaceName}</strong> workspace on Tectome.</p>
-539: [4]                     <p>Click the button below to accept your invitation and join the team:</p>
-540: [4]                     <div style="margin: 30px 0;">
-541: [4]                         <a href="${inviteLink}" style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">Accept Invitation</a>
-542: [4]                     </div>
-543: [4]                     <p style="color: #666; font-size: 12px;">This link will expire in 7 days.</p>
-544: [4]                     <p style="color: #999; font-size: 12px; margin-top: 20px; border-top: 1px solid #eee; pt: 10px;">If you didn't expect this invite, you can safely ignore this email.</p>
-545: [4]                 </div>
-546: [4]             `
-547: [3]         });
-548: [3]     } catch (emailErr) {
-549: [3]         console.error('[createWorkspaceInvite] Email send failed but invite created:', emailErr);
-550: [2]     }
-551: [2] 
-552: [3]     return { 
-553: [3]         success: true, 
-554: [3]         inviteLink,
-555: [3]         message: `Invite created for ${normalizedEmail}`
-556: [2]     };
-557: [1] }
-558: [1] 
+171: [1]     }
+172: [1]     revalidateTag('team-members');
+173: [1]     revalidateTag('users');
+174: [2]     if (workspaceId) {
+175: [2]         revalidateTag(`team-members-${workspaceId}`);
+176: [2]         revalidateTag(`workspace-${workspaceId}`);
+177: [2]         // Invalidate all projects in the workspace to refresh their member lists
+178: [2]         revalidateTag('projects');
+179: [2]         revalidatePath(`/dashboard/${workspaceId}`);
+180: [2]         revalidatePath(`/dashboard/${workspaceId}/team`);
+181: [2]         revalidatePath(`/dashboard/${workspaceId}/projects`);
+182: [1]     }
+183: [1]     revalidatePath('/dashboard');
+184: [1]     return { success: true };
+185: [0] }
+186: [0] 
+187: [0] /**
+188: [0]  * Updates a team member's role within a workspace.
+189: [0]  * Updates workspace_members.role_id instead of the global users.role_id.
+190: [0]  */
+191: [1] export async function updateUserRole(targetUserId: string, newRoleName: string, workspaceId?: string) {
+192: [1]     const supabase = await createClient();
+193: [1]     const { data: authData } = await supabase.auth.getUser();
+194: [1]     
+195: [2]     if (!authData?.user?.email) {
+196: [2]         return { error: 'Not authenticated' };
+197: [1]     }
+198: [1] 
+199: [1]     const profile = await getCachedUserProfile(authData.user.email);
+200: [2]     if (!profile) {
+201: [2]         return { error: 'Profile not found' };
+202: [1]     }
+203: [1] 
+204: [1]     const adminClient = createAdminClient();
+205: [1] 
+206: [1]     // 1. Permission check: Only Admin or PM can change roles
+207: [1]     const { data: callerMembership } = await adminClient
+208: [1]         .from('workspace_members')
+209: [1]         .select('roles(role_name)')
+210: [1]         .eq('workspace_id', workspaceId)
+211: [1]         .eq('user_id', profile.id)
+212: [1]         .single();
+213: [1] 
+214: [1]     const rawCallerRole = (callerMembership as any)?.roles;
+215: [1]     const callerRole = Array.isArray(rawCallerRole) 
+216: [1]         ? rawCallerRole[0]?.role_name 
+217: [1]         : rawCallerRole?.role_name;
+218: [1] 
+219: [2]     if (callerRole !== 'Admin' && callerRole !== 'Project Manager') {
+220: [2]         return { error: `Unauthorized: Your role is ${callerRole || 'Unknown'}. Only Admins and Project Managers can change roles.` };
+221: [1]     }
+222: [1] 
+223: [1]     // New restriction: Only Admin can promote to Admin
+224: [2]     if (newRoleName === 'Admin' && callerRole !== 'Admin') {
+225: [2]         return { error: 'Unauthorized: Only Admins can promote a user to the Admin role.' };
+226: [1]     }
+227: [1] 
+228: [1]     // 2. Lookup role ID
+229: [1]     const { data: roleRecord } = await adminClient
+230: [1]         .from('roles')
+231: [1]         .select('id')
+232: [1]         .eq('role_name', newRoleName)
+233: [1]         .single();
+234: [1] 
+235: [2]     if (!roleRecord) {
+236: [2]         return { error: 'Invalid role name specified' };
+237: [1]     }
+238: [1] 
+239: [2]     if (workspaceId) {
+240: [2]         // Update workspace_members role (workspace-scoped)
+241: [2]         const { error: dbError, count } = await adminClient
+242: [2]             .from('workspace_members')
+243: [2]             .update({ role_id: roleRecord.id })
+244: [2]             .eq('workspace_id', workspaceId)
+245: [2]             .eq('user_id', targetUserId)
+246: [2]             .select('*', { count: 'exact', head: true });
+247: [2] 
+248: [3]         if (dbError) {
+249: [3]             console.error('[updateUserRole] DB Error (workspace_members):', dbError);
+250: [3]             return { error: `Database Error: ${dbError.message}` };
+251: [2]         }
+252: [2]         
+253: [2]         console.log(`[updateUserRole] Updated workspace_members for user ${targetUserId}: ${count} rows`);
+254: [2] 
+255: [3]         if (count === 0) {
+256: [3]             console.warn(`[updateUserRole] No rows updated for user ${targetUserId} in workspace ${workspaceId}`);
+257: [3]             // Check if member exists at all
+258: [3]             const { data: exists } = await adminClient
+259: [3]                 .from('workspace_members')
+260: [3]                 .select('id')
+261: [3]                 .eq('workspace_id', workspaceId)
+262: [3]                 .eq('user_id', targetUserId)
+263: [3]                 .maybeSingle();
+264: [3]             
+265: [4]             if (!exists) {
+266: [4]                 return { error: 'Member not found in this workspace' };
+267: [3]             }
+268: [2]         }
+269: [2] 
+270: [2]         // Also update the global users table for consistency (legacy but still read in some places)
+271: [2]         await adminClient
+272: [2]             .from('users')
+273: [2]             .update({ role_id: roleRecord.id })
+274: [2]             .eq('id', targetUserId);
+275: [2] 
+276: [2]         // 3. Send Notification to User Inbox
+277: [3]         try {
+278: [3]             // Get workspace name for the notification message
+279: [3]             const { data: workspace } = await adminClient
+280: [3]                 .from('workspaces')
+281: [3]                 .select('name')
+282: [3]                 .eq('id', workspaceId)
+283: [3]                 .single();
+284: [3] 
+285: [4]             if (workspace) {
+286: [4]                 await adminClient
+287: [4]                     .from('notifications')
+288: [5]                     .insert({
+289: [5]                         user_id: targetUserId,
+290: [5]                         actor_id: profile.id,
+291: [5]                         entity_type: 'workspace',
+292: [5]                         entity_id: workspaceId,
+293: [5]                         workspace_id: workspaceId,
+294: [5]                         type: 'role_change',
+295: [5]                         message: `${profile.name || 'An admin'} changed your role to ${newRoleName} in workspace: ${workspace.name}`,
+296: [5]                         is_read: false
+297: [4]                     });
+298: [3]             }
+299: [3]         } catch (notifyError) {
+300: [3]             console.error('[updateUserRole] Notification Error:', notifyError);
+301: [3]             // Don't fail the whole action if notification fails
+302: [2]         }
+303: [2]     } else {
+304: [2]         // Fallback: update users.role_id (legacy — will be removed after migration)
+305: [2]         const { error: dbError } = await adminClient
+306: [2]             .from('users')
+307: [2]             .update({ role_id: roleRecord.id })
+308: [2]             .eq('id', targetUserId);
+309: [2] 
+310: [3]         if (dbError) {
+311: [3]             console.error('[updateUserRole] DB Error:', dbError);
+312: [3]             return { error: `Database Error: ${dbError.message}` };
+313: [2]         }
+314: [1]     }
+315: [1] 
+316: [1]     revalidateTag('team-members');
+317: [1]     revalidateTag('users');
+318: [2]     if (workspaceId) {
+319: [2]         revalidateTag(`team-members-${workspaceId}`);
+320: [2]         revalidateTag(`workspace-${workspaceId}`);
+321: [2]         revalidatePath(`/dashboard/${workspaceId}`);
+322: [2]         revalidatePath(`/dashboard/${workspaceId}/team`);
+323: [1]     }
+324: [1]     revalidatePath('/dashboard');
+325: [1]     return { success: true };
+326: [0] }
+327: [0] 
+328: [0] /**
+329: [0]  * Creates an invite for a user to join a workspace.
+330: [0]  * Restricted to Admin and Project Manager roles.
+331: [0]  */
+332: [1] export async function createWorkspaceInvite(workspaceId: string, email: string, roleName: string) {
+333: [1]     const supabase = await createClient();
+334: [1]     const { data: { user: authUser } } = await supabase.auth.getUser();
+335: [1]     
+336: [2]     if (!authUser?.email) {
+337: [2]         return { error: 'Not authenticated' };
+338: [1]     }
+339: [1] 
+340: [1]     const adminClient = createAdminClient();
+341: [1]     const normalizedEmail = email.toLowerCase().trim();
+342: [1] 
+343: [1]     // Validation
+344: [1]     const emailCheck = validateEmail(normalizedEmail);
+345: [2]     if (!emailCheck.valid) {
+346: [2]         return { error: emailCheck.error || 'Invalid email address' };
+347: [1]     }
+348: [1] 
+349: [1]     // 0. Lookup role ID
+350: [1]     const { data: roleRecord } = await adminClient
+351: [1]         .from('roles')
+352: [1]         .select('id')
+353: [1]         .eq('role_name', roleName)
+354: [1]         .single();
+355: [1] 
+356: [2]     if (!roleRecord) {
+357: [2]         return { error: 'Invalid role name specified' };
+358: [1]     }
+359: [1]     const roleId = roleRecord.id;
+360: [1] 
+361: [1]     // 1. Check requester permissions (Admin or PM)
+362: [1]     const { data: requesterProfile } = await adminClient
+363: [1]         .from('users')
+364: [1]         .select('id')
+365: [1]         .eq('auth_id', authUser.id)
+366: [1]         .single();
+367: [1] 
+368: [1]     if (!requesterProfile) return { error: 'Requester profile not found' };
+369: [1] 
+370: [1]     const { data: requesterMembership } = await adminClient
+371: [1]         .from('workspace_members')
+372: [1]         .select('roles(role_name)')
+373: [1]         .eq('workspace_id', workspaceId)
+374: [1]         .eq('user_id', requesterProfile.id)
+375: [1]         .single();
+376: [1] 
+377: [1]     const rawRequesterRole = (requesterMembership as any)?.roles;
+378: [1]     const requesterRole = Array.isArray(rawRequesterRole) 
+379: [1]         ? rawRequesterRole[0]?.role_name 
+380: [1]         : rawRequesterRole?.role_name;
+381: [1] 
+382: [1]     const isAuthorized = requesterRole === 'Admin' || requesterRole === 'Project Manager';
+383: [1] 
+384: [2]     if (!isAuthorized) {
+385: [2]         return { error: `Unauthorized: Your role is ${requesterRole || 'Unknown'}. Only Admin and Project Managers can invite members.` };
+386: [1]     }
+387: [1] 
+388: [1]     // New restriction: Only Admin can invite someone as Admin
+389: [2]     if (roleName === 'Admin' && requesterRole !== 'Admin') {
+390: [2]         return { error: 'Unauthorized: Only Admins can invite users with the Admin role.' };
+391: [1]     }
+392: [1] 
+393: [1]     // 2. Check if email is already a member
+394: [1]     const { data: targetUser } = await adminClient
+395: [1]         .from('users')
+396: [1]         .select('id')
+397: [1]         .eq('email', normalizedEmail)
+398: [1]         .maybeSingle();
+399: [1] 
+400: [2]     if (targetUser) {
+401: [2]         const { data: existingMember } = await adminClient
+402: [2]             .from('workspace_members')
+403: [2]             .select('id')
+404: [2]             .eq('workspace_id', workspaceId)
+405: [2]             .eq('user_id', targetUser.id)
+406: [2]             .maybeSingle();
+407: [2] 
+408: [3]         if (existingMember) {
+409: [3]             return { error: 'This user is already a member of the workspace' };
+410: [2]         }
+411: [1]     }
+412: [1] 
+413: [1]     // 3. Generate token and expiry
+414: [1]     const token = require('crypto').randomBytes(32).toString('hex');
+415: [1]     const expiresAt = new Date();
+416: [1]     expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiry
+417: [1] 
+418: [2]     const invitePayload = {
+419: [2]         workspace_id: workspaceId,
+420: [2]         email: normalizedEmail,
+421: [2]         role_id: roleId,
+422: [2]         token,
+423: [2]         status: 'pending',
+424: [2]         expires_at: expiresAt.toISOString(),
+425: [2]         invited_by: requesterProfile.id,
+426: [2]         accepted_at: null
+427: [1]     };
+428: [1] 
+429: [1]     // 4. Create or refresh the invite atomically so resending to the same
+430: [1]     // email updates the existing row instead of hitting the unique constraint.
+431: [1]     let inviteError: any = null;
+432: [1]     const { data: refreshedRows, error: refreshInviteError } = await adminClient
+433: [1]         .from('workspace_invites')
+434: [1]         .update(invitePayload)
+435: [1]         .eq('workspace_id', workspaceId)
+436: [1]         .ilike('email', normalizedEmail)
+437: [1]         .select('id');
+438: [1] 
+439: [2]     if (refreshInviteError) {
+440: [2]         console.error('[createWorkspaceInvite] Failed to refresh existing invite:', refreshInviteError);
+441: [2]         return { error: `Failed to refresh existing invite: ${refreshInviteError.message}` };
+442: [1]     }
+443: [1] 
+444: [2]     if (!refreshedRows || refreshedRows.length === 0) {
+445: [2]         // Some schemas enforce email-level uniqueness on invites.
+446: [2]         // Reuse the latest existing invite row for this email before inserting.
+447: [2]         const { data: existingByEmailRows, error: existingByEmailError } = await adminClient
+448: [2]             .from('workspace_invites')
+449: [2]             .select('id')
+450: [2]             .ilike('email', normalizedEmail)
+451: [2]             .order('created_at', { ascending: false })
+452: [2]             .limit(1);
+453: [2] 
+454: [3]         if (existingByEmailError) {
+455: [3]             console.error('[createWorkspaceInvite] Failed to lookup invite by email:', existingByEmailError);
+456: [3]             return { error: `Failed to lookup existing invite: ${existingByEmailError.message}` };
+457: [2]         }
+458: [2] 
+459: [2]         const existingByEmail = existingByEmailRows && existingByEmailRows.length > 0
+460: [2]             ? existingByEmailRows[0]
+461: [2]             : null;
+462: [2] 
+463: [3]         if (existingByEmail?.id) {
+464: [3]             const { error: reuseExistingError } = await adminClient
+465: [3]                 .from('workspace_invites')
+466: [3]                 .update(invitePayload)
+467: [3]                 .eq('id', existingByEmail.id);
+468: [3] 
+469: [3]             inviteError = reuseExistingError;
+470: [3]         } else {
+471: [3]             const { error: insertInviteError } = await adminClient
+472: [3]                 .from('workspace_invites')
+473: [3]                 .insert(invitePayload);
+474: [3] 
+475: [3]             // Handle race condition where another process inserted concurrently.
+476: [4]             if ((insertInviteError as any)?.code === '23505' || insertInviteError?.message?.toLowerCase().includes('duplicate key')) {
+477: [4]                 const { error: recoverUpdateError } = await adminClient
+478: [4]                     .from('workspace_invites')
+479: [4]                     .update(invitePayload)
+480: [4]                     .eq('workspace_id', workspaceId)
+481: [4]                     .ilike('email', normalizedEmail);
+482: [4] 
+483: [5]                 if (!recoverUpdateError) {
+484: [5]                     inviteError = null;
+485: [5]                 } else {
+486: [5]                     const { data: globalInvite, error: globalInviteLookupError } = await adminClient
+487: [5]                         .from('workspace_invites')
+488: [5]                         .select('id')
+489: [5]                         .ilike('email', normalizedEmail)
+490: [5]                         .maybeSingle();
+491: [5] 
+492: [6]                     if (globalInviteLookupError || !globalInvite?.id) {
+493: [6]                         inviteError = insertInviteError;
+494: [6]                     } else {
+495: [6]                         const { error: globalRecoverUpdateError } = await adminClient
+496: [6]                             .from('workspace_invites')
+497: [6]                             .update(invitePayload)
+498: [6]                             .eq('id', globalInvite.id);
+499: [6] 
+500: [6]                         inviteError = globalRecoverUpdateError;
+501: [5]                     }
+502: [4]                 }
+503: [4]             } else {
+504: [4]                 inviteError = insertInviteError;
+505: [3]             }
+506: [2]         }
+507: [1]     }
+508: [1] 
+509: [2]     if (inviteError) {
+510: [2]         console.error('[createWorkspaceInvite] Error:', inviteError);
+511: [2]         return { error: `Failed to create invite: ${inviteError.message}` };
+512: [1]     }
+513: [1] 
+514: [1]     const { data: invite, error: fetchInviteError } = await adminClient
+515: [1]         .from('workspace_invites')
+516: [1]         .select('workspaces(name, slug)')
+517: [1]         .eq('workspace_id', workspaceId)
+518: [1]         .ilike('email', normalizedEmail)
+519: [1]         .maybeSingle();
+520: [1] 
+521: [2]     if (fetchInviteError || !invite) {
+522: [2]         console.error('[createWorkspaceInvite] Fetch invite details failed:', fetchInviteError);
+523: [2]         return { error: 'Failed to fetch invite details after creating invite' };
+524: [1]     }
+525: [1] 
+526: [1]     // 5. Send Email
+527: [1]     const workspaceName = (invite as any).workspaces?.name || 'a workspace';
+528: [1]     const baseUrl = getBaseUrl();
+529: [1]     const inviteLink = `${baseUrl}/invite/${token}`;
+530: [1] 
+531: [2]     try {
+532: [2]         const { sendEmail } = await import('@/lib/email');
+533: [3]         await sendEmail({
+534: [3]             to: normalizedEmail,
+535: [3]             subject: `You've been invited to join ${workspaceName} on Tectome`,
+536: [3]             html: `
+537: [3]                 <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #1a1a1a; padding: 20px; border: 1px solid #eee; border-radius: 12px;">
+538: [3]                     <h2 style="color: #4f46e5;">Workspace Invitation</h2>
+539: [3]                     <p>You have been invited to join the <strong>${workspaceName}</strong> workspace on Tectome.</p>
+540: [3]                     <p>Click the button below to accept your invitation and join the team:</p>
+541: [3]                     <div style="margin: 30px 0;">
+542: [3]                         <a href="${inviteLink}" style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">Accept Invitation</a>
+543: [3]                     </div>
+544: [3]                     <p style="color: #666; font-size: 12px;">This link will expire in 7 days.</p>
+545: [3]                     <p style="color: #999; font-size: 12px; margin-top: 20px; border-top: 1px solid #eee; pt: 10px;">If you didn't expect this invite, you can safely ignore this email.</p>
+546: [3]                 </div>
+547: [3]             `
+548: [2]         });
+549: [2]     } catch (emailErr) {
+550: [2]         console.error('[createWorkspaceInvite] Email send failed but invite created:', emailErr);
+551: [1]     }
+552: [1] 
+553: [2]     return { 
+554: [2]         success: true, 
+555: [2]         inviteLink,
+556: [2]         message: `Invite created for ${normalizedEmail}`
+557: [1]     };
+558: [0] }
+559: [0] 
+Final balance: 0
