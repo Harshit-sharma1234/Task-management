@@ -91,9 +91,6 @@ export async function createIssue(formData: FormData) {
 
     if (error) {
       console.error('SUPABASE ERROR CREATING TICKET:', error)
-      if (error.code === '23505' || error.message?.includes('tickets_title_key')) {
-        return { error: `A ticket with the title "${title}" already exists. Please use a different title.` }
-      }
       return { error: `Failed to create issue: ${error.message}` }
     }
 
