@@ -3,7 +3,7 @@ import { Suspense } from 'react'
 import DashboardOverview, { StatsCards } from '@/components/dashboard/Overview'
 import { StatsSkeleton } from '@/components/dashboard/OverviewSkeletons'
 import { getServerUser } from '@/lib/auth-server'
-import { getCachedWorkspaceBySlug } from '@/lib/cache'
+import { getCachedWorkspaceBySlug, getCachedUserProfile } from '@/lib/cache'
 import { Metadata } from 'next'
 import dynamic from 'next/dynamic'
 
@@ -27,7 +27,10 @@ export default async function SeniorDevDashboard({ params }: { params: Promise<{
     if (!user) redirect('/login')
     if (!workspace) redirect('/dashboard')
 
-    const userName = user.user_metadata?.full_name || user.email;
+    const profile = await getCachedUserProfile(user.email!);
+    if (!profile) redirect('/login')
+
+    const userName = profile.name || user.user_metadata?.full_name || user.email;
 
     return (
         <div className="flex flex-col h-full w-full p-10 overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-300">
@@ -50,10 +53,10 @@ export default async function SeniorDevDashboard({ params }: { params: Promise<{
             </div>
 
             <Suspense fallback={<StatsSkeleton />}>
-                <StatsCards userId={user.id} workspaceId={workspace.id} />
+                <StatsCards userId={profile.id} workspaceId={workspace.id} />
             </Suspense>
 
-            <DashboardOverview userId={user.id} workspaceId={workspace.id} workspaceSlug={workspace.slug} userRole="Developer" />
+            <DashboardOverview userId={profile.id} workspaceId={workspace.id} workspaceSlug={workspace.slug} userRole="Developer" />
         </div>
     )
 }
