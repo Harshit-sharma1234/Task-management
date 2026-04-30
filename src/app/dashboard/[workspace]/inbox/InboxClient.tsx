@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useOptimistic, useRef, memo } from 'react';
+import { useParams } from 'next/navigation';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { createClient } from '@/lib/supabase/client';
 import { UserAvatar } from '@/components/ui/UserAvatar';
@@ -13,12 +14,13 @@ import {
     deleteNotification
 } from '@/app/dashboard/[workspace]/notifications/actions';
 import { fetchEntityDetailAction } from './actions';
-import { editComment, deleteComment } from '@/app/dashboard/[workspace]/issues/actions';
+import { CommentSection } from '@/components/dashboard/issues/CommentSection';
 import { toast } from 'sonner';
 
 const getNormalizedType = (type: string) => {
     if (['assignment', 'status_change', 'comment', 'ticket', 'issue'].includes(type)) return 'ticket';
     if (['project', 'member_add'].includes(type)) return 'project';
+    if (['role_change'].includes(type)) return 'workspace';
     return type;
 };
 import { cn, formatTime } from '@/lib/utils';
@@ -26,7 +28,8 @@ import { STATUS_ICONS, PRIORITY_ICONS } from '@/lib/constants';
 import { 
     Loader2, BellOff, MoreHorizontal, Filter, Settings2, Check, Trash2, CheckCircle2, X,
     ChevronRight, MessageSquare, UserPlus, Zap, FileText, Circle, CircleEllipsis,
-    SignalHigh, SignalMedium, SignalLow, FolderKanban, Clock, ArrowLeft, Pencil
+    SignalHigh, SignalMedium, SignalLow, FolderKanban, Clock, ArrowLeft, Pencil,
+    ShieldCheck, Building2, ExternalLink, Paperclip, FileIcon
 } from 'lucide-react';
 import { PropertyInlineRow } from '@/components/dashboard/issues/PropertyInlineRow';
 import { useNotificationStore } from '@/lib/store/notifications';
@@ -45,6 +48,7 @@ interface InboxClientProps {
     initialNotifications: any[];
     allUsers: any[];
     currentUser: any;
+    currentUserProfile?: any;
     workspaceId: string;
     initialSelectedId: string | null;
     initialEntityDetail: any;
@@ -55,11 +59,14 @@ export default function InboxClient({
     initialNotifications,
     allUsers,
     currentUser,
+    currentUserProfile,
     workspaceId,
     initialSelectedId,
     initialEntityDetail,
     initialEntityActivity,
 }: InboxClientProps) {
+    const params = useParams();
+    const workspaceSlug = params?.workspace as string;
     // ── State: initialized from server-fetched props (no loading spinner) ──
     const [notifications, setNotifications] = useState<any[]>(initialNotifications);
     const [optimisticNotifications, addOptimisticState] = useOptimistic(
@@ -83,9 +90,7 @@ export default function InboxClient({
     const [typeFilter, setTypeFilter] = useState<string[]>([]);
     const setGlobalUnreadCount = useNotificationStore((s) => s.setUnreadCount);
     const decrementGlobalUnreadCount = useNotificationStore((s) => s.decrementUnreadCount);
-    const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
-    const [editValue, setEditValue] = useState('');
-    const [commentActionLoading, setCommentActionLoading] = useState<string | null>(null);
+    const incrementGlobalUnreadCount = useNotificationStore((s) => s.incrementUnreadCount);
     const parentRef = useRef<HTMLDivElement>(null);
     const detailCache = useRef<Map<string, { detail: any; activity: any[] }>>(new Map());
     const fetchPromises = useRef<Map<string, Promise<any>>>(new Map());
@@ -297,6 +302,16 @@ export default function InboxClient({
         setShowActions(false);
     };
 
+    const handleToggleRead = useCallback(async (id: string, isRead: boolean) => {
+        addOptimisticState({ id, isRead });
+        if (isRead) {
+            decrementGlobalUnreadCount();
+        } else {
+            incrementGlobalUnreadCount();
+        }
+        await markAsRead(id, isRead);
+    }, [decrementGlobalUnreadCount, incrementGlobalUnreadCount]);
+
     const handleDeleteNotification = useCallback(async (e: React.MouseEvent, id: string) => {
         e.stopPropagation();
         
@@ -336,62 +351,17 @@ export default function InboxClient({
         }
     };
 
+    const initialComments = useMemo(() => entityActivity.filter(a => a.activityType === 'comment'), [entityActivity]);
+    const initialLogs = useMemo(() => entityActivity.filter(a => a.activityType === 'log'), [entityActivity]);
+
+    const activityCurrentUser = useMemo(() => ({
+        id: currentUserProfile?.id || currentUser?.id,
+        name: currentUserProfile?.name || currentUser?.user_metadata?.name || currentUser?.email || 'You',
+        email: currentUser?.email || '',
+        avatar_url: currentUserProfile?.avatar_url || currentUser?.user_metadata?.avatar_url
+    }), [currentUserProfile, currentUser]);
+
     const normalizedType = selectedNotification ? getNormalizedType(selectedNotification.entity_type) : null;
-
-    // ── Comment Edit/Delete handlers ──
-    const handleEditCommentStart = (item: any) => {
-        setEditingCommentId(item.id);
-        setEditValue(item.comment);
-    };
-
-    const handleEditCommentCancel = () => {
-        setEditingCommentId(null);
-        setEditValue('');
-    };
-
-    const handleEditCommentSave = async (commentId: string, ticketId: string) => {
-        const text = editValue.trim();
-        if (!text || commentActionLoading) return;
-
-        const originalText = entityActivity.find(a => a.id === commentId)?.comment || '';
-        // Optimistic update
-        setEntityActivity(prev => prev.map(a => a.id === commentId ? { ...a, comment: text } : a));
-        setEditingCommentId(null);
-        setCommentActionLoading(commentId);
-
-        const result = await editComment(commentId, ticketId, text);
-        if (result.error) {
-            setEntityActivity(prev => prev.map(a => a.id === commentId ? { ...a, comment: originalText } : a));
-            toast.error(result.error);
-        } else {
-            toast.success('Comment updated');
-            // Invalidate cache for this entity
-            if (selectedNotification?.entity_id) {
-                detailCache.current.delete(selectedNotification.entity_id);
-            }
-        }
-        setCommentActionLoading(null);
-    };
-
-    const handleDeleteComment = async (commentId: string, ticketId: string) => {
-        if (commentActionLoading || !confirm('Delete this comment?')) return;
-
-        const originalActivity = [...entityActivity];
-        setEntityActivity(prev => prev.filter(a => a.id !== commentId));
-        setCommentActionLoading(commentId);
-
-        const result = await deleteComment(commentId, ticketId);
-        if (result.error) {
-            setEntityActivity(originalActivity);
-            toast.error(result.error);
-        } else {
-            toast.success('Comment deleted');
-            if (selectedNotification?.entity_id) {
-                detailCache.current.delete(selectedNotification.entity_id);
-            }
-        }
-        setCommentActionLoading(null);
-    };
 
     return (
         <div className="flex h-full bg-white">
@@ -452,7 +422,7 @@ export default function InboxClient({
                                     <div className="fixed inset-0 z-30" onClick={() => setShowFilters(false)} />
                                     <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-xl z-40 py-1">
                                         <div className="px-3 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Type</div>
-                                        {['assignment', 'comment', 'mention', 'status_change'].map(t => (
+                                        {['assignment', 'comment', 'mention', 'status_change', 'role_change', 'project'].map(t => (
                                             <button 
                                                 key={t}
                                                 onClick={() => toggleTypeFilter(t)}
@@ -548,6 +518,7 @@ export default function InboxClient({
                                             notification={notification} 
                                             selected={selectedId === notification.id}
                                             onSelect={() => handleSelect(notification)}
+                                            onMarkRead={handleToggleRead}
                                             onDelete={(e: React.MouseEvent) => handleDeleteNotification(e, notification.id)}
                                             onMouseEnter={() => {
                                                 clearTimeout(hoverTimeoutRef.current);
@@ -591,8 +562,7 @@ export default function InboxClient({
                     </div>
                 ) : (
                     <>
-                        {/* Breadcrumb */}
-                        <div className="h-12 flex items-center px-6 border-b border-gray-100 bg-white shrink-0">
+                        <div className="h-12 flex items-center justify-between px-6 border-b border-gray-100 bg-white shrink-0">
                             <div className="flex items-center gap-2 text-[12px] font-medium text-gray-400">
                                 {entityDetail?.type === 'ticket' && entityDetail.data?.projects?.project_name && (
                                     <>
@@ -601,14 +571,28 @@ export default function InboxClient({
                                     </>
                                 )}
                                 <span className="text-gray-500 uppercase">
-                                    {normalizedType === 'ticket' ? 'KAP-' : 'PRJ-'}
+                                    {normalizedType === 'ticket' ? 'KAP-' : normalizedType === 'project' ? 'PRJ-' : 'WRK-'}
                                     {selectedNotification.entity_id?.slice(0, 4)}
                                 </span>
                                 <ChevronRight size={12} className="text-gray-300" />
                                 <span className="text-gray-700 font-semibold truncate max-w-[300px]">
-                                    {entityDetail?.data?.title || entityDetail?.data?.project_name || 'Loading...'}
+                                    {entityDetail?.data?.title || entityDetail?.data?.project_name || entityDetail?.data?.name || 'Loading...'}
                                 </span>
                             </div>
+
+                            {/* Redirection Button */}
+                            {entityDetail?.data?.id && (
+                                <a 
+                                    href={normalizedType === 'ticket' 
+                                        ? `/dashboard/${workspaceSlug}/issues/${entityDetail.data.id}` 
+                                        : `/dashboard/${workspaceSlug}/projects/${entityDetail.data.id}`
+                                    }
+                                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-all text-[11px] font-bold shadow-sm shadow-indigo-100/50"
+                                >
+                                    <ExternalLink size={12} />
+                                    <span>Open in full view</span>
+                                </a>
+                            )}
                         </div>
 
                         <div className={cn(
@@ -660,6 +644,35 @@ export default function InboxClient({
                                         )}
                                     </div>
 
+                                    {/* Ticket Attachments */}
+                                    {entityDetail.data.attachments && entityDetail.data.attachments.length > 0 && (
+                                        <div className="mb-10">
+                                            <div className="flex items-center gap-2 mb-4">
+                                                <Paperclip size={14} className="text-gray-400" />
+                                                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Attachments</h3>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                {entityDetail.data.attachments.map((file: any, idx: number) => (
+                                                    <a 
+                                                        key={idx} 
+                                                        href={file.url} 
+                                                        target="_blank" 
+                                                        rel="noopener noreferrer"
+                                                        className="flex items-center gap-3 p-3 bg-gray-50 border border-gray-100 rounded-xl hover:border-indigo-200 hover:bg-white transition-all group/file"
+                                                    >
+                                                        <div className="w-8 h-8 rounded-lg bg-white border border-gray-100 flex items-center justify-center text-indigo-500 shadow-sm">
+                                                            <FileIcon size={14} />
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="text-[11px] font-bold text-gray-900 truncate group-hover/file:text-indigo-600 transition-colors">{file.name}</div>
+                                                            <div className="text-[9px] text-gray-400 uppercase font-bold">{file.type?.split('/')[1] || 'FILE'}</div>
+                                                        </div>
+                                                    </a>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {/* Activity Section */}
                                     <div className="mt-4">
                                         <div className="flex items-center justify-between mb-6">
@@ -669,28 +682,13 @@ export default function InboxClient({
                                             </div>
                                         </div>
 
-                                        <div className="space-y-5">
-                                            {entityActivity.map((item) => (
-                                                <ActivityItem 
-                                                    key={`${item.activityType}-${item.id}`} 
-                                                    item={item}
-                                                    currentUserId={currentUser?.id}
-                                                    ticketId={entityDetail?.data?.id}
-                                                    editingCommentId={editingCommentId}
-                                                    editValue={editValue}
-                                                    commentActionLoading={commentActionLoading}
-                                                    onEditStart={handleEditCommentStart}
-                                                    onEditCancel={handleEditCommentCancel}
-                                                    onEditSave={handleEditCommentSave}
-                                                    onEditValueChange={setEditValue}
-                                                    onDelete={handleDeleteComment}
-                                                />
-                                            ))}
-
-                                            {entityActivity.length === 0 && (
-                                                <p className="text-xs text-gray-400 italic py-4">No activity yet.</p>
-                                            )}
-                                        </div>
+                                        <CommentSection
+                                            ticketId={entityDetail.data.id}
+                                            initialComments={initialComments}
+                                            initialLogs={initialLogs}
+                                            currentUser={activityCurrentUser}
+                                            canComment={true}
+                                        />
                                     </div>
                                 </div>
                             ) : entityDetail?.type === 'project' ? (
@@ -711,6 +709,60 @@ export default function InboxClient({
                                             <span>Lead: {entityDetail.data.lead.name}</span>
                                         </div>
                                     )}
+
+                                    {/* Project Resources / Attachments */}
+                                    {entityDetail.data.resources && entityDetail.data.resources.length > 0 && (
+                                        <div className="mt-10 pt-10 border-t border-gray-100">
+                                            <div className="flex items-center gap-2 mb-4">
+                                                <Paperclip size={14} className="text-gray-400" />
+                                                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Project Resources</h3>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                {entityDetail.data.resources.map((file: any, idx: number) => (
+                                                    <a 
+                                                        key={idx} 
+                                                        href={file.url} 
+                                                        target="_blank" 
+                                                        rel="noopener noreferrer"
+                                                        className="flex items-center gap-3 p-3 bg-gray-50 border border-gray-100 rounded-xl hover:border-indigo-200 hover:bg-white transition-all group/file"
+                                                    >
+                                                        <div className="w-8 h-8 rounded-lg bg-white border border-gray-100 flex items-center justify-center text-indigo-500 shadow-sm">
+                                                            <FileIcon size={14} />
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="text-[11px] font-bold text-gray-900 truncate group-hover/file:text-indigo-600 transition-colors">{file.title || file.name}</div>
+                                                            <div className="text-[9px] text-gray-400 uppercase font-bold">Project File</div>
+                                                        </div>
+                                                    </a>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : entityDetail?.type === 'workspace' ? (
+                                <div className="max-w-3xl mx-auto px-8 py-8">
+                                    <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center mb-6 border border-indigo-100">
+                                        <Building2 size={24} className="text-indigo-600" />
+                                    </div>
+                                    <h1 className="text-2xl font-bold text-gray-900 mb-4">
+                                        {entityDetail.data.name}
+                                    </h1>
+                                    <div className="bg-indigo-50/50 rounded-xl p-6 border border-indigo-100/50 mb-8">
+                                        <div className="flex items-start gap-4">
+                                            <div className="p-2 bg-indigo-100 rounded-lg">
+                                                <ShieldCheck size={20} className="text-indigo-600" />
+                                            </div>
+                                            <div>
+                                                <h3 className="text-sm font-bold text-gray-900 mb-1">Administrative Update</h3>
+                                                <p className="text-sm text-gray-600 leading-relaxed">
+                                                    {selectedNotification.message}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="text-xs text-gray-400 font-medium">
+                                        Workspace ID: {entityDetail.data.id}
+                                    </div>
                                 </div>
                             ) : null}
                         </div>
@@ -721,7 +773,7 @@ export default function InboxClient({
     );
 }
 
-const NotificationRow = memo(({ notification, selected, onSelect, onDelete, onMouseEnter }: any) => {
+const NotificationRow = memo(({ notification, selected, onSelect, onMarkRead, onDelete, onMouseEnter }: any) => {
     const actor = notification.actor
     
     return (
@@ -748,32 +800,59 @@ const NotificationRow = memo(({ notification, selected, onSelect, onDelete, onMo
                 {/* Title row */}
                 <div className="flex items-start justify-between gap-2 mb-0.5">
                     <div className="flex items-center gap-1.5 min-w-0">
-                        {!notification.is_read && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 shrink-0" />
-                        )}
-                        <span className={`text-[13px] truncate ${!notification.is_read ? 'font-semibold text-gray-900' : 'font-medium text-gray-600'}`}>
-                            {notification.message.length > 50 
-                                ? notification.message.substring(0, 50) + '...' 
-                                : notification.message}
+                        {/* Type Icon */}
+                        <div className={cn(
+                            "p-1 rounded-md shrink-0",
+                            notification.type === 'assignment' ? "bg-blue-50 text-blue-600" :
+                            notification.type === 'status_change' ? "bg-orange-50 text-orange-600" :
+                            notification.type === 'comment' ? "bg-purple-50 text-purple-600" :
+                            notification.type === 'role_change' ? "bg-emerald-50 text-emerald-600" :
+                            notification.type === 'project' ? "bg-indigo-50 text-indigo-600" :
+                            "bg-gray-50 text-gray-600"
+                        )}>
+                            {notification.type === 'assignment' && <UserPlus size={12} />}
+                            {notification.type === 'status_change' && <CircleEllipsis size={12} />}
+                            {notification.type === 'comment' && <MessageSquare size={12} />}
+                            {notification.type === 'role_change' && <ShieldCheck size={12} />}
+                            {notification.type === 'project' && <FolderKanban size={12} />}
+                            {notification.type === 'mention' && <Zap size={12} />}
+                            {!['assignment', 'status_change', 'comment', 'role_change', 'project', 'mention'].includes(notification.type) && <FileText size={12} />}
+                        </div>
+                        <span className={`text-[12px] truncate ${!notification.is_read ? 'font-bold text-gray-900' : 'font-medium text-gray-600'}`}>
+                            {notification.message}
                         </span>
                     </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                        {!notification.is_read && (
-                            <span className="w-2 h-2 rounded-full bg-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-                        )}
+                    <div className="flex items-center gap-0.5 shrink-0">
                         <button
-                            onClick={onDelete}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onMarkRead(notification.id, !notification.is_read);
+                            }}
+                            className={cn(
+                                "p-1.5 rounded-md transition-all opacity-0 group-hover:opacity-100",
+                                notification.is_read ? "text-gray-300 hover:text-indigo-600 hover:bg-indigo-50" : "text-indigo-600 bg-indigo-50 hover:bg-indigo-100"
+                            )}
+                            title={notification.is_read ? "Mark as unread" : "Mark as read"}
+                        >
+                            <Check size={12} />
+                        </button>
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onDelete();
+                            }}
                             className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-all opacity-0 group-hover:opacity-100"
                             title="Delete notification"
                         >
-                            <Trash2 size={13} />
+                            <Trash2 size={12} />
                         </button>
                     </div>
                 </div>
                 {/* Subtitle row */}
-                <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-                    <span className="text-gray-500">{actor?.name || actor?.email || 'User'}</span>
+                <div className="flex items-center gap-1.5 text-[10px] text-gray-400 pl-6">
+                    <span className="font-semibold text-gray-500">{actor?.name || actor?.email || 'User'}</span>
                     <span>·</span>
+                    <Clock size={10} className="text-gray-300" />
                     <span>{formatTime(notification.created_at)}</span>
                 </div>
             </div>
@@ -783,117 +862,3 @@ const NotificationRow = memo(({ notification, selected, onSelect, onDelete, onMo
 
 NotificationRow.displayName = 'NotificationRow';
 
-function ActivityItem({ 
-    item, 
-    currentUserId,
-    ticketId,
-    editingCommentId, 
-    editValue, 
-    commentActionLoading,
-    onEditStart, 
-    onEditCancel, 
-    onEditSave, 
-    onEditValueChange,
-    onDelete 
-}: any) {
-    const user = item.users;
-    const isOwner = item.user_id === currentUserId;
-    const isEditing = editingCommentId === item.id;
-    const isLoading = commentActionLoading === item.id;
-
-    return (
-        <div className="flex gap-3 group/activity">
-            {/* Avatar */}
-            <UserAvatar
-                name={user?.name || user?.email || 'User'}
-                avatarUrl={user?.avatar_url}
-                size="sm"
-            />
-
-            <div className="flex-1 min-w-0">
-                {/* Name + time + actions */}
-                <div className="flex items-center justify-between gap-2 mb-1">
-                    <div className="flex items-center gap-2">
-                        <span className="text-[13px] font-semibold text-gray-900">
-                            {user?.name || user?.email || 'User'}
-                        </span>
-                        <span className="text-[11px] text-gray-400">
-                            {formatTime(item.created_at)}
-                        </span>
-                    </div>
-
-                    {/* Edit/Delete Actions for own comments */}
-                    {item.activityType === 'comment' && isOwner && !editingCommentId && (
-                        <div className="flex items-center gap-1 opacity-0 group-hover/activity:opacity-100 transition-opacity">
-                            <button
-                                onClick={() => onEditStart(item)}
-                                className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 transition-colors"
-                                title="Edit comment"
-                            >
-                                <Pencil size={11} />
-                            </button>
-                            <button
-                                onClick={() => onDelete(item.id, ticketId)}
-                                className="p-1 hover:bg-red-50 rounded text-gray-400 hover:text-red-600 transition-colors"
-                                title="Delete comment"
-                            >
-                                <Trash2 size={11} />
-                            </button>
-                        </div>
-                    )}
-                </div>
-
-                {/* Content */}
-                {item.activityType === 'comment' ? (
-                    <div className="text-[13px] text-gray-700 leading-relaxed relative">
-                        {isEditing ? (
-                            <div className="space-y-2">
-                                <div className="flex items-center gap-2 border border-gray-200 rounded-lg pl-3 pr-1.5 py-1 bg-white focus-within:border-gray-400 transition-all shadow-sm">
-                                    <input
-                                        type="text"
-                                        className="w-full bg-transparent text-[13px] text-gray-900 focus:outline-none py-1"
-                                        value={editValue}
-                                        onChange={(e) => onEditValueChange(e.target.value)}
-                                        autoFocus
-                                        onKeyDown={(e: React.KeyboardEvent) => {
-                                            if (e.key === 'Enter') onEditSave(item.id, ticketId);
-                                            if (e.key === 'Escape') onEditCancel();
-                                        }}
-                                    />
-                                    <div className="flex items-center gap-1">
-                                        <button
-                                            onClick={() => onEditSave(item.id, ticketId)}
-                                            className="p-1 hover:bg-blue-50 text-blue-600 rounded transition-colors"
-                                        >
-                                            <Check size={13} />
-                                        </button>
-                                        <button
-                                            onClick={onEditCancel}
-                                            className="p-1 hover:bg-gray-100 text-gray-400 rounded transition-colors"
-                                        >
-                                            <X size={13} />
-                                        </button>
-                                    </div>
-                                </div>
-                                <p className="text-[10px] text-gray-400">Press Enter to save, Esc to cancel</p>
-                            </div>
-                        ) : (
-                            <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
-                                {item.comment}
-                                {isLoading && (
-                                    <div className="absolute inset-0 bg-white/50 flex items-center justify-center rounded-lg">
-                                        <Loader2 size={12} className="animate-spin text-gray-400" />
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                ) : (
-                    <div className="text-[12px] text-gray-500 italic">
-                        {item.message || `${user?.name} updated the issue`}
-                    </div>
-                )}
-            </div>
-        </div>
-    )
-}

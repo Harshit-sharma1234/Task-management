@@ -28,6 +28,7 @@ export async function createIssue(formData: FormData) {
     const priority = formData.get('priority') as string
     const projectId = formData.get('project_id') as string
     const assigneeId = formData.get('assignee_id') as string
+    const reviewerId = formData.get('reviewer_id') as string | null
 
     // Validation
     if (!title?.trim()) return { error: 'Title is required' }
@@ -36,36 +37,42 @@ export async function createIssue(formData: FormData) {
     if (!priority) return { error: 'Priority is required' }
     if (!projectId) return { error: 'Project is required' }
 
-    // Fetch workspace_id and verify membership using admin client
+    // 1. Resolve project context and verify membership in parallel to eliminate waterfalls
     const adminClient = createAdminClient()
+    const providedWorkspaceId = formData.get('workspace_id') as string;
     
-    // 1. Resolve project context
-    const { data: projectData, error: projectError } = await adminClient
-      .from('projects')
-      .select('workspace_id')
-      .eq('id', projectId)
-      .single()
+    const [
+      { data: projectData, error: projectError },
+      { data: membership }
+    ] = await Promise.all([
+      adminClient.from('projects').select('workspace_id').eq('id', projectId).single(),
+      providedWorkspaceId 
+        ? adminClient.from('workspace_members').select('id').eq('workspace_id', providedWorkspaceId).eq('user_id', profile.id).maybeSingle()
+        : Promise.resolve({ data: null, error: null }) // We'll have to check after project lookup if missing
+    ]);
 
     if (projectError || !projectData) {
       console.error('[createIssue] Project lookup failed:', projectError)
       return { error: 'Project not found' }
     }
 
-    const workspaceId = projectData.workspace_id
+    const workspaceId = projectData.workspace_id;
 
-    // 2. Verify membership (security check since we are bypassing RLS)
-    const { data: membership } = await adminClient
-      .from('workspace_members')
-      .select('id')
-      .eq('workspace_id', workspaceId)
-      .eq('user_id', profile.id)
-      .maybeSingle()
-
-    if (!membership) {
-      return { error: 'Unauthorized: You are not a member of this workspace.' }
+    // If membership wasn't checked because providedWorkspaceId was missing, check it now
+    let finalMembership = membership;
+    if (!providedWorkspaceId) {
+      const { data: retryMembership } = await adminClient
+        .from('workspace_members')
+        .select('id')
+        .eq('workspace_id', workspaceId)
+        .eq('user_id', profile.id)
+        .maybeSingle();
+      finalMembership = retryMembership;
     }
 
-    // Step 1: Create Ticket (Atomic) - Use adminClient to bypass restrictive legacy RLS
+    if (!finalMembership) {
+      return { error: 'Unauthorized: You are not a member of this workspace.' }
+    }// Step 1: Create Ticket (Atomic) - Use adminClient to bypass restrictive legacy RLS
     const { data, error } = await adminClient
       .from('tickets')
       .insert({
@@ -76,6 +83,7 @@ export async function createIssue(formData: FormData) {
         project_id: projectId,
         workspace_id: workspaceId,
         assignee_id: assigneeId || null,
+        reviewer_id: reviewerId || null,
         created_by: profile.id
       })
       .select('id, project_id, workspace_id')
@@ -143,6 +151,26 @@ export async function createIssue(formData: FormData) {
           adminClient
             .from('project_members')
             .upsert({ project_id: projectId, user_id: assigneeId }, { onConflict: 'project_id,user_id' })
+        );
+        sideEffects.push(membershipPromise)
+      }
+
+      if (reviewerId) {
+        sideEffects.push(createNotification({
+          userId: reviewerId,
+          actorId: profile.id,
+          workspaceId: workspaceId,
+          entityType: 'ticket',
+          entityId: data.id,
+          type: 'assignment',
+          message: `${profile.name} assigned you as a reviewer for: ${title}`
+        }))
+
+        // Auto-membership for reviewer
+        const membershipPromise = Promise.resolve(
+          adminClient
+            .from('project_members')
+            .upsert({ project_id: projectId, user_id: reviewerId }, { onConflict: 'project_id,user_id' })
         );
         sideEffects.push(membershipPromise)
       }
@@ -578,10 +606,27 @@ export async function updateIssue(ticketId: string, updates: {
   const workspaceId = (ticket as any).projects?.workspace_id
   const adminClient = createAdminClient()
 
-  // ACCESS GATE: Workspace layout verifies membership; allow updates for assignee, reviewer, or any member
   const isTicketAssignee = profile.id === ticket.assignee_id
   const isTicketReviewer = profile.id === ticket.reviewer_id
   const isCreator = profile.id === ticket.created_by
+
+  // Fetch role
+  const { data: membership } = await adminClient
+    .from('workspace_members')
+    .select('roles(role_name)')
+    .eq('workspace_id', workspaceId)
+    .eq('user_id', profile.id)
+    .maybeSingle()
+
+  const roleName = (membership as any)?.roles?.role_name
+  const isAdminOrPm = roleName === 'Admin' || roleName === 'Project Manager'
+
+  console.error(`[updateIssue] Debug: user=${profile.id}, role=${roleName}, isAssignee=${isTicketAssignee}, isReviewer=${isTicketReviewer}, isAdminOrPm=${isAdminOrPm}`);
+
+  if (!isAdminOrPm && !isTicketAssignee && !isTicketReviewer) {
+    console.error(`[updateIssue] Denied: User has no relation to ticket ${ticketId}`);
+    return { error: 'Only the Assignee, Reviewer, Admin, or Project Manager can modify this issue!' }
+  }
 
   // CONSTRAINT: Assignee can't be the reviewer (General check)
   const newAssigneeId = updates.assignee_id !== undefined ? updates.assignee_id : ticket.assignee_id
@@ -590,10 +635,20 @@ export async function updateIssue(ticketId: string, updates: {
     return { error: 'The assignee and reviewer cannot be the same person' }
   }
 
+  // CONSTRAINT: Only Reviewer or Admin/PM can move to Review, In Review or Done
+  if (updates.status && ['review', 'in_review', 'done'].includes(updates.status)) {
+    const isActuallyReviewer = profile.id === ticket.reviewer_id;
+    
+    if (!isAdminOrPm && !isActuallyReviewer) {
+      console.error(`[updateIssue] ACCESS DENIED: User ${profile.id} is not the Reviewer or Admin/PM`);
+      return { error: 'Only the designated Reviewer, Admin, or Project Manager can move this issue to Review, In Review, or Done.' }
+    }
+  }
+
   // Reviewer role validation is now handled via workspace_members
   // TODO: Validate reviewer role from workspace context
 
-  const { data, error } = await supabase
+  const { data, error } = await adminClient
     .from('tickets')
     .update({
       ...updates,
@@ -668,6 +723,22 @@ export async function updateIssue(ticketId: string, updates: {
         entityId: ticketId,
         type: 'assignment',
         message: `${profile.name} assigned you to: ${ticket.title}`
+      }))
+    }
+  }
+
+  if (updates.reviewer_id !== undefined && updates.reviewer_id !== ticket.reviewer_id) {
+    postUpdatePromises.push(logActivity(adminClient, profile.id, ticketId, 'reviewer_change', 'Updated reviewer'))
+
+    if (updates.reviewer_id) {
+      postUpdatePromises.push(createNotification({
+        userId: updates.reviewer_id,
+        actorId: profile.id,
+        workspaceId,
+        entityType: 'ticket',
+        entityId: ticketId,
+        type: 'assignment',
+        message: `${profile.name} assigned you as a reviewer for: ${ticket.title}`
       }))
     }
   }
@@ -761,8 +832,19 @@ export async function bulkUpdateIssues(
   const profile = await getUserProfile(supabase, user.email!)
   if (!profile) return { error: 'Profile not found' }
 
-  // TODO: Resolve workspace role for proper RBAC
-  // For now, allow bulk updates for all workspace members (layout verifies membership)
+  // Resolve workspace role for proper RBAC
+  const { data: membership } = await supabase
+    .from('workspace_members')
+    .select('roles(role_name)')
+    .eq('user_id', profile.id)
+    .maybeSingle()
+
+  const roleName = (membership as any)?.roles?.role_name
+  const isAdminOrPm = roleName === 'Admin' || roleName === 'Project Manager'
+
+  if (!isAdminOrPm) {
+    return { error: 'Only Admins or Project Managers can perform bulk updates.' }
+  }
 
   // Single batch update using .in()
   const { data, error } = await supabase
@@ -860,16 +942,16 @@ async function getIssueAccessContext(ticketId: string, email: string, userId: st
   // Fetch user role in this workspace
   const { data: membership } = await adminClient
     .from('workspace_members')
-    .select('role_id, workspaces_roles(name)')
+    .select('role_id, roles(role_name)')
     .eq('workspace_id', workspaceId)
-    .eq('user_id', userId)
+    .eq('user_id', profile.id)
     .maybeSingle()
 
-  const roleName = (membership as any)?.workspaces_roles?.name
+  const roleName = (membership as any)?.roles?.role_name
   const isAdminOrPm = roleName === 'Admin' || roleName === 'Project Manager'
-  const isCreator = ticket.created_by === userId
-  const isAssignee = ticket.assignee_id === userId
-  const isReviewer = ticket.reviewer_id === userId
+  const isCreator = ticket.created_by === profile.id
+  const isAssignee = ticket.assignee_id === profile.id
+  const isReviewer = ticket.reviewer_id === profile.id
 
   return {
     profile,
