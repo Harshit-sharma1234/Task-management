@@ -58,16 +58,19 @@ export async function requestOTP(email: string) {
     }
 
     const html = emailVerificationEmail({ otpCode, expiresInMinutes: 10 })
-    const { success, error: emailError } = await sendEmail({
-        to: email,
-        subject: `Your Verification Code: ${otpCode}`,
-        html
-    })
-
-    if (!success) {
-        console.error('[OTP] Email error:', emailError)
-        return { error: 'Failed to send verification email. Please try again.' }
-    }
+    
+    // Non-blocking email send
+    (async () => {
+        try {
+            await sendEmail({
+                to: email,
+                subject: `Your Verification Code: ${otpCode}`,
+                html
+            })
+        } catch (err) {
+            console.error('[OTP] Background email error:', err)
+        }
+    })()
 
     return { success: true }
 }

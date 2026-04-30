@@ -135,21 +135,27 @@ export const getCachedUserStatsV2 = (userId: string, workspaceId: string) =>
         completedTicketsRes,
         inProgressTicketsRes,
         allTicketsRes,
-        projectMembersRes
+        leadProjectsRes,
+        memberProjectsRes
       ] = await Promise.all([
-        supabase.from('tickets').select('id', { count: 'estimated', head: true }).eq('workspace_id', workspaceId).or(`assignee_id.eq.${userId},reviewer_id.eq.${userId}`).eq('priority', 'urgent').neq('status', 'done'),
-        supabase.from('tickets').select('id', { count: 'estimated', head: true }).eq('workspace_id', workspaceId).or(`assignee_id.eq.${userId},reviewer_id.eq.${userId}`).eq('status', 'done'),
-        supabase.from('tickets').select('id', { count: 'estimated', head: true }).eq('workspace_id', workspaceId).or(`assignee_id.eq.${userId},reviewer_id.eq.${userId}`).in('status', ['in_progress', 'in_review']),
-        supabase.from('tickets').select('id', { count: 'estimated', head: true }).eq('workspace_id', workspaceId).or(`assignee_id.eq.${userId},reviewer_id.eq.${userId}`),
-        supabase.from('project_members').select('id, projects!inner(id)', { count: 'estimated', head: true }).eq('user_id', userId).eq('projects.workspace_id', workspaceId)
+        supabase.from('tickets').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).or(`assignee_id.eq.${userId},reviewer_id.eq.${userId}`).eq('priority', 'urgent').neq('status', 'done'),
+        supabase.from('tickets').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).or(`assignee_id.eq.${userId},reviewer_id.eq.${userId}`).eq('status', 'done'),
+        supabase.from('tickets').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).or(`assignee_id.eq.${userId},reviewer_id.eq.${userId}`).in('status', ['in_progress', 'in_review']),
+        supabase.from('tickets').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).or(`assignee_id.eq.${userId},reviewer_id.eq.${userId}`),
+        supabase.from('projects').select('id').eq('workspace_id', workspaceId).eq('lead_id', userId),
+        supabase.from('project_members').select('project_id, projects!inner(workspace_id)').eq('user_id', userId).eq('projects.workspace_id', workspaceId)
       ]);
+
+      const leadIds = leadProjectsRes.data?.map(p => p.id) || [];
+      const memberIds = memberProjectsRes.data?.map(m => (m as any).project_id) || [];
+      const uniqueProjectIds = new Set([...leadIds, ...memberIds]);
 
       return {
         urgentIssuesCount: urgentTicketsRes.count || 0,
         completedTicketsCount: completedTicketsRes.count || 0,
         inProgressTicketsCount: inProgressTicketsRes.count || 0,
         tasksCount: allTicketsRes.count || 0,
-        projectsAssignedCount: projectMembersRes.count || 0
+        projectsAssignedCount: uniqueProjectIds.size
       };
     },
     [`dashboard-user-stats-${userId}-${workspaceId}`],

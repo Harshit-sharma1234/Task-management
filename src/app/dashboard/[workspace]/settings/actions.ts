@@ -216,13 +216,18 @@ export async function resetPasswordAction() {
         </div>
     `);
 
-    const { success, error: emailError } = await sendEmail({
-        to: email,
-        subject: `Your Tectome security code: ${otpCode}`,
-        html
-    });
-
-    if (!success) return { error: emailError || 'Failed to send email via Gmail' };
+    // Non-blocking email send
+    (async () => {
+        try {
+            await sendEmail({
+                to: email,
+                subject: `Your Tectome security code: ${otpCode}`,
+                html
+            });
+        } catch (err) {
+            console.error('[resetPasswordAction] Background email error:', err);
+        }
+    })();
 
     return { success: true };
 }
