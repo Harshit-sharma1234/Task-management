@@ -6,10 +6,10 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { createClient } from '@/lib/supabase/client';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { getInitials, getBadgeColor } from '@/lib/avatar';
-import { 
-    markAsRead, 
-    markAllAsRead, 
-    deleteAllNotifications, 
+import {
+    markAsRead,
+    markAllAsRead,
+    deleteAllNotifications,
     deleteAllReadNotifications,
     deleteNotification
 } from '@/app/dashboard/[workspace]/notifications/actions';
@@ -25,7 +25,7 @@ const getNormalizedType = (type: string) => {
 };
 import { cn, formatTime } from '@/lib/utils';
 import { STATUS_ICONS, PRIORITY_ICONS } from '@/lib/constants';
-import { 
+import {
     Loader2, BellOff, MoreHorizontal, Filter, Settings2, Check, Trash2, CheckCircle2, X,
     ChevronRight, MessageSquare, UserPlus, Zap, FileText, Circle, CircleEllipsis,
     SignalHigh, SignalMedium, SignalLow, FolderKanban, Clock, ArrowLeft, Pencil,
@@ -71,7 +71,7 @@ export default function InboxClient({
     const [notifications, setNotifications] = useState<any[]>(initialNotifications);
     const [optimisticNotifications, addOptimisticState] = useOptimistic(
         notifications,
-        (state: any[], { id, isRead }: { id: string; isRead: boolean }) => 
+        (state: any[], { id, isRead }: { id: string; isRead: boolean }) =>
             state.map(n => n.id === id ? { ...n, is_read: isRead } : n)
     );
     const [loading, setLoading] = useState(false);
@@ -96,7 +96,7 @@ export default function InboxClient({
     const fetchPromises = useRef<Map<string, Promise<any>>>(new Map());
     const selectedIdRef = useRef(selectedId);
     const hoverTimeoutRef = useRef<any>(null);
-    
+
     useEffect(() => {
         selectedIdRef.current = selectedId;
     }, [selectedId]);
@@ -209,13 +209,13 @@ export default function InboxClient({
         const fetchPromise = (async () => {
             try {
                 const result = await fetchEntityDetailAction(entityId, entityType);
-                
+
                 if (result.detail) {
                     const modelType = getNormalizedType(entityType);
                     const formattedDetail = { type: modelType, data: result.detail };
-                    detailCache.current.set(entityId, { 
-                        detail: formattedDetail, 
-                        activity: result.activity 
+                    detailCache.current.set(entityId, {
+                        detail: formattedDetail,
+                        activity: result.activity
                     });
                     return { detail: formattedDetail, activity: result.activity };
                 }
@@ -314,11 +314,11 @@ export default function InboxClient({
 
     const handleDeleteNotification = useCallback(async (e: React.MouseEvent, id: string) => {
         e.stopPropagation();
-        
+
         // Optimistic update
         const previousNotifications = [...notifications];
         setNotifications(prev => prev.filter(n => n.id !== id));
-        
+
         if (selectedId === id) {
             setSelectedId(null);
             setEntityDetail(null);
@@ -336,7 +336,7 @@ export default function InboxClient({
     const clearFilters = () => setTypeFilter([]);
 
     const toggleTypeFilter = (type: string) => {
-        setTypeFilter(prev => 
+        setTypeFilter(prev =>
             prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]
         );
     };
@@ -373,7 +373,7 @@ export default function InboxClient({
                         <h1 className="text-[14px] font-bold text-gray-900">Inbox</h1>
                         {/* Actions Menu */}
                         <div className="relative">
-                            <button 
+                            <button
                                 onClick={() => setShowActions(!showActions)}
                                 className={`p-1 rounded transition-colors ${showActions ? 'bg-gray-100' : 'hover:bg-gray-50'}`}
                             >
@@ -402,7 +402,7 @@ export default function InboxClient({
                     </div>
                     <div className="flex items-center gap-1">
                         {typeFilter.length > 0 && (
-                            <button 
+                            <button
                                 onClick={clearFilters}
                                 className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded flex items-center gap-1 mr-1"
                             >
@@ -411,7 +411,7 @@ export default function InboxClient({
                         )}
                         {/* Filter button */}
                         <div className="relative">
-                            <button 
+                            <button
                                 onClick={() => setShowFilters(!showFilters)}
                                 className={`p-1 rounded transition-colors ${showFilters ? 'bg-gray-100' : 'hover:bg-gray-50'}`}
                             >
@@ -423,7 +423,7 @@ export default function InboxClient({
                                     <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-xl z-40 py-1">
                                         <div className="px-3 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Type</div>
                                         {['assignment', 'comment', 'mention', 'status_change', 'role_change', 'project'].map(t => (
-                                            <button 
+                                            <button
                                                 key={t}
                                                 onClick={() => toggleTypeFilter(t)}
                                                 className="w-full px-3 py-1.5 text-left text-[12px] text-gray-700 hover:bg-gray-50 flex items-center justify-between"
@@ -438,7 +438,7 @@ export default function InboxClient({
                         </div>
                         {/* View Options */}
                         <div className="relative">
-                            <button 
+                            <button
                                 onClick={() => setShowViewOptions(!showViewOptions)}
                                 className={`p-1 rounded transition-colors ${showViewOptions ? 'bg-gray-100' : 'hover:bg-gray-50'}`}
                             >
@@ -449,7 +449,7 @@ export default function InboxClient({
                                     <div className="fixed inset-0 z-30" onClick={() => setShowViewOptions(false)} />
                                     <div className="absolute right-0 mt-1 w-52 bg-white border border-gray-200 rounded-lg shadow-xl z-40 py-2">
                                         <div className="px-3 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Ordering</div>
-                                        <select 
+                                        <select
                                             value={viewOptions.ordering}
                                             onChange={(e) => setViewOptions(prev => ({ ...prev, ordering: e.target.value as any }))}
                                             className="mx-3 my-1 bg-gray-50 border border-gray-100 rounded px-2 py-1 text-[12px] w-[calc(100%-24px)] focus:outline-none focus:ring-1 focus:ring-indigo-500"
@@ -458,7 +458,7 @@ export default function InboxClient({
                                             <option value="oldest">Oldest first</option>
                                         </select>
                                         <div className="h-px bg-gray-50 my-1.5" />
-                                        <button 
+                                        <button
                                             onClick={() => setViewOptions(prev => ({ ...prev, showRead: !prev.showRead }))}
                                             className="w-full px-3 py-1.5 hover:bg-gray-50 flex items-center justify-between text-[12px] text-gray-700"
                                         >
@@ -467,7 +467,7 @@ export default function InboxClient({
                                                 <div className={`absolute top-0.5 w-2.5 h-2.5 bg-white rounded-full transition-transform ${viewOptions.showRead ? 'translate-x-3.5' : 'translate-x-0.5'}`} />
                                             </div>
                                         </button>
-                                        <button 
+                                        <button
                                             onClick={() => setViewOptions(prev => ({ ...prev, unreadFirst: !prev.unreadFirst }))}
                                             className="w-full px-3 py-1.5 hover:bg-gray-50 flex items-center justify-between text-[12px] text-gray-700"
                                         >
@@ -491,8 +491,8 @@ export default function InboxClient({
                             <p className="text-xs font-medium">Loading inbox...</p>
                         </div>
                     ) : filteredAndSorted.length > 0 ? (
-                        <div 
-                            style={{ 
+                        <div
+                            style={{
                                 height: `${virtualizer.getTotalSize()}px`,
                                 width: '100%',
                                 position: 'relative'
@@ -514,8 +514,8 @@ export default function InboxClient({
                                             transform: `translateY(${virtualRow.start}px)`,
                                         }}
                                     >
-                                        <NotificationRow 
-                                            notification={notification} 
+                                        <NotificationRow
+                                            notification={notification}
                                             selected={selectedId === notification.id}
                                             onSelect={() => handleSelect(notification)}
                                             onMarkRead={handleToggleRead}
@@ -582,9 +582,9 @@ export default function InboxClient({
 
                             {/* Redirection Button */}
                             {entityDetail?.data?.id && (
-                                <a 
-                                    href={normalizedType === 'ticket' 
-                                        ? `/dashboard/${workspaceSlug}/issues/${entityDetail.data.id}` 
+                                <a
+                                    href={normalizedType === 'ticket'
+                                        ? `/dashboard/${workspaceSlug}/issues/${entityDetail.data.id}`
                                         : `/dashboard/${workspaceSlug}/projects/${entityDetail.data.id}`
                                     }
                                     className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-all text-[11px] font-bold shadow-sm shadow-indigo-100/50"
@@ -624,17 +624,17 @@ export default function InboxClient({
                                     </div>
 
                                     <div className="mb-8 py-4 border-y border-gray-100">
-                                        <PropertyInlineRow 
+                                        <PropertyInlineRow
                                             ticketId={entityDetail.data.id}
                                             initialStatus={entityDetail.data.status}
                                             initialPriority={entityDetail.data.priority}
                                             initialAssigneeId={entityDetail.data.assignee_id}
                                             projectName={entityDetail.data.projects?.project_name || 'N/A'}
                                             users={allUsers}
-                                            currentUserId={currentUser?.id || ''}
+                                            currentUser={currentUser}
                                             reviewerId={entityDetail.data.reviewer_id}
                                         />
-                                        
+
                                         {/* Due Date */}
                                         {entityDetail.data.due_date && (
                                             <div className="flex items-center gap-1.5 text-xs font-medium text-gray-600 bg-gray-50 px-2.5 py-1.5 rounded-md w-fit">
@@ -653,10 +653,10 @@ export default function InboxClient({
                                             </div>
                                             <div className="grid grid-cols-2 gap-3">
                                                 {entityDetail.data.attachments.map((file: any, idx: number) => (
-                                                    <a 
-                                                        key={idx} 
-                                                        href={file.url} 
-                                                        target="_blank" 
+                                                    <a
+                                                        key={idx}
+                                                        href={file.url}
+                                                        target="_blank"
                                                         rel="noopener noreferrer"
                                                         className="flex items-center gap-3 p-3 bg-gray-50 border border-gray-100 rounded-xl hover:border-indigo-200 hover:bg-white transition-all group/file"
                                                     >
@@ -719,10 +719,10 @@ export default function InboxClient({
                                             </div>
                                             <div className="grid grid-cols-2 gap-3">
                                                 {entityDetail.data.resources.map((file: any, idx: number) => (
-                                                    <a 
-                                                        key={idx} 
-                                                        href={file.url} 
-                                                        target="_blank" 
+                                                    <a
+                                                        key={idx}
+                                                        href={file.url}
+                                                        target="_blank"
                                                         rel="noopener noreferrer"
                                                         className="flex items-center gap-3 p-3 bg-gray-50 border border-gray-100 rounded-xl hover:border-indigo-200 hover:bg-white transition-all group/file"
                                                     >
@@ -775,17 +775,16 @@ export default function InboxClient({
 
 const NotificationRow = memo(({ notification, selected, onSelect, onMarkRead, onDelete, onMouseEnter }: any) => {
     const actor = notification.actor
-    
+
     return (
         <div
             role="button"
             tabIndex={0}
             onClick={onSelect}
-            onKeyDown={(e) => { if(e.key === 'Enter' || e.key === ' ') onSelect(e); }}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSelect(e); }}
             onMouseEnter={onMouseEnter}
-            className={`w-full text-left px-4 py-3 border-b border-gray-50 transition-colors flex items-start gap-3 group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
-                selected ? 'bg-indigo-50/60' : 'hover:bg-gray-50/50'
-            }`}
+            className={`w-full text-left px-4 py-3 border-b border-gray-50 transition-colors flex items-start gap-3 group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${selected ? 'bg-indigo-50/60' : 'hover:bg-gray-50/50'
+                }`}
         >
             {/* Avatar */}
             <div className="mt-0.5">
@@ -804,11 +803,11 @@ const NotificationRow = memo(({ notification, selected, onSelect, onMarkRead, on
                         <div className={cn(
                             "p-1 rounded-md shrink-0",
                             notification.type === 'assignment' ? "bg-blue-50 text-blue-600" :
-                            notification.type === 'status_change' ? "bg-orange-50 text-orange-600" :
-                            notification.type === 'comment' ? "bg-purple-50 text-purple-600" :
-                            notification.type === 'role_change' ? "bg-emerald-50 text-emerald-600" :
-                            notification.type === 'project' ? "bg-indigo-50 text-indigo-600" :
-                            "bg-gray-50 text-gray-600"
+                                notification.type === 'status_change' ? "bg-orange-50 text-orange-600" :
+                                    notification.type === 'comment' ? "bg-purple-50 text-purple-600" :
+                                        notification.type === 'role_change' ? "bg-emerald-50 text-emerald-600" :
+                                            notification.type === 'project' ? "bg-indigo-50 text-indigo-600" :
+                                                "bg-gray-50 text-gray-600"
                         )}>
                             {notification.type === 'assignment' && <UserPlus size={12} />}
                             {notification.type === 'status_change' && <CircleEllipsis size={12} />}

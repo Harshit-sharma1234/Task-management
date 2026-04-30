@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import InboxClient from './InboxClient';
 import { getServerUser } from '@/lib/auth-server';
-import { getCachedUsersMinimal, getCachedWorkspaceBySlug, getCachedUserProfile } from '@/lib/cache';
+import { getCachedUsersMinimal, getCachedWorkspaceBySlug, getCachedWorkspaceMember } from '@/lib/cache';
 
 export default async function InboxPage({ params }: { params: Promise<{ workspace: string }> }) {
     // 1. Get current user (Deduplicated with Layout)
@@ -11,7 +11,7 @@ export default async function InboxPage({ params }: { params: Promise<{ workspac
 
     const { workspace: workspaceSlug } = await params;
     const workspace = await getCachedWorkspaceBySlug(workspaceSlug);
-    
+
     if (!workspace) {
         redirect('/dashboard');
     }
@@ -19,7 +19,7 @@ export default async function InboxPage({ params }: { params: Promise<{ workspac
     const supabase = await createClient();
 
     // 2. Fetch notifications + workspace users in parallel
-    const [notificationsRes, allUsers, userProfile] = await Promise.all([
+    const [notificationsRes, allUsers] = await Promise.all([
         supabase
             .from('notifications')
             .select(`
@@ -29,8 +29,7 @@ export default async function InboxPage({ params }: { params: Promise<{ workspac
             .eq('user_id', user.id)
             .eq('workspace_id', workspace.id)
             .order('created_at', { ascending: false }),
-        getCachedUsersMinimal(workspace.id),
-        getCachedUserProfile(user.email!)
+        getCachedUsersMinimal(workspace.id)
     ]);
 
     const notifications = (notificationsRes.data || []).map(n => {
@@ -42,16 +41,19 @@ export default async function InboxPage({ params }: { params: Promise<{ workspac
     // InboxClient will trigger fetchEntityDetail on mount if initialSelectedId exists.
     const initialSelectedId = notifications[0]?.id || null;
 
+    const member = await getCachedWorkspaceMember(workspace.id, user.id);
+    const currentUserWithRoles = { ...user, roles: member?.roles || null };
+
     return (
         <InboxClient
             initialNotifications={notifications}
             allUsers={allUsers}
             workspaceId={workspace.id}
-            currentUser={user}
-            currentUserProfile={userProfile}
+            currentUser={currentUserWithRoles}
             initialSelectedId={initialSelectedId}
             initialEntityDetail={null}
             initialEntityActivity={[]}
         />
     );
 }
+
