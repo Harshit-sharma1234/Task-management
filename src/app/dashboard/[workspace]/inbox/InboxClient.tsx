@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, useOptimistic, useRef, memo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import { useParams } from 'next/navigation';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { createClient } from '@/lib/supabase/client';
@@ -69,11 +69,6 @@ export default function InboxClient({
     const workspaceSlug = params?.workspace as string;
     // ── State: initialized from server-fetched props (no loading spinner) ──
     const [notifications, setNotifications] = useState<any[]>(initialNotifications);
-    const [optimisticNotifications, addOptimisticState] = useOptimistic(
-        notifications,
-        (state: any[], { id, isRead }: { id: string; isRead: boolean }) =>
-            state.map(n => n.id === id ? { ...n, is_read: isRead } : n)
-    );
     const [loading, setLoading] = useState(false);
     const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
     const [entityDetail, setEntityDetail] = useState<any>(initialEntityDetail);
@@ -125,7 +120,7 @@ export default function InboxClient({
             // AUTO-MARK AS READ: If the initial selected one is unread, mark it now.
             if (firstNotif && !firstNotif.is_read) {
                 // We use markAsRead direct call + store update
-                addOptimisticState({ id: firstNotif.id, isRead: true });
+                setNotifications(prev => prev.map(n => n.id === firstNotif.id ? { ...n, is_read: true } : n));
                 markAsRead(firstNotif.id);
                 decrementGlobalUnreadCount();
             }
@@ -158,7 +153,7 @@ export default function InboxClient({
                     } else if (payload.eventType === 'UPDATE') {
                         setNotifications(prev => prev.map(n => n.id === payload.new.id ? { ...n, ...payload.new } : n));
                     } else if (payload.eventType === 'DELETE') {
-                        setNotifications(prev => prev.filter(n => n.id === payload.old.id));
+                        setNotifications(prev => prev.filter(n => n.id !== payload.old.id));
                     }
                 }
             )
@@ -240,7 +235,7 @@ export default function InboxClient({
     }
 
     const filteredAndSorted = useMemo(() => {
-        let result = [...optimisticNotifications];
+        let result = [...notifications];
 
         if (!viewOptions.showRead) {
             result = result.filter(n => !n.is_read);
@@ -259,7 +254,7 @@ export default function InboxClient({
         });
 
         return result;
-    }, [optimisticNotifications, viewOptions, typeFilter]);
+    }, [notifications, viewOptions, typeFilter]);
 
     const virtualizer = useVirtualizer({
         count: filteredAndSorted.length,
@@ -276,7 +271,7 @@ export default function InboxClient({
         fetchEntityDetail(notification);
         // Auto-mark as read
         if (!notification.is_read) {
-            addOptimisticState({ id: notification.id, isRead: true });
+            setNotifications(prev => prev.map(n => n.id === notification.id ? { ...n, is_read: true } : n));
             markAsRead(notification.id);
             decrementGlobalUnreadCount();
         }
@@ -303,7 +298,7 @@ export default function InboxClient({
     };
 
     const handleToggleRead = useCallback(async (id: string, isRead: boolean) => {
-        addOptimisticState({ id, isRead });
+        setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: isRead } : n));
         if (isRead) {
             decrementGlobalUnreadCount();
         } else {
@@ -838,7 +833,7 @@ const NotificationRow = memo(({ notification, selected, onSelect, onMarkRead, on
                         <button
                             onClick={(e) => {
                                 e.stopPropagation();
-                                onDelete();
+                                onDelete(e);
                             }}
                             className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-all opacity-0 group-hover:opacity-100"
                             title="Delete notification"
