@@ -10,3 +10,4 @@ for (let i = 0; i < lines.length; i++) {
     }
     console.log(`${i + 1}: [${balance}] ${line}`);
 }
+console.log(`Final balance: ${balance}`);
