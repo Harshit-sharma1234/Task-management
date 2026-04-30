@@ -11,7 +11,7 @@ import { useGlobalStore } from '@/lib/store/global';
 export function LoadingProgress() {
   const pathname = usePathname();
   const isInitialLoadComplete = useGlobalStore((state) => state.isInitialLoadComplete);
-  
+
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
 
@@ -43,7 +43,7 @@ export function LoadingProgress() {
     if (isInitialLoadComplete) {
       setLoading(true);
       setProgress(10);
-      
+
       const timer = setTimeout(() => {
         setProgress(100);
         const finishTimer = setTimeout(() => {
@@ -61,9 +61,9 @@ export function LoadingProgress() {
 
   return (
     <div className="fixed top-0 left-0 right-0 z-[9999] h-[3px] pointer-events-none">
-      <div 
+      <div
         className="h-full bg-linear-accent transition-all duration-500 ease-out relative overflow-hidden"
-        style={{ 
+        style={{
           width: `${progress}%`,
           boxShadow: '0 0 12px var(--color-linear-accent)',
         }}
