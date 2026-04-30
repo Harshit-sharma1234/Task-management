@@ -290,15 +290,25 @@ export default function InboxClient({
 
     const handleDeleteAll = async () => {
         if (confirm('Are you sure you want to delete ALL notifications for this workspace?')) {
-            await deleteAllNotifications(workspaceId);
-            setSelectedId(null);
-            setEntityDetail(null);
+            const result = await deleteAllNotifications(workspaceId);
+            if (result?.success) {
+                toast.success('All notifications deleted');
+                setSelectedId(null);
+                setEntityDetail(null);
+            } else {
+                toast.error(result?.error || 'Failed to delete notifications');
+            }
             setShowActions(false);
         }
     };
 
     const handleDeleteRead = async () => {
-        await deleteAllReadNotifications(workspaceId);
+        const result = await deleteAllReadNotifications(workspaceId);
+        if (result?.success) {
+            toast.success('Read notifications deleted');
+        } else {
+            toast.error(result?.error || 'Failed to delete read notifications');
+        }
         setShowActions(false);
     };
 
@@ -325,10 +335,14 @@ export default function InboxClient({
         }
 
         try {
-            await deleteNotification(id);
+            const result = await deleteNotification(id);
+            if (result?.error) {
+                toast.error(`Failed to delete: ${result.error}`);
+                setNotifications(previousNotifications);
+            }
         } catch (err) {
             console.error('[Inbox] Failed to delete notification:', err);
-            // Rollback on error
+            toast.error('An unexpected error occurred while deleting.');
             setNotifications(previousNotifications);
         }
     }, [notifications, selectedId, deleteNotification]);
@@ -590,7 +604,7 @@ export default function InboxClient({
                                     className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-all text-[11px] font-bold shadow-sm shadow-indigo-100/50"
                                 >
                                     <ExternalLink size={12} />
-                                    <span>Open in full view</span>
+                                    <span>{normalizedType === 'ticket' ? 'Go to ticket' : 'Go to project'}</span>
                                 </a>
                             )}
                         </div>
@@ -836,10 +850,10 @@ const NotificationRow = memo(({ notification, selected, onSelect, onMarkRead, on
                             <Check size={12} />
                         </button>
                         <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onDelete();
-                            }}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onDelete(e);
+                                }}
                             className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-all opacity-0 group-hover:opacity-100"
                             title="Delete notification"
                         >
