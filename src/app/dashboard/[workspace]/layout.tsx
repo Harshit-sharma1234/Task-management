@@ -15,31 +15,30 @@ export default async function WorkspaceDashboardLayout({
   params: Promise<{ workspace: string }>;
 }) {
   const { workspace: workspaceSlug } = await params;
-  
-  const user = await getServerUser();
-  if (!user) redirect('/login');
-
   const adminClient = createAdminClient();
+  
+  // 1. & 2. Get user and workspace in parallel
+  const [user, { data: workspace }] = await Promise.all([
+    getServerUser(),
+    adminClient.from('workspaces').select('id, name, slug').eq('slug', workspaceSlug).single()
+  ]);
 
-  // 1. Get internal user profile (single source of truth for dashboard)
-  const { data: userProfile } = await adminClient
-    .from('users')
-    .select('id, name, avatar_url')
-    .eq('auth_id', user.id)
-    .single();
-
-  if (!userProfile) redirect('/login');
-
-  // 2. Resolve workspace by slug
-  const { data: workspace } = await adminClient
-    .from('workspaces')
-    .select('id, name, slug')
-    .eq('slug', workspaceSlug)
-    .single();
-
+  if (!user) redirect('/login');
   if (!workspace) redirect('/workspace');
 
-  // 3. Verify membership & get role
+  // 3. & 4. Resolve everything else in parallel
+  const [userProfileRes, allWorkspacesRes, projectsRes, teamRes, unreadRes] = await Promise.all([
+    adminClient.from('users').select('id, name, avatar_url').eq('auth_id', user.id).single(),
+    adminClient.from('workspace_members').select('workspace_id, workspaces(id, name, slug), roles(role_name)').eq('user_id', user.id), 
+    adminClient.from('projects').select('id, project_name, description, status, priority, lead_id, start_date, created_at').eq('workspace_id', workspace.id).order('created_at', { ascending: false }),
+    adminClient.from('workspace_members').select('user_id, users(id, name, email, avatar_url), roles(role_name)').eq('workspace_id', workspace.id),
+    adminClient.from('notifications').select('id', { count: 'estimated', head: true }).eq('user_id', user.id).eq('workspace_id', workspace.id).eq('is_read', false),
+  ]);
+
+  const userProfile = userProfileRes.data;
+  if (!userProfile) redirect('/login');
+
+  // Now verify membership specifically for this workspace
   const { data: membership } = await adminClient
     .from('workspace_members')
     .select('role_id, roles(role_name)')
@@ -51,29 +50,6 @@ export default async function WorkspaceDashboardLayout({
 
   const rolesData = (membership as any).roles;
   const roleName = (Array.isArray(rolesData) ? rolesData[0]?.role_name : rolesData?.role_name) || '';
-
-  // 4. Fetch workspace-scoped data for hydration
-  const [projectsRes, teamRes, unreadRes, allWorkspacesRes] = await Promise.all([
-    adminClient
-      .from('projects')
-      .select('id, project_name, description, status, priority, lead_id, start_date, created_at')
-      .eq('workspace_id', workspace.id)
-      .order('created_at', { ascending: false }),
-    adminClient
-      .from('workspace_members')
-      .select('user_id, users(id, name, email, avatar_url), roles(role_name)')
-      .eq('workspace_id', workspace.id),
-    adminClient
-      .from('notifications')
-      .select('id', { count: 'estimated', head: true })
-      .eq('user_id', userProfile.id)
-      .eq('workspace_id', workspace.id)
-      .eq('is_read', false),
-    adminClient
-      .from('workspace_members')
-      .select('workspace_id, workspaces(id, name, slug), roles(role_name)')
-      .eq('user_id', userProfile.id),
-  ]);
 
   const team = (teamRes.data || []).map((m: any) => ({
     ...m.users,
@@ -118,6 +94,7 @@ export default async function WorkspaceDashboardLayout({
         workspaceSlug={workspace.slug}
         availableWorkspaces={availableWorkspaces}
         activeWorkspaceId={workspace.id}
+        initialUnreadCount={snapshot.unreadCount}
         profileData={{
           name: snapshot.profile.name || '',
           email: snapshot.profile.email,

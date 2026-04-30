@@ -27,7 +27,9 @@ export default async function MyTasksPage({ params }: { params: Promise<{ worksp
     redirect('/dashboard');
   }
 
-  const currentUser = await getCachedUserProfile(user.email!);
+  const profile = await getCachedUserProfile(user.email!);
+  const member = profile?.id ? await getCachedWorkspaceMember(workspace.id, profile.id) : null;
+  const currentUser = profile ? { ...profile, roles: member?.roles || null } : null;
 
   return (
     <Suspense fallback={<IssueListSkeleton />}>
@@ -62,6 +64,7 @@ async function MyTasksContent({
       users={users}
       currentUser={currentUser}
       workspaceSlug={workspaceSlug}
+      workspaceId={workspaceId}
     />
   );
 }
