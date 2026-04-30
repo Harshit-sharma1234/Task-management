@@ -36,7 +36,12 @@ export default async function ProjectDetailLayout({ children, params }: LayoutPr
     <ProjectTransitionProvider>
       <div className="flex flex-col h-full bg-white text-gray-900 overflow-hidden">
         {/* Project Header (Breadcrumbs & Tabs) - Stable in Layout */}
-        <ProjectDetailHeader projectName={project.project_name} projectId={id} users={allUsers || []} />
+        <ProjectDetailHeader 
+          projectName={project.project_name} 
+          projectId={id} 
+          users={allUsers || []} 
+          workspaceId={workspace.id}
+        />
 
         {/* Main Content Area */}
         <div className="flex-1 flex overflow-hidden">
