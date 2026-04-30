@@ -22,7 +22,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-const FROM_ADDRESS = process.env.EMAIL_FROM || 'Tectome <kapilnainanidev6@gmail.com>';
+const FROM_ADDRESS = process.env.EMAIL_FROM || `Tectome <${process.env.SMTP_USER}>`;
 
 interface SendEmailParams {
   to: string | string[];
@@ -36,7 +36,26 @@ interface SendEmailParams {
  * Send an email via SMTP with automatic retry (up to 3 attempts).
  * Optimized for high deliverability to Outlook/Gmail.
  */
-export async function sendEmail(params: SendEmailParams) {
+// In-memory cache to prevent duplicate emails within a short window (60 seconds)
+const dedupeCache = new Map<string, number>();
+
+export async function sendEmail(params: SendEmailParams & { source?: string }) {
+  const recipientKey = Array.isArray(params.to) ? params.to.join(',') : params.to;
+  const dedupeKey = `${recipientKey}:${params.subject}`;
+  const now = Date.now();
+  const timestamp = new Date().toISOString();
+  const source = params.source || 'Unknown';
+  
+  if (dedupeCache.has(dedupeKey)) {
+    const lastSent = dedupeCache.get(dedupeKey)!;
+    if (now - lastSent < 60000) { // 60 second cooldown
+      console.log(`[${timestamp}] [Email] [${source}] 🛡️ Deduplication: Skipping duplicate email to ${recipientKey}`);
+      return { success: true, id: 'deduped' }; 
+    }
+  }
+  
+  dedupeCache.set(dedupeKey, now);
+  console.log(`[${timestamp}] [Email] [${source}] 🚀 Attempting to send to ${recipientKey}...`);
   const MAX_RETRIES = 3;
   let lastError: Error | null = null;
 
@@ -50,7 +69,6 @@ export async function sendEmail(params: SendEmailParams) {
         subject: params.subject,
         html: params.html,
         replyTo: params.replyTo,
-        // High priority headers to help with Outlook deliverability
         priority: isHighPriority ? 'high' : 'normal',
         headers: isHighPriority ? {
           'X-Priority': '1 (Highest)',
@@ -59,20 +77,28 @@ export async function sendEmail(params: SendEmailParams) {
         } : {},
       });
 
-      console.log(`[Email] Sent successfully via ${SMTP_HOST}:`, info.messageId);
+      console.log(`[Email] ✅ SUCCESS (Attempt ${attempt}/${MAX_RETRIES}):`, info.messageId);
       return { success: true, id: info.messageId };
-    } catch (err) {
-      lastError = err as Error;
-      console.error(`[Email] Attempt ${attempt}/${MAX_RETRIES} failed:`, lastError.message);
+    } catch (err: any) {
+      lastError = err;
+      const errorMessage = err.message || 'Unknown error';
+      console.error(`[Email] ❌ FAILED (Attempt ${attempt}/${MAX_RETRIES}):`, errorMessage);
+      
+      // If we hit a quota limit, STOP RETRYING immediately to save the remaining quota
+      if (errorMessage.includes('limit') || errorMessage.includes('quota') || err.code === 'EENVELOPE') {
+        console.warn('[Email] Quota limit detected. Aborting retries.');
+        break;
+      }
       
       if (attempt < MAX_RETRIES) {
-        await new Promise(r => setTimeout(r, 1000 * attempt)); // exponential backoff
+        const delay = 1000 * attempt;
+        console.log(`[Email] Retrying in ${delay}ms...`);
+        await new Promise(r => setTimeout(r, delay));
       }
     }
   }
 
-  console.error('[Email] Failed after all retries:', lastError);
-  return { success: false, error: lastError?.message };
+  return { success: false, error: lastError?.message || 'Failed after retries' };
 }
 
 /**

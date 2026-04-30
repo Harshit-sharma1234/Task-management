@@ -603,7 +603,8 @@ export async function createWorkspaceInvite(workspaceId: string, email: string, 
                         <p style="color: #666; font-size: 12px;">This link will expire in 7 days.</p>
                         <p style="color: #999; font-size: 12px; margin-top: 20px; border-top: 1px solid #eee; pt: 10px;">If you didn't expect this invite, you can safely ignore this email.</p>
                     </div>
-                `
+                `,
+                source: 'Team:Invite'
             });
         } catch (emailErr) {
             console.error('[createWorkspaceInvite] Background email send failed:', emailErr);

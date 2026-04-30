@@ -65,7 +65,8 @@ export async function requestOTP(email: string) {
             await sendEmail({
                 to: email,
                 subject: `Your Verification Code: ${otpCode}`,
-                html
+                html,
+                source: 'Signup:OTP'
             })
         } catch (err) {
             console.error('[OTP] Background email error:', err)

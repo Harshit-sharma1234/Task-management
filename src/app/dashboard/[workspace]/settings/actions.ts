@@ -223,7 +223,8 @@ export async function resetPasswordAction() {
             await sendEmail({
                 to: email,
                 subject: `Your Tectome security code: ${otpCode}`,
-                html
+                html,
+                source: 'Settings:PasswordReset'
             });
         } catch (err) {
             console.error('[resetPasswordAction] Background email error:', err);
