@@ -168,6 +168,7 @@ export async function deleteMember(targetUserId: string, workspaceId?: string) {
         if (authError && !authError.message?.includes('not found')) {
             console.error('[deleteMember] Auth Error:', authError);
         }
+    }
     revalidateTag('team-members');
     revalidateTag('users');
     if (workspaceId) {

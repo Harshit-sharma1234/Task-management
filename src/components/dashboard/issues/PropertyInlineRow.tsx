@@ -45,7 +45,7 @@ interface PropertyInlineRowProps {
   initialAssigneeId: string | null;
   projectName: string;
   users: { id: string, name: string, avatar_url?: string | null }[];
-  currentUserId: string;
+  currentUser: any;
   reviewerId: string | null;
 }
 
@@ -56,7 +56,7 @@ export function PropertyInlineRow({
   initialAssigneeId,
   projectName,
   users,
-  currentUserId,
+  currentUser,
   reviewerId
 }: PropertyInlineRowProps) {
   const [status, setStatus] = useState(initialStatus);
@@ -89,19 +89,25 @@ export function PropertyInlineRow({
   return (
     <div className="flex flex-wrap items-center gap-2">
       {/* Status Selector */}
-      <IssueStatusSelector 
+      <IssueStatusSelector
         issueId={ticketId}
         currentStatus={status}
+        currentUser={currentUser}
+        assigneeId={assigneeId}
+        reviewerId={reviewerId}
       />
 
       {/* Priority Selector */}
-      <IssuePrioritySelector 
+      <IssuePrioritySelector
         issueId={ticketId}
         currentPriority={priority}
+        currentUser={currentUser}
+        assigneeId={assigneeId}
+        reviewerId={reviewerId}
       />
 
       {/* Assignee Selector */}
-      <IssueAssigneeSelector 
+      <IssueAssigneeSelector
         issueId={ticketId}
         currentAssigneeId={assigneeId}
         currentAssignee={users.find(u => u.id === assigneeId) || null}
