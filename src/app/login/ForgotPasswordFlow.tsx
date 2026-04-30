@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Mail, Lock, Key, ArrowRight, Loader2, CheckCircle2, X } from 'lucide-react'
 import { requestPasswordResetOTP, verifyPasswordResetOTP, finalizePasswordReset } from './forgot-password-actions'
 import { toast } from 'sonner'
+import { validateEmail } from '@/lib/validation'
 
 export function ForgotPasswordFlow({ onClose }: { onClose: () => void }) {
     const [step, setStep] = useState<'email' | 'code' | 'reset'>('email')
@@ -16,6 +17,11 @@ export function ForgotPasswordFlow({ onClose }: { onClose: () => void }) {
 
     const handleRequestOTP = async (e: React.FormEvent) => {
         e.preventDefault()
+        const emailCheck = validateEmail(email)
+        if (!emailCheck.valid) {
+            setError(emailCheck.error || 'Invalid email address')
+            return
+        }
         setIsLoading(true)
         setError('')
         

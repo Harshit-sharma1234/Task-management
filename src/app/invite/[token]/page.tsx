@@ -10,16 +10,58 @@ export const metadata = {
 export default async function InvitePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   
+  const adminClient = createAdminClient();
+
+  // 1. Fetch and validate the invite first
+  const { data: invite } = await adminClient
+    .from('workspace_invites')
+    .select('*, workspaces(id, name, slug), roles(role_name)')
+    .eq('token', token)
+    .eq('status', 'pending')
+    .gt('expires_at', new Date().toISOString())
+    .maybeSingle();
+
+  if (!invite) {
+    return (
+      <main className="min-h-screen w-full flex flex-col items-center justify-center bg-[var(--color-linear-bg)] text-[var(--color-linear-text)] p-4">
+        <div className="w-full max-w-md text-center animate-in fade-in duration-500">
+          <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-red-500/10 flex items-center justify-center">
+            <span className="text-3xl">⚠️</span>
+          </div>
+          <h1 className="text-2xl font-bold mb-3">Invalid Invite</h1>
+          <p className="text-[var(--color-linear-muted)] text-sm mb-8">
+            This invite link is invalid or has expired. Please ask the workspace admin to send a new invite.
+          </p>
+          <a href="/workspace" className="inline-block px-6 py-2.5 bg-[var(--color-linear-accent)] text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity">
+            Go to Workspaces
+          </a>
+        </div>
+      </main>
+    );
+  }
+
+  // 2. Check if user is logged in
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  // If not logged in, redirect to main signup page
   if (!user) {
-    redirect(`/signup?token=${token}&message=Please create an account to join the workspace`);
+    // Check if a user with this email already exists
+    const { data: existingUser } = await adminClient
+      .from('users')
+      .select('id')
+      .ilike('email', invite.email)
+      .maybeSingle();
+
+    if (existingUser) {
+      // User exists, send to login
+      redirect(`/login?next=/invite/${token}&message=Please log in to join the workspace`);
+    } else {
+      // New user, send to signup
+      redirect(`/signup?token=${token}&message=Please create an account to join the workspace`);
+    }
   }
 
   // Check if user has an account in our system
-  const adminClient = createAdminClient();
   let { data: userProfile } = await adminClient
     .from('users')
     .select('id, email')
@@ -64,33 +106,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
     redirect(`/signup?token=${token}&message=Please create an account to join the workspace`);
   }
 
-  // Validate the token
-  const { data: invite } = await adminClient
-    .from('workspace_invites')
-    .select('*, workspaces(id, name, slug), roles(role_name)')
-    .eq('token', token)
-    .eq('status', 'pending')
-    .gt('expires_at', new Date().toISOString())
-    .maybeSingle();
 
-  if (!invite) {
-    return (
-      <main className="min-h-screen w-full flex flex-col items-center justify-center bg-[var(--color-linear-bg)] text-[var(--color-linear-text)] p-4">
-        <div className="w-full max-w-md text-center animate-in fade-in duration-500">
-          <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-red-500/10 flex items-center justify-center">
-            <span className="text-3xl">⚠️</span>
-          </div>
-          <h1 className="text-2xl font-bold mb-3">Invalid Invite</h1>
-          <p className="text-[var(--color-linear-muted)] text-sm mb-8">
-            This invite link is invalid or has expired. Please ask the workspace admin to send a new invite.
-          </p>
-          <a href="/workspace" className="inline-block px-6 py-2.5 bg-[var(--color-linear-accent)] text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity">
-            Go to Workspaces
-          </a>
-        </div>
-      </main>
-    );
-  }
 
   // Check if user is already a member
   const { data: existingMember } = await adminClient

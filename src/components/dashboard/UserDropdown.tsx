@@ -63,10 +63,10 @@ export function UserDropdown({ profile, onSignOut, workspaceSlug }: UserDropdown
             {/* Trigger Button */}
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className={`flex items-center gap-3 p-1.5 rounded-xl transition-all border group ${
+                className={`flex items-center gap-2.5 p-1 rounded-xl transition-all border group ${
                     isOpen 
-                    ? 'bg-indigo-50/50 border-indigo-100 ring-4 ring-indigo-50/30' 
-                    : 'bg-white border-slate-100 hover:border-indigo-200 hover:bg-indigo-50/30 shadow-sm'
+                    ? 'bg-slate-50 border-slate-200 ring-4 ring-slate-50' 
+                    : 'bg-white border-transparent hover:bg-slate-50 shadow-sm hover:shadow-md'
                 }`}
                 aria-haspopup="true"
                 aria-expanded={isOpen}
@@ -78,17 +78,14 @@ export function UserDropdown({ profile, onSignOut, workspaceSlug }: UserDropdown
                     className="shadow-sm ring-2 ring-white"
                     priority={true}
                 />
-                <div className="hidden sm:flex flex-col items-start mr-1">
-                    <span className="text-xs font-extrabold text-slate-800 leading-tight tracking-tight truncate max-w-[100px]">
+                <div className="hidden sm:flex flex-col items-start pr-1">
+                    <span className="text-[13px] font-bold text-slate-700 leading-tight tracking-tight truncate max-w-[120px]">
                         {profile.name}
-                    </span>
-                    <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest leading-tight mt-0.5">
-                        {profile.role || 'Member'}
                     </span>
                 </div>
                 <ChevronDown 
                     size={14} 
-                    className={`text-slate-400 transition-transform duration-500 ${isOpen ? 'rotate-180 text-indigo-600' : 'group-hover:text-indigo-600'}`} 
+                    className={`text-slate-400 mr-1 transition-transform duration-500 ${isOpen ? 'rotate-180 text-indigo-600' : 'group-hover:text-indigo-600'}`} 
                 />
             </button>
 

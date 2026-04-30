@@ -134,7 +134,7 @@ export function IssueReviewerSelector({
                     )}
                 </div>
                 <span className="text-[11px] font-semibold text-gray-600 flex-1 truncate">
-                    {optimisticReviewer?.name || 'No reviewer'}
+                    {optimisticReviewer?.name || 'Reviewer'}
                 </span>
             </button>
 
@@ -156,18 +156,7 @@ export function IssueReviewerSelector({
                         </div>
                         
                         <div className="max-h-64 overflow-y-auto p-1 py-1.5 custom-scrollbar">
-                            <button 
-                                onClick={(e) => handleSelect(e, null)}
-                                className={twMerge(
-                                    "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-colors",
-                                    !optimisticReviewerId ? "bg-gray-50" : "hover:bg-gray-50"
-                                )}
-                            >
-                                <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 border border-gray-200">
-                                    <User size={12} />
-                                </div>
-                                <span className="text-xs font-medium text-gray-600">No reviewer</span>
-                            </button>
+
 
                             {filteredUsers.map((u) => (
                                 <button
