@@ -5,14 +5,23 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getRolePath } from '@/lib/role-utils'
-import { isSafeRedirectPath } from '@/lib/validation'
+import { isSafeRedirectPath, validateEmail } from '@/lib/validation'
 
 export async function login(prevState: any, formData: FormData) {
+  const email = (formData.get('email') as string || '').trim().toLowerCase()
+  const password = formData.get('password') as string
+
+  // Validation
+  const emailCheck = validateEmail(email)
+  if (!emailCheck.valid) {
+    return { error: emailCheck.error || 'Invalid email address' }
+  }
+
   const supabase = await createClient()
 
   const credentials = {
-    email: (formData.get('email') as string).trim().toLowerCase(),
-    password: formData.get('password') as string,
+    email,
+    password,
   }
 
   // Issue #10: Read the next URL from the form

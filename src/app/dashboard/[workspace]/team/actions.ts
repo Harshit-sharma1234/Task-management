@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getCachedUsers, getCachedUserProfile } from '@/lib/cache';
 import { revalidateTag, revalidatePath } from 'next/cache';
 import { getBaseUrl } from '@/lib/urls';
+import { validateEmail } from '@/lib/validation';
 
 export async function fetchTeamData(workspaceId: string) {
     const supabase = await createClient();
@@ -25,8 +26,16 @@ export async function fetchTeamData(workspaceId: string) {
           .select('role_id, roles(role_name)')
           .eq('workspace_id', workspaceId)
           .eq('user_id', currentUserProfile.id)
-          .single()
+          .maybeSingle()
     ]);
+
+    if (!membership.data) {
+        return {
+            users: [],
+            isAdmin: false,
+            currentUserRole: 'None'
+        };
+    }
 
     const roleName = (membership.data as any)?.roles?.role_name || '';
     const isAdmin = roleName === 'Admin';
@@ -63,7 +72,75 @@ export async function deleteMember(targetUserId: string, workspaceId?: string) {
     const adminClient = createAdminClient();
 
     if (workspaceId) {
-        // Remove from workspace_members (workspace-scoped)
+        // 1. Verify caller has permission (Admin or PM)
+        const { data: callerMembership } = await adminClient
+            .from('workspace_members')
+            .select('roles(role_name)')
+            .eq('workspace_id', workspaceId)
+            .eq('user_id', profile.id)
+            .single();
+
+        const rawCallerRole = (callerMembership as any)?.roles;
+        const callerRole = Array.isArray(rawCallerRole) 
+            ? rawCallerRole[0]?.role_name 
+            : rawCallerRole?.role_name;
+
+        if (callerRole !== 'Admin' && callerRole !== 'Project Manager') {
+            return { error: `Unauthorized: Your role is ${callerRole || 'Unknown'}. Only Admins and Project Managers can remove members.` };
+        }
+
+        // 2. Cleanup: Remove from all projects and issues in this workspace
+        // We do this using subqueries to ensure all projects in this workspace are covered
+        const { data: projectIdsData } = await adminClient
+            .from('projects')
+            .select('id')
+            .eq('workspace_id', workspaceId);
+
+        const projectIds = projectIdsData?.map(p => p.id) || [];
+
+        if (projectIds.length > 0) {
+            // Remove from project_members for all projects in this workspace
+            await adminClient
+                .from('project_members')
+                .delete()
+                .in('project_id', projectIds)
+                .eq('user_id', targetUserId);
+
+            // Clear assignments in all workspace tickets (even those not linked to a project)
+            await adminClient
+                .from('tickets')
+                .update({ assignee_id: null })
+                .eq('workspace_id', workspaceId)
+                .eq('assignee_id', targetUserId);
+
+            await adminClient
+                .from('tickets')
+                .update({ reviewer_id: null })
+                .eq('workspace_id', workspaceId)
+                .eq('reviewer_id', targetUserId);
+                
+            // Also update tickets specifically within those projects (redundancy for safety)
+            await adminClient
+                .from('tickets')
+                .update({ assignee_id: null })
+                .in('project_id', projectIds)
+                .eq('assignee_id', targetUserId);
+        } else {
+            // If no projects, still clear workspace-level tickets
+            await adminClient
+                .from('tickets')
+                .update({ assignee_id: null })
+                .eq('workspace_id', workspaceId)
+                .eq('assignee_id', targetUserId);
+
+            await adminClient
+                .from('tickets')
+                .update({ reviewer_id: null })
+                .eq('workspace_id', workspaceId)
+                .eq('reviewer_id', targetUserId);
+        }
+
+        // 3. Remove from workspace_members (workspace-scoped)
         const { error: dbError } = await adminClient
             .from('workspace_members')
             .delete()
@@ -93,12 +170,15 @@ export async function deleteMember(targetUserId: string, workspaceId?: string) {
         }
     }
 
-    revalidateTag('team-members', 'max');
+    revalidateTag('team-members');
+    revalidateTag('users');
     if (workspaceId) {
-        revalidateTag(`team-members-${workspaceId}`, 'max');
+        revalidateTag(`workspace-${workspaceId}`);
+        // Invalidate all projects in the workspace to refresh their member lists
+        revalidateTag('projects');
+        revalidatePath(`/dashboard/${workspaceId}`);
         revalidatePath(`/dashboard/${workspaceId}/team`);
-    } else {
-        revalidatePath('/dashboard/team');
+        revalidatePath(`/dashboard/${workspaceId}/projects`);
     }
     revalidatePath('/dashboard');
     return { success: true };
@@ -123,7 +203,29 @@ export async function updateUserRole(targetUserId: string, newRoleName: string, 
 
     const adminClient = createAdminClient();
 
-    // Lookup role ID
+    // 1. Permission check: Only Admin or PM can change roles
+    const { data: callerMembership } = await adminClient
+        .from('workspace_members')
+        .select('roles(role_name)')
+        .eq('workspace_id', workspaceId)
+        .eq('user_id', profile.id)
+        .single();
+
+    const rawCallerRole = (callerMembership as any)?.roles;
+    const callerRole = Array.isArray(rawCallerRole) 
+        ? rawCallerRole[0]?.role_name 
+        : rawCallerRole?.role_name;
+
+    if (callerRole !== 'Admin' && callerRole !== 'Project Manager') {
+        return { error: `Unauthorized: Your role is ${callerRole || 'Unknown'}. Only Admins and Project Managers can change roles.` };
+    }
+
+    // New restriction: Only Admin can promote to Admin
+    if (newRoleName === 'Admin' && callerRole !== 'Admin') {
+        return { error: 'Unauthorized: Only Admins can promote a user to the Admin role.' };
+    }
+
+    // 2. Lookup role ID
     const { data: roleRecord } = await adminClient
         .from('roles')
         .select('id')
@@ -136,15 +238,67 @@ export async function updateUserRole(targetUserId: string, newRoleName: string, 
 
     if (workspaceId) {
         // Update workspace_members role (workspace-scoped)
-        const { error: dbError } = await adminClient
+        const { error: dbError, count } = await adminClient
             .from('workspace_members')
             .update({ role_id: roleRecord.id })
             .eq('workspace_id', workspaceId)
-            .eq('user_id', targetUserId);
+            .eq('user_id', targetUserId)
+            .select('*', { count: 'exact', head: true });
 
         if (dbError) {
-            console.error('[updateUserRole] DB Error:', dbError);
+            console.error('[updateUserRole] DB Error (workspace_members):', dbError);
             return { error: `Database Error: ${dbError.message}` };
+        }
+        
+        console.log(`[updateUserRole] Updated workspace_members for user ${targetUserId}: ${count} rows`);
+
+        if (count === 0) {
+            console.warn(`[updateUserRole] No rows updated for user ${targetUserId} in workspace ${workspaceId}`);
+            // Check if member exists at all
+            const { data: exists } = await adminClient
+                .from('workspace_members')
+                .select('id')
+                .eq('workspace_id', workspaceId)
+                .eq('user_id', targetUserId)
+                .maybeSingle();
+            
+            if (!exists) {
+                return { error: 'Member not found in this workspace' };
+            }
+        }
+
+        // Also update the global users table for consistency (legacy but still read in some places)
+        await adminClient
+            .from('users')
+            .update({ role_id: roleRecord.id })
+            .eq('id', targetUserId);
+
+        // 3. Send Notification to User Inbox
+        try {
+            // Get workspace name for the notification message
+            const { data: workspace } = await adminClient
+                .from('workspaces')
+                .select('name')
+                .eq('id', workspaceId)
+                .single();
+
+            if (workspace) {
+                await adminClient
+                    .from('notifications')
+                    .insert({
+                        user_id: targetUserId,
+                        actor_id: profile.id,
+                        entity_type: 'workspace',
+                        entity_id: workspaceId,
+                        workspace_id: workspaceId,
+                        type: 'role_change',
+                        message: `${profile.name || 'An admin'} changed your role to ${newRoleName} in workspace: ${workspace.name}`,
+                        is_read: false
+                    });
+            }
+        } catch (notifyError) {
+            console.error('[updateUserRole] Notification Error:', notifyError);
+            // Don't fail the whole action if notification fails
         }
     } else {
         // Fallback: update users.role_id (legacy — will be removed after migration)
@@ -159,12 +313,12 @@ export async function updateUserRole(targetUserId: string, newRoleName: string, 
         }
     }
 
-    revalidateTag('team-members', 'max');
+    revalidateTag('team-members');
+    revalidateTag('users');
     if (workspaceId) {
-        revalidateTag(`team-members-${workspaceId}`, 'max');
+        revalidateTag(`workspace-${workspaceId}`);
+        revalidatePath(`/dashboard/${workspaceId}`);
         revalidatePath(`/dashboard/${workspaceId}/team`);
-    } else {
-        revalidatePath('/dashboard/team');
     }
     revalidatePath('/dashboard');
     return { success: true };
@@ -184,6 +338,12 @@ export async function createWorkspaceInvite(workspaceId: string, email: string, 
 
     const adminClient = createAdminClient();
     const normalizedEmail = email.toLowerCase().trim();
+
+    // Validation
+    const emailCheck = validateEmail(normalizedEmail);
+    if (!emailCheck.valid) {
+        return { error: emailCheck.error || 'Invalid email address' };
+    }
 
     // 0. Lookup role ID
     const { data: roleRecord } = await adminClient
@@ -213,11 +373,20 @@ export async function createWorkspaceInvite(workspaceId: string, email: string, 
         .eq('user_id', requesterProfile.id)
         .single();
 
-    const requesterRole = (requesterMembership as any)?.roles?.role_name;
+    const rawRequesterRole = (requesterMembership as any)?.roles;
+    const requesterRole = Array.isArray(rawRequesterRole) 
+        ? rawRequesterRole[0]?.role_name 
+        : rawRequesterRole?.role_name;
+
     const isAuthorized = requesterRole === 'Admin' || requesterRole === 'Project Manager';
 
     if (!isAuthorized) {
-        return { error: 'Unauthorized: Only Admin and Project Managers can invite members' };
+        return { error: `Unauthorized: Your role is ${requesterRole || 'Unknown'}. Only Admin and Project Managers can invite members.` };
+    }
+
+    // New restriction: Only Admin can invite someone as Admin
+    if (roleName === 'Admin' && requesterRole !== 'Admin') {
+        return { error: 'Unauthorized: Only Admins can invite users with the Admin role.' };
     }
 
     // 2. Check if email is already a member
