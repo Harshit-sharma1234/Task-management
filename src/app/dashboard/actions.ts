@@ -29,7 +29,7 @@ function friendlyDbError(error: any, context: 'project' | 'issue' | 'generic' = 
   // Unique constraint violations
   if (code === '23505' || msg.includes('duplicate key') || msg.includes('unique constraint')) {
     if (msg.includes('project_name') || msg.includes('projects_project_name')) {
-      return 'A project with this name already exists. Please choose a different name.';
+      return 'A project with this name already exists in this workspace. Please choose a different name.';
     }
     if (msg.includes('title') || msg.includes('tickets_title')) {
       return 'An issue with this title already exists in this project. Please use a different title.';
