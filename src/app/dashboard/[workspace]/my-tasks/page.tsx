@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 };
 
 import { getServerUser } from '@/lib/auth-server';
-import { getCachedUserProfile, getCachedWorkspaceBySlug } from '@/lib/cache';
+import { getCachedUserProfile, getCachedWorkspaceBySlug, getCachedWorkspaceMember } from '@/lib/cache';
 
 export default async function MyTasksPage({ params }: { params: Promise<{ workspace: string }> }) {
   const user = await getServerUser();
