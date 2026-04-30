@@ -192,41 +192,55 @@ export function InviteMemberModal({ isOpen, onClose, workspaceId, isAdmin = fals
                         </button>
                     </form>
                 ) : (
-                    <div className="p-8 text-center animate-in zoom-in-95 duration-500">
-                        <div className="w-20 h-20 bg-green-50 text-green-600 rounded-3xl flex items-center justify-center mx-auto mb-6">
-                            <Check size={36} />
-                        </div>
-                        <h3 className="text-[20px] font-bold text-gray-900 mb-2 tracking-tight">Invite Link Ready!</h3>
-                        <p className="text-[13px] font-medium text-gray-500 mb-8 max-w-[280px] mx-auto leading-relaxed">
-                            Copy this link and send it to your colleague. It will expire in 7 days.
-                        </p>
-                        
-                        <div className="relative group mb-8">
-                            <input
-                                readOnly
-                                value={inviteLink}
-                                className="w-full h-16 pl-6 pr-16 bg-gray-50 border-none rounded-2xl text-[13px] font-bold text-indigo-600 truncate"
-                            />
-                            <button
-                                onClick={copyToClipboard}
-                                className="absolute right-2 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center rounded-xl bg-white shadow-sm hover:shadow-md text-gray-400 hover:text-indigo-600 transition-all active:scale-90"
-                            >
-                                {copied ? <Check size={18} className="text-green-500" /> : <Copy size={18} />}
-                            </button>
+                    <div className="p-10 text-center animate-in zoom-in-95 fade-in duration-500">
+                        {/* Premium Success Icon */}
+                        <div className="relative w-24 h-24 mx-auto mb-8">
+                            <div className="absolute inset-0 bg-green-100 rounded-[2rem] rotate-6 animate-pulse" />
+                            <div className="absolute inset-0 bg-green-500 rounded-[2rem] -rotate-3 shadow-lg shadow-green-200 flex items-center justify-center text-white">
+                                <Check size={40} strokeWidth={3} />
+                            </div>
                         </div>
 
-                        <div className="flex gap-3">
+                        <h3 className="text-[24px] font-extrabold text-gray-900 mb-2 tracking-tight">Invite Link Ready!</h3>
+                        <p className="text-[14px] font-medium text-gray-500 mb-10 max-w-[300px] mx-auto leading-relaxed">
+                            Share this link with your colleague to grant them access to the workspace.
+                        </p>
+                        
+                        {/* Glassmorphic Link Container */}
+                        <div className="relative group mb-10">
+                            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 rounded-[1.5rem] blur opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200" />
+                            <div className="relative flex items-center gap-3 p-5 bg-white border border-gray-100 rounded-[1.5rem] shadow-sm overflow-hidden">
+                                <div className="flex-1 text-left">
+                                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Invitation URL</div>
+                                    <div className="text-[13px] font-bold text-indigo-600 break-all leading-relaxed pr-10">
+                                        {inviteLink}
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={copyToClipboard}
+                                    className={`absolute right-3 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center rounded-2xl transition-all duration-300 ${
+                                        copied 
+                                        ? 'bg-green-500 text-white shadow-lg shadow-green-100 scale-105' 
+                                        : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100 active:scale-95'
+                                    }`}
+                                >
+                                    {copied ? <Check size={20} /> : <Copy size={20} />}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col gap-3">
                             <button
                                 type="button"
                                 onClick={resetState}
-                                className="flex-1 py-4 text-[14px] font-bold text-indigo-600 hover:text-indigo-700 transition-colors"
+                                className="w-full h-14 bg-gray-900 text-white rounded-2xl text-[14px] font-bold hover:bg-gray-800 transition-all active:scale-[0.98] shadow-lg shadow-gray-200"
                             >
                                 Invite another member
                             </button>
                             <button 
                                 type="button"
                                 onClick={onClose}
-                                className="flex-1 py-4 text-[14px] font-bold text-gray-500 hover:text-gray-900 transition-colors"
+                                className="w-full h-14 text-[14px] font-bold text-gray-500 hover:text-gray-900 transition-colors"
                             >
                                 Close
                             </button>
