@@ -193,8 +193,7 @@ async function ProjectOverviewList({ workspaceId, workspaceSlug }: { workspaceId
                     <div className="bg-gray-50 p-4 rounded-full text-gray-300 mb-4 animate-bounce">
                         <Folder size={32} />
                     </div>
-                    <h3 className="text-gray-900 font-medium mb-4">Ready to start?</h3>
-                    <CreateProjectButton variant="empty-state" />
+                    <h3 className="text-gray-900 font-medium">Ready to start?</h3>
                 </div>
             ) : (
                 <div className="divide-y divide-gray-100/60 -mx-6 -mb-6">

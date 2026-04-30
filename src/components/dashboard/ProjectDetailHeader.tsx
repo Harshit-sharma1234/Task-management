@@ -15,9 +15,10 @@ interface ProjectDetailHeaderProps {
   projectName: string;
   projectId: string;
   users: any[];
+  workspaceId: string;
 }
 
-export function ProjectDetailHeader({ projectName, projectId, users }: ProjectDetailHeaderProps) {
+export function ProjectDetailHeader({ projectName, projectId, users, workspaceId }: ProjectDetailHeaderProps) {
   const searchParams = useSearchParams();
   const params = useParams();
   const workspaceSlug = params?.workspace as string;
@@ -97,6 +98,7 @@ export function ProjectDetailHeader({ projectName, projectId, users }: ProjectDe
           onClose={() => setIsModalOpen(false)} 
           projects={[{ id: projectId, project_name: projectName }]}
           users={users}
+          workspaceId={workspaceId}
         />
       )}
 
