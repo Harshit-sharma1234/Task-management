@@ -173,13 +173,13 @@ export async function deleteMember(targetUserId: string, workspaceId?: string) {
             console.error('[deleteMember] Auth Error:', authError);
         }
     }
-    revalidateTag('team-members');
-    revalidateTag('users');
+    revalidateTag('team-members', "max");
+    revalidateTag('users', "max");
     if (workspaceId) {
-        revalidateTag(`team-members-${workspaceId}`);
-        revalidateTag(`workspace-${workspaceId}`);
+        revalidateTag(`team-members-${workspaceId}`, "max");
+        revalidateTag(`workspace-${workspaceId}`, "max");
         // Invalidate all projects in the workspace to refresh their member lists
-        revalidateTag('projects');
+        revalidateTag('projects', "max");
         revalidatePath(`/dashboard/${workspaceId}`);
         revalidatePath(`/dashboard/${workspaceId}/team`);
         revalidatePath(`/dashboard/${workspaceId}/projects`);
@@ -242,12 +242,14 @@ export async function updateUserRole(targetUserId: string, newRoleName: string, 
 
     if (workspaceId) {
         // Update workspace_members role (workspace-scoped)
-        const { error: dbError, count } = await adminClient
+        const { data: updatedRows, error: dbError } = await adminClient
             .from('workspace_members')
             .update({ role_id: roleRecord.id })
             .eq('workspace_id', workspaceId)
             .eq('user_id', targetUserId)
-            .select('*', { count: 'exact', head: true });
+            .select();
+
+        const count = updatedRows?.length || 0;
 
         if (dbError) {
             console.error('[updateUserRole] DB Error (workspace_members):', dbError);
@@ -317,11 +319,11 @@ export async function updateUserRole(targetUserId: string, newRoleName: string, 
         }
     }
 
-    revalidateTag('team-members');
-    revalidateTag('users');
+    revalidateTag('team-members', "max");
+    revalidateTag('users', "max");
     if (workspaceId) {
-        revalidateTag(`team-members-${workspaceId}`);
-        revalidateTag(`workspace-${workspaceId}`);
+        revalidateTag(`team-members-${workspaceId}`, "max");
+        revalidateTag(`workspace-${workspaceId}`, "max");
         revalidatePath(`/dashboard/${workspaceId}`);
         revalidatePath(`/dashboard/${workspaceId}/team`);
     }
