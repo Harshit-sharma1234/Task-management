@@ -428,8 +428,8 @@ export async function addComment(ticketId: string, comment: string, formData?: F
       await logActivity(adminClient, profile.id, ticketId, 'commented', 'Added a comment')
 
       const notifyIds = new Set<string>()
-      if (ticket.created_by && ticket.created_by !== profile.id) notifyIds.add(ticket.created_by)
-      if (ticket.assignee_id && ticket.assignee_id !== profile.id) notifyIds.add(ticket.assignee_id)
+      if (ticket.created_by) notifyIds.add(ticket.created_by)
+      if (ticket.assignee_id) notifyIds.add(ticket.assignee_id)
 
       const notificationPromises = []
 
@@ -438,7 +438,6 @@ export async function addComment(ticketId: string, comment: string, formData?: F
         const { data: mentionedUsers } = await supabase.from('users').select('id, name').in('name', mentionedNames)
         if (mentionedUsers) {
           for (const mUser of mentionedUsers) {
-            if (mUser.id !== profile.id) {
               notificationPromises.push(createNotification({
                 userId: mUser.id,
                 actorId: profile.id,
@@ -448,7 +447,6 @@ export async function addComment(ticketId: string, comment: string, formData?: F
                 type: 'mention',
                 message: `${profile.name} mentioned you in: ${ticket.title}`
               }))
-            }
           }
         }
       }
