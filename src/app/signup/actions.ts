@@ -61,19 +61,19 @@ export async function requestOTP(email: string) {
 
     const html = getVerificationEmail({ otpCode, expiresInMinutes: 10 });
     
-    // Non-blocking email send
-    (async () => {
-        try {
-            await sendEmail({
-                to: email,
-                subject: `Your Verification Code: ${otpCode}`,
-                html,
-                source: 'Signup:OTP'
-            })
-        } catch (err) {
-            console.error('[OTP] Background email error:', err)
-        }
-    })()
+    // Blocking email send ensures Next.js doesn't throttle the promise after the request ends
+    try {
+        await sendEmail({
+            to: email,
+            subject: `Your Verification Code: ${otpCode}`,
+            html,
+            source: 'Signup:OTP',
+            priority: 'high'
+        })
+    } catch (err) {
+        console.error('[OTP] Email send error:', err)
+        return { error: 'Failed to send verification code. Please try again.' }
+    }
 
     return { success: true }
 }
@@ -113,7 +113,6 @@ export async function verifyOTP(email: string, otp: string) {
 export async function signup(prevState: any, formData: FormData) {
     const name = (formData.get('name') as string)?.trim()
     const email = (formData.get('email') as string)?.trim().toLowerCase()
-    const employeeId = (formData.get('employee_id') as string)?.trim()
     const password = formData.get('password') as string
     const token = formData.get('token') as string | null
 
@@ -123,9 +122,6 @@ export async function signup(prevState: any, formData: FormData) {
     }
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         return { error: 'A valid email address is required.' }
-    }
-    if (!employeeId || employeeId.length < 2) {
-        return { error: 'Employee ID is required.' }
     }
     if (!password) {
         return { error: 'Password is required.' }
@@ -159,23 +155,12 @@ export async function signup(prevState: any, formData: FormData) {
         return { error: 'Email has not been verified. Please verify your email first.' }
     }
 
-    // ── Check duplicate employee ID ──
-    const { data: existingEmpId } = await adminClient
-        .from('users')
-        .select('id')
-        .eq('employee_id', employeeId)
-        .maybeSingle()
-
-    if (existingEmpId) {
-        return { error: 'This Employee ID is already registered. Please contact your admin.' }
-    }
-
     // ── Create Auth user (auto-confirmed, no Supabase email) ──
     const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
         email,
         password,
         email_confirm: true,
-        user_metadata: { full_name: name, employee_id: employeeId }
+        user_metadata: { full_name: name }
     })
 
     if (authError) {
@@ -196,7 +181,7 @@ export async function signup(prevState: any, formData: FormData) {
             auth_id: newUserId,
             email,
             name,
-            employee_id: employeeId
+            employee_id: `EXT-${newUserId.slice(0, 8).toUpperCase()}`
         }, { onConflict: 'id' })
 
     if (dbError) {

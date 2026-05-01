@@ -105,6 +105,8 @@ export async function sendEmail(params: SendEmailParams) {
   }
   dedupeCache.set(dedupeKey, now);
 
+
+
   // ── Test Failure Mode ─────────────────────────────────────────────────────
   // If the email contains "fail", we simulate a hard SMTP error for UI testing.
   if (recipientKey.toLowerCase().includes('fail')) {
