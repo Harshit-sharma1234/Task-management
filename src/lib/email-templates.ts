@@ -24,10 +24,16 @@ export function baseLayout(content: string): string {
         <table role="presentation" width="560" cellspacing="0" cellpadding="0" style="background-color:${CARD_BG};border-radius:16px;border:1px solid #e2e8f0;box-shadow:0 4px 24px rgba(0,0,0,0.04);">
           <!-- Header -->
           <tr>
-            <td style="padding:32px 40px 0;text-align:center;">
-              <div style="display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;background-color:${BRAND_COLOR};border-radius:12px;margin-bottom:16px;">
-                <span style="color:#fff;font-size:20px;font-weight:800;">T</span>
-              </div>
+            <td align="center" style="padding:32px 40px 0;">
+              <!-- Logo Icon -->
+              <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto; margin-bottom: 16px;">
+                <tr>
+                  <td align="center" valign="middle" style="width:48px;height:48px;background-color:${BRAND_COLOR};border-radius:12px;">
+                    <span style="color:#ffffff;font-size:20px;font-weight:800;line-height:48px;display:block;text-align:center;">T</span>
+                  </td>
+                </tr>
+              </table>
+              <!-- Brand Name -->
               <div style="font-size:11px;font-weight:700;color:${TEXT_SECONDARY};text-transform:uppercase;letter-spacing:2px;">Tectome</div>
             </td>
           </tr>
