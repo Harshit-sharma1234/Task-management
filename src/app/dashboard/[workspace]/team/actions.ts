@@ -402,74 +402,67 @@ export async function createWorkspaceInvite(workspaceId: string, email: string, 
         return { error: emailCheck.error || 'Invalid email address' };
     }
 
-    // 0. Lookup role ID
-    const { data: roleRecord } = await adminClient
-        .from('roles')
-        .select('id')
-        .eq('role_name', roleName)
-        .single();
-
-    if (!roleRecord) {
-        return { error: 'Invalid role name specified' };
-    }
-    const roleId = roleRecord.id;
-
-    // 1. Check requester permissions (Admin or PM)
-    const { data: requesterProfile } = await adminClient
+    // 1. Get the requester's internal profile first
+    const { data: requesterProfile, error: profileError } = await adminClient
         .from('users')
         .select('id')
         .eq('auth_id', authUser.id)
         .single();
 
-    if (!requesterProfile) return { error: 'Requester profile not found' };
+    if (profileError || !requesterProfile) {
+        return { error: 'Unauthorized: Requester profile not found.' };
+    }
 
-    const { data: requesterMembership } = await adminClient
-        .from('workspace_members')
-        .select('roles(role_name)')
-        .eq('workspace_id', workspaceId)
-        .eq('user_id', requesterProfile.id)
-        .single();
+    // OPTIMIZATION: Run remaining lookups in parallel
+    const [roleResult, requesterResult, targetResult, workspaceResult] = await Promise.all([
+        adminClient.from('roles').select('id').eq('role_name', roleName).single(),
+        adminClient.from('workspace_members')
+            .select('roles(role_name), user_id')
+            .eq('workspace_id', workspaceId)
+            .eq('user_id', requesterProfile.id)
+            .single(),
+        adminClient.from('users')
+            .select('id, workspace_members!inner(id)')
+            .eq('email', normalizedEmail)
+            .eq('workspace_members.workspace_id', workspaceId)
+            .maybeSingle(),
+        adminClient.from('workspaces').select('name').eq('id', workspaceId).single()
+    ]);
 
-    const rawRequesterRole = (requesterMembership as any)?.roles;
+    // 1. Role Check
+    if (roleResult.error || !roleResult.data) {
+        return { error: 'Invalid role name specified' };
+    }
+    const roleId = roleResult.data.id;
+
+    // 2. Requester Permission Check
+    if (requesterResult.error || !requesterResult.data) {
+        return { error: 'Unauthorized: Could not verify your workspace membership.' };
+    }
+
+    const rawRequesterRole = (requesterResult.data as any)?.roles;
     const requesterRole = Array.isArray(rawRequesterRole) 
         ? rawRequesterRole[0]?.role_name 
         : rawRequesterRole?.role_name;
 
     const isAuthorized = requesterRole === 'Admin' || requesterRole === 'Project Manager';
-
     if (!isAuthorized) {
         return { error: `Unauthorized: Your role is ${requesterRole || 'Unknown'}. Only Admin and Project Managers can invite members.` };
     }
 
-    // New restriction: Only Admin can invite someone as Admin
     if (roleName === 'Admin' && requesterRole !== 'Admin') {
         return { error: 'Unauthorized: Only Admins can invite users with the Admin role.' };
     }
 
-    // 2. Check if email is already a member
-    const { data: targetUser } = await adminClient
-        .from('users')
-        .select('id')
-        .eq('email', normalizedEmail)
-        .maybeSingle();
-
-    if (targetUser) {
-        const { data: existingMember } = await adminClient
-            .from('workspace_members')
-            .select('id')
-            .eq('workspace_id', workspaceId)
-            .eq('user_id', targetUser.id)
-            .maybeSingle();
-
-        if (existingMember) {
-            return { error: 'This user is already a member of the workspace' };
-        }
+    // 3. Target User Check (Already a member?)
+    if (targetResult.data && (targetResult.data as any).workspace_members?.length > 0) {
+        return { error: 'This user is already a member of the workspace' };
     }
 
-    // 3. Generate token and expiry
+    // 4. Generate token and payload
     const token = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiry
+    expiresAt.setDate(expiresAt.getDate() + 7);
 
     const invitePayload = {
         workspace_id: workspaceId,
@@ -478,142 +471,71 @@ export async function createWorkspaceInvite(workspaceId: string, email: string, 
         token,
         status: 'pending',
         expires_at: expiresAt.toISOString(),
-        invited_by: requesterProfile.id,
+        invited_by: (requesterResult.data as any).user_id,
         accepted_at: null
     };
 
-    // 4. Create or refresh the invite atomically so resending to the same
-    // email updates the existing row instead of hitting the unique constraint.
-    let inviteError: any = null;
-    const { data: refreshedRows, error: refreshInviteError } = await adminClient
+    // 5. Atomic Upsert/Create Invite
+    // Using a more efficient approach to handle the invite creation/update
+    const { error: inviteError } = await adminClient
         .from('workspace_invites')
-        .update(invitePayload)
-        .eq('workspace_id', workspaceId)
-        .ilike('email', normalizedEmail)
-        .select('id');
-
-    if (refreshInviteError) {
-        console.error('[createWorkspaceInvite] Failed to refresh existing invite:', refreshInviteError);
-        return { error: `Failed to refresh existing invite: ${refreshInviteError.message}` };
-    }
-
-    if (!refreshedRows || refreshedRows.length === 0) {
-        // Some schemas enforce email-level uniqueness on invites.
-        // Reuse the latest existing invite row for this email before inserting.
-        const { data: existingByEmailRows, error: existingByEmailError } = await adminClient
-            .from('workspace_invites')
-            .select('id')
-            .ilike('email', normalizedEmail)
-            .order('created_at', { ascending: false })
-            .limit(1);
-
-        if (existingByEmailError) {
-            console.error('[createWorkspaceInvite] Failed to lookup invite by email:', existingByEmailError);
-            return { error: `Failed to lookup existing invite: ${existingByEmailError.message}` };
-        }
-
-        const existingByEmail = existingByEmailRows && existingByEmailRows.length > 0
-            ? existingByEmailRows[0]
-            : null;
-
-        if (existingByEmail?.id) {
-            const { error: reuseExistingError } = await adminClient
-                .from('workspace_invites')
-                .update(invitePayload)
-                .eq('id', existingByEmail.id);
-
-            inviteError = reuseExistingError;
-        } else {
-            const { error: insertInviteError } = await adminClient
-                .from('workspace_invites')
-                .insert(invitePayload);
-
-            // Handle race condition where another process inserted concurrently.
-            if ((insertInviteError as any)?.code === '23505' || insertInviteError?.message?.toLowerCase().includes('duplicate key')) {
-                const { error: recoverUpdateError } = await adminClient
-                    .from('workspace_invites')
-                    .update(invitePayload)
-                    .eq('workspace_id', workspaceId)
-                    .ilike('email', normalizedEmail);
-
-                if (!recoverUpdateError) {
-                    inviteError = null;
-                } else {
-                    const { data: globalInvite, error: globalInviteLookupError } = await adminClient
-                        .from('workspace_invites')
-                        .select('id')
-                        .ilike('email', normalizedEmail)
-                        .maybeSingle();
-
-                    if (globalInviteLookupError || !globalInvite?.id) {
-                        inviteError = insertInviteError;
-                    } else {
-                        const { error: globalRecoverUpdateError } = await adminClient
-                            .from('workspace_invites')
-                            .update(invitePayload)
-                            .eq('id', globalInvite.id);
-
-                        inviteError = globalRecoverUpdateError;
-                    }
-                }
-            } else {
-                inviteError = insertInviteError;
-            }
-        }
-    }
+        .upsert(invitePayload, { 
+            onConflict: 'workspace_id, email',
+            ignoreDuplicates: false 
+        });
 
     if (inviteError) {
-        console.error('[createWorkspaceInvite] Error:', inviteError);
-        return { error: `Failed to create invite: ${inviteError.message}` };
+        console.error('[createWorkspaceInvite] Upsert Error:', inviteError);
+        // Fallback for schemas where onConflict doesn't work as expected
+        const { error: insertError } = await adminClient.from('workspace_invites').insert(invitePayload);
+        if (insertError) return { error: `Failed to create invite: ${insertError.message}` };
     }
 
-    const { data: invite, error: fetchInviteError } = await adminClient
-        .from('workspace_invites')
-        .select('workspaces(name, slug)')
-        .eq('workspace_id', workspaceId)
-        .ilike('email', normalizedEmail)
-        .maybeSingle();
-
-    if (fetchInviteError || !invite) {
-        console.error('[createWorkspaceInvite] Fetch invite details failed:', fetchInviteError);
-        return { error: 'Failed to fetch invite details after creating invite' };
-    }
-
-    // 5. Send Email (Non-blocking background task)
-    const workspaceName = (invite as any).workspaces?.name || 'a workspace';
+    const workspaceName = workspaceResult.data?.name || 'a workspace';
     const baseUrl = getBaseUrl();
     const inviteLink = `${baseUrl}/invite/${token}`;
-;
-
-    // Fire and forget email to avoid blocking the UI response
-    (async () => {
-        try {
-            const { sendEmail } = await import('@/lib/email');
-            await sendEmail({
-                to: normalizedEmail,
-                subject: `You've been invited to join ${workspaceName} on Tectome`,
-                html: `
-                    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #1a1a1a; padding: 20px; border: 1px solid #eee; border-radius: 12px;">
-                        <h2 style="color: #4f46e5;">Workspace Invitation</h2>
-                        <p>You have been invited to join the <strong>${workspaceName}</strong> workspace on Tectome.</p>
-                        <p>Click the button below to accept your invitation and join the team:</p>
-                        <div style="margin: 30px 0;">
-                            <a href="${inviteLink}" style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">Accept Invitation</a>
-                        </div>
-                        <p style="color: #666; font-size: 12px;">This link will expire in 7 days.</p>
-                        <p style="color: #999; font-size: 12px; margin-top: 20px; border-top: 1px solid #eee; pt: 10px;">If you didn't expect this invite, you can safely ignore this email.</p>
-                    </div>
-                `,
-                source: 'Team:Invite'
-            });
-        } catch (emailErr) {
-            console.error('[createWorkspaceInvite] Background email send failed:', emailErr);
-        }
-    })();
 
     return { 
         success: true, 
         inviteLink,
+        token,
+        email: normalizedEmail,
+        workspaceName,
         message: `Invite created for ${normalizedEmail}`
     };
+}
+
+/**
+ * Separate action to send the invite email.
+ * This can be called after the link is generated to provide a non-blocking UI.
+ */
+export async function sendInviteEmailAction(token: string, email: string, workspaceName: string) {
+    const baseUrl = getBaseUrl();
+    const inviteLink = `${baseUrl}/invite/${token}`;
+
+    try {
+        const { sendEmail } = await import('@/lib/email');
+        const emailResult = await sendEmail({
+            to: email,
+            subject: `You've been invited to join ${workspaceName} on Tectome`,
+            html: `
+                <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #1a1a1a; padding: 20px; border: 1px solid #eee; border-radius: 12px;">
+                    <h2 style="color: #4f46e5;">Workspace Invitation</h2>
+                    <p>You have been invited to join the <strong>${workspaceName}</strong> workspace on Tectome.</p>
+                    <p>Click the button below to accept your invitation and join the team:</p>
+                    <div style="margin: 30px 0;">
+                        <a href="${inviteLink}" style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">Accept Invitation</a>
+                    </div>
+                    <p style="color: #666; font-size: 12px;">This link will expire in 7 days.</p>
+                    <p style="color: #999; font-size: 12px; margin-top: 20px; border-top: 1px solid #eee; pt: 10px;">If you didn't expect this invite, you can safely ignore this email.</p>
+                </div>
+            `,
+            source: 'Team:Invite'
+        });
+        
+        return { success: emailResult.success };
+    } catch (err) {
+        console.error('[sendInviteEmailAction] Failed:', err);
+        return { success: false };
+    }
 }
