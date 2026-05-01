@@ -2,6 +2,9 @@ import { Sidebar } from '@/components/dashboard/Sidebar';
 import { Header } from '@/components/dashboard/Header';
 import { getServerUser } from '@/lib/auth-server';
 import { redirect } from 'next/navigation';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 import { LoadingProgress } from '@/components/dashboard/LoadingProgress';
 import { DashboardToaster } from '@/components/dashboard/DashboardToaster';
 import { GlobalDataSync } from '@/components/dashboard/GlobalDataSync';

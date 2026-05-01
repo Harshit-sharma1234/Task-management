@@ -21,16 +21,19 @@ interface GlobalDataSyncProps {
  * GlobalDataSync handles the "Single Source of Truth" hydration strategy.
  * Hydrates stores from server-provided initial data and maintains realtime listeners.
  */
+/**
+ * Track the last hydrated workspace globally (survives re-mounts during navigation)
+ */
+let lastHydratedWorkspaceId: string | null = null;
+
 export function GlobalDataSync({ initialData }: GlobalDataSyncProps) {
-    const hasHydrated = useRef(false);
-    const activeWorkspaceIdRef = useRef<string | null>(null);
     const { setProjects, setTeam, setInitialLoadComplete, setActiveWorkspaceId, updateProject } = useGlobalStore();
     const { setTeamData } = useTeamStore();
     const { setUnreadCount } = useNotificationStore();
     const supabase = createClient();
 
     // IMMEDIATE HYDRATION / RE-HYDRATION ON WORKSPACE CHANGE
-    if (initialData && (initialData.activeWorkspaceId !== activeWorkspaceIdRef.current)) {
+    if (initialData && (initialData.activeWorkspaceId !== lastHydratedWorkspaceId)) {
         setProjects(initialData.projects);
         setTeam(initialData.team);
         setTeamData(
@@ -44,19 +47,34 @@ export function GlobalDataSync({ initialData }: GlobalDataSyncProps) {
             setActiveWorkspaceId(initialData.activeWorkspaceId);
         }
         setInitialLoadComplete(true);
-        activeWorkspaceIdRef.current = initialData.activeWorkspaceId || null;
+        lastHydratedWorkspaceId = initialData.activeWorkspaceId || null;
     }
 
     useEffect(() => {
         if (!initialData?.userId) return;
 
-        // Projects Sync
+        // Projects Realtime Sync
         const projectChannel = supabase
             .channel('global-projects-sync')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, (payload) => {
-                if (payload.eventType === 'UPDATE') {
-                    updateProject(payload.new);
+                if (payload.eventType === 'INSERT') {
+                    useGlobalStore.getState().addProject(payload.new);
+                } else if (payload.eventType === 'UPDATE') {
+                    useGlobalStore.getState().updateProject(payload.new);
+                } else if (payload.eventType === 'DELETE') {
+                    useGlobalStore.getState().removeProject(payload.old.id);
                 }
+            })
+            .subscribe();
+
+        // Team Realtime Sync
+        const teamChannel = supabase
+            .channel('global-team-sync')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'workspace_members' }, async (payload) => {
+                // If team changes, it's safer to just trigger a refresh of the team store
+                // because workspace_members doesn't contain the full user object needed for the UI.
+                const { refresh } = useTeamStore.getState();
+                refresh();
             })
             .subscribe();
 
@@ -80,6 +98,7 @@ export function GlobalDataSync({ initialData }: GlobalDataSyncProps) {
 
         return () => {
             supabase.removeChannel(projectChannel);
+            supabase.removeChannel(teamChannel);
             supabase.removeChannel(notifChannel);
         }
     }, [initialData?.userId]);
