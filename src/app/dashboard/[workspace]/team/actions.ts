@@ -5,12 +5,33 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getCachedUsers, getCachedUserProfile } from '@/lib/cache';
-import { revalidateTag, revalidatePath } from 'next/cache';
 import { getBaseUrl } from '@/lib/urls';
 import { validateEmail } from '@/lib/validation';
 import crypto from 'crypto';
 import { sendEmail } from '@/lib/email';
 import { workspaceInviteEmail, workspaceRemovalEmail } from '@/lib/email-templates';
+import { revalidateTag, revalidatePath, updateTag } from 'next/cache';
+
+/**
+ * Optimized helper to handle immediate cache updates for team-related data.
+ * Uses updateTag for immediate consistency and a standard fallback.
+ */
+function revalidateTeamData(workspaceId?: string) {
+    const tags = ['team-members', 'users', 'projects'];
+    if (workspaceId) {
+        tags.push(`team-members-${workspaceId}`);
+        tags.push(`workspace-${workspaceId}`);
+    }
+    
+    tags.forEach(tag => {
+        try {
+            updateTag(tag);
+            revalidateTag(tag, "default");
+        } catch (e) {
+            revalidateTag(tag, "default");
+        }
+    });
+}
 
 
 export async function fetchTeamData(workspaceId: string) {
@@ -221,16 +242,7 @@ export async function deleteMember(targetUserId: string, workspaceId?: string, m
             console.error('[deleteMember] Auth Error:', authError);
         }
     }
-    revalidateTag('team-members', "max");
-    revalidateTag('users', "max");
-    if (workspaceId) {
-        revalidateTag(`team-members-${workspaceId}`, "max");
-        revalidateTag(`workspace-${workspaceId}`, "max");
-        // Invalidate all projects in the workspace to refresh their member lists
-        revalidateTag('projects', "max");
-        revalidatePath(`/dashboard/${workspaceId}`, 'layout');
-        revalidatePath(`/dashboard/${workspaceId}/team`, 'page');
-    }
+    revalidateTeamData(workspaceId);
     revalidatePath('/dashboard', 'layout');
     console.log(`[deleteMember] Successfully removed user ${targetUserId} from workspace ${workspaceId || 'global'}`);
     return { success: true };
