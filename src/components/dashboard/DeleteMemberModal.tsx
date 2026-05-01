@@ -2,17 +2,20 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { X, AlertTriangle, Trash2, Loader2, ShieldCheck } from 'lucide-react'
+import { UserAvatar } from '@/components/ui/UserAvatar'
 
 interface DeleteMemberModalProps {
     isOpen: boolean
     onClose: () => void
-    onConfirm: () => Promise<void>
+    onConfirm: (message: string) => Promise<void>
     userName: string
     userEmail: string
+    avatarUrl?: string | null
 }
 
-export function DeleteMemberModal({ isOpen, onClose, onConfirm, userName, userEmail }: DeleteMemberModalProps) {
+export function DeleteMemberModal({ isOpen, onClose, onConfirm, userName, userEmail, avatarUrl }: DeleteMemberModalProps) {
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [message, setMessage] = useState('')
     const modalRef = useRef<HTMLDivElement>(null)
 
     // Click outside logic
@@ -37,10 +40,11 @@ export function DeleteMemberModal({ isOpen, onClose, onConfirm, userName, userEm
     const handleConfirm = async () => {
         setIsSubmitting(true);
         try {
-            await onConfirm();
+            await onConfirm(message);
         } finally {
             setIsSubmitting(false);
             onClose();
+            setMessage(''); // Reset message after use
         }
     };
 
@@ -55,33 +59,51 @@ export function DeleteMemberModal({ isOpen, onClose, onConfirm, userName, userEm
                     <div className="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mb-4 ring-8 ring-red-50">
                         <AlertTriangle size={24} />
                     </div>
-                    <h2 className="text-xl font-bold text-gray-900">Delete team member?</h2>
-                    <p className="text-sm text-red-600/80 font-medium mt-1">This action cannot be undone</p>
+                    <h2 className="text-xl font-bold text-gray-900">Remove team member?</h2>
+                    <p className="text-sm text-red-600/80 font-medium mt-1">They will lose all access to this workspace</p>
                 </div>
 
                 {/* Content */}
-                <div className="p-6 space-y-4">
-                    <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
-                        <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Member to remove</div>
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold">
-                                {userName?.[0] || userEmail?.[0] || 'U'}
+                <div className="p-6 space-y-5">
+                    <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 text-left">
+                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Member to remove</div>
+                        <div className="flex items-center justify-start gap-3">
+                            <div className="flex-shrink-0">
+                                <UserAvatar
+                                    name={userName || 'User'}
+                                    avatarUrl={avatarUrl}
+                                    size="lg"
+                                />
                             </div>
-                            <div className="flex flex-col">
-                                <span className="text-sm font-bold text-gray-900">{userName || 'User'}</span>
-                                <span className="text-xs text-gray-500 font-medium">{userEmail}</span>
+                            <div className="flex flex-col min-w-0 text-left items-start">
+                                <span className="text-[14px] font-bold text-gray-900 truncate w-full leading-tight">
+                                    {userName || 'User'}
+                                </span>
+                                <span className="text-[11px] text-gray-500 font-medium truncate w-full mt-0.5">
+                                    {userEmail}
+                                </span>
                             </div>
                         </div>
                     </div>
 
-                    <div className="space-y-3">
-                        <div className="flex gap-2 text-[13px] text-gray-600 leading-relaxed">
-                            <ShieldCheck size={16} className="text-emerald-500 shrink-0 mt-0.5" />
-                            <span>This will remove their access to all projects and tasks.</span>
+                    {/* Message Field */}
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between px-1">
+                            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">Message to member</label>
+                            <span className="text-[10px] text-gray-400 font-medium">Optional</span>
                         </div>
-                        <div className="flex gap-2 text-[13px] text-gray-600 leading-relaxed">
-                            <ShieldCheck size={16} className="text-emerald-500 shrink-0 mt-0.5" />
-                            <span>All records they created will be preserved but detached.</span>
+                        <textarea
+                            value={message}
+                            onChange={(e) => setMessage(e.target.value)}
+                            placeholder="Add a reason or personal note... (this will be sent via email)"
+                            className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white transition-all resize-none min-h-[100px]"
+                        />
+                    </div>
+
+                    <div className="space-y-3">
+                        <div className="flex gap-2 text-[12px] text-gray-600 leading-relaxed">
+                            <ShieldCheck size={14} className="text-emerald-500 shrink-0 mt-0.5" />
+                            <span>This will remove their access to all projects and tasks.</span>
                         </div>
                     </div>
 
@@ -102,12 +124,12 @@ export function DeleteMemberModal({ isOpen, onClose, onConfirm, userName, userEm
                             {isSubmitting ? (
                                 <>
                                     <Loader2 size={16} className="animate-spin" />
-                                    Deleting...
+                                    Removing...
                                 </>
                             ) : (
                                 <>
                                     <Trash2 size={16} />
-                                    Delete member
+                                    Remove member
                                 </>
                             )}
                         </button>
@@ -115,5 +137,5 @@ export function DeleteMemberModal({ isOpen, onClose, onConfirm, userName, userEm
                 </div>
             </div>
         </div>
-    )
+    );
 }

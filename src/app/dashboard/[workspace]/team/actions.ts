@@ -9,6 +9,8 @@ import { revalidateTag, revalidatePath } from 'next/cache';
 import { getBaseUrl } from '@/lib/urls';
 import { validateEmail } from '@/lib/validation';
 import crypto from 'crypto';
+import { sendEmail } from '@/lib/email';
+import { workspaceInviteEmail, workspaceRemovalEmail } from '@/lib/email-templates';
 
 
 export async function fetchTeamData(workspaceId: string) {
@@ -55,7 +57,7 @@ export async function fetchTeamData(workspaceId: string) {
  * Removes a user from the current workspace (not global delete).
  * Workspace admins only.
  */
-export async function deleteMember(targetUserId: string, workspaceId?: string) {
+export async function deleteMember(targetUserId: string, workspaceId?: string, message?: string) {
     const supabase = await createClient();
     const { data: authData } = await supabase.auth.getUser();
     
@@ -180,6 +182,27 @@ export async function deleteMember(targetUserId: string, workspaceId?: string) {
             console.error('[deleteMember] DB Error:', dbError);
             return { error: `Failed to remove member: ${dbError.message}` };
         }
+
+        // 4. Send Removal Email (Background)
+        // Fetch target user and workspace details for the email
+        const [{ data: targetUser }, { data: workspace }] = await Promise.all([
+            adminClient.from('users').select('name, email').eq('id', targetUserId).single(),
+            adminClient.from('workspaces').select('name').eq('id', workspaceId).single()
+        ]);
+
+        if (targetUser?.email && workspace?.name) {
+            // We use a fire-and-forget approach for the email to not block the UI
+            sendEmail({
+                to: targetUser.email,
+                subject: `Access updated for ${workspace.name} on Tectome`,
+                html: workspaceRemovalEmail({
+                    employeeName: targetUser.name || 'Team Member',
+                    workspaceName: workspace.name,
+                    message: message?.trim() || undefined
+                }),
+                source: 'Team:Removal'
+            }).catch(err => console.error('[deleteMember] Background email failed:', err));
+        }
     } else {
         // Fallback: delete from users globally (legacy behavior)
         const { error: dbError } = await adminClient
@@ -205,11 +228,11 @@ export async function deleteMember(targetUserId: string, workspaceId?: string) {
         revalidateTag(`workspace-${workspaceId}`, "max");
         // Invalidate all projects in the workspace to refresh their member lists
         revalidateTag('projects', "max");
-        revalidatePath(`/dashboard/${workspaceId}`);
-        revalidatePath(`/dashboard/${workspaceId}/team`);
-        revalidatePath(`/dashboard/${workspaceId}/projects`);
+        revalidatePath(`/dashboard/${workspaceId}`, 'layout');
+        revalidatePath(`/dashboard/${workspaceId}/team`, 'page');
     }
-    revalidatePath('/dashboard');
+    revalidatePath('/dashboard', 'layout');
+    console.log(`[deleteMember] Successfully removed user ${targetUserId} from workspace ${workspaceId || 'global'}`);
     return { success: true };
 }
 
@@ -374,10 +397,10 @@ export async function updateUserRole(targetUserId: string, newRoleName: string, 
     if (workspaceId) {
         revalidateTag(`team-members-${workspaceId}`, "max");
         revalidateTag(`workspace-${workspaceId}`, "max");
-        revalidatePath(`/dashboard/${workspaceId}`);
-        revalidatePath(`/dashboard/${workspaceId}/team`);
+        revalidatePath(`/dashboard/${workspaceId}`, 'layout');
+        revalidatePath(`/dashboard/${workspaceId}/team`, 'page');
     }
-    revalidatePath('/dashboard');
+    revalidatePath('/dashboard', 'layout');
     return { success: true };
 }
 
@@ -532,18 +555,10 @@ export async function sendInviteEmailAction(token: string, email: string, worksp
         const emailResult = await sendEmail({
             to: email,
             subject: `You've been invited to join ${workspaceName} on Tectome`,
-            html: `
-                <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #1a1a1a; padding: 20px; border: 1px solid #eee; border-radius: 12px;">
-                    <h2 style="color: #4f46e5;">Workspace Invitation</h2>
-                    <p>You have been invited to join the <strong>${workspaceName}</strong> workspace on Tectome.</p>
-                    <p>Click the button below to accept your invitation and join the team:</p>
-                    <div style="margin: 30px 0;">
-                        <a href="${inviteLink}" style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">Accept Invitation</a>
-                    </div>
-                    <p style="color: #666; font-size: 12px;">This link will expire in 7 days.</p>
-                    <p style="color: #999; font-size: 12px; margin-top: 20px; border-top: 1px solid #eee; pt: 10px;">If you didn't expect this invite, you can safely ignore this email.</p>
-                </div>
-            `,
+            html: workspaceInviteEmail({
+                workspaceName,
+                inviteLink
+            }),
             source: 'Team:Invite'
         });
         
