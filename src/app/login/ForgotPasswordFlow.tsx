@@ -1,10 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { Mail, Lock, Key, ArrowRight, Loader2, CheckCircle2, X } from 'lucide-react'
+import { Mail, Lock, Key, ArrowRight, Loader2, CheckCircle2, X, Eye, EyeOff } from 'lucide-react'
 import { requestPasswordResetOTP, verifyPasswordResetOTP, finalizePasswordReset } from './forgot-password-actions'
 import { toast } from 'sonner'
-import { validateEmail } from '@/lib/validation'
+import { validateEmail, validatePassword } from '@/lib/validation'
 
 export function ForgotPasswordFlow({ onClose }: { onClose: () => void }) {
     const [step, setStep] = useState<'email' | 'code' | 'reset'>('email')
@@ -14,6 +14,7 @@ export function ForgotPasswordFlow({ onClose }: { onClose: () => void }) {
     const [confirmPassword, setConfirmPassword] = useState('')
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState('')
+    const [showPassword, setShowPassword] = useState(false)
 
     const handleRequestOTP = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -55,8 +56,9 @@ export function ForgotPasswordFlow({ onClose }: { onClose: () => void }) {
             setError('Passwords do not match.')
             return
         }
-        if (newPassword.length < 8) {
-            setError('Password must be at least 8 characters.')
+        const passwordCheck = validatePassword(newPassword)
+        if (!passwordCheck.valid) {
+            setError(passwordCheck.error!)
             return
         }
 
@@ -159,13 +161,16 @@ export function ForgotPasswordFlow({ onClose }: { onClose: () => void }) {
                                             <Lock size={18} />
                                         </div>
                                         <input 
-                                            type="password" 
+                                            type={showPassword ? 'text' : 'password'} 
                                             required
                                             value={newPassword}
                                             onChange={(e) => setNewPassword(e.target.value)}
-                                            className="w-full pl-12 pr-4 py-3.5 bg-gray-50/50 border border-gray-100 rounded-2xl text-sm font-medium focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all"
+                                            className="w-full pl-12 pr-12 py-3.5 bg-gray-50/50 border border-gray-100 rounded-2xl text-sm font-medium focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all"
                                             placeholder="8+ characters"
                                         />
+                                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-4 flex items-center text-gray-400 hover:text-gray-700 transition-colors">
+                                            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                        </button>
                                     </div>
                                 </div>
                                 <div className="space-y-1.5">
@@ -175,14 +180,18 @@ export function ForgotPasswordFlow({ onClose }: { onClose: () => void }) {
                                             <CheckCircle2 size={18} />
                                         </div>
                                         <input 
-                                            type="password" 
+                                            type={showPassword ? 'text' : 'password'} 
                                             required
                                             value={confirmPassword}
                                             onChange={(e) => setConfirmPassword(e.target.value)}
-                                            className="w-full pl-12 pr-4 py-3.5 bg-gray-50/50 border border-gray-100 rounded-2xl text-sm font-medium focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all"
+                                            className="w-full pl-12 pr-12 py-3.5 bg-gray-50/50 border border-gray-100 rounded-2xl text-sm font-medium focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all"
                                         />
+                                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-4 flex items-center text-gray-400 hover:text-gray-700 transition-colors">
+                                            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                        </button>
                                     </div>
                                 </div>
+                                <p className="text-[10px] text-gray-400 mt-1 pl-1">Min 8 chars, uppercase, lowercase, numbers</p>
                             </>
                         )}
 

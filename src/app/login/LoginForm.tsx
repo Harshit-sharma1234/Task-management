@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useState, useMemo, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Mail, Lock, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Mail, Lock, Loader2, AlertCircle, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 import { login } from './actions';
 import { ForgotPasswordFlow } from './ForgotPasswordFlow';
 import { createClient } from '@/lib/supabase/client';
@@ -29,6 +29,7 @@ function SubmitButton({ isPending }: { isPending: boolean }) {
 export default function LoginForm({ initialMessage, nextUrl, isError: initialIsError }: { initialMessage?: string; nextUrl?: string; isError?: boolean }) {
   const [state, formAction, isPending] = useActionState(login, null);
   const [showForgot, setShowForgot] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [isOAuthLoading, setIsOAuthLoading] = useState<string | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -110,13 +111,16 @@ export default function LoginForm({ initialMessage, nextUrl, isError: initialIsE
               <Lock size={16} />
             </div>
             <input 
-              type="password" 
+              type={showPassword ? 'text' : 'password'} 
               name="password"
               required
               autoComplete="current-password"
-              className="w-full pl-10 pr-3 py-2 bg-[var(--color-linear-bg)] border border-[var(--color-linear-border)] rounded-md text-sm focus:outline-none focus:border-[var(--color-linear-accent)] transition-colors placeholder:[var(--color-linear-muted)]"
+              className="w-full pl-10 pr-10 py-2 bg-[var(--color-linear-bg)] border border-[var(--color-linear-border)] rounded-md text-sm focus:outline-none focus:border-[var(--color-linear-accent)] transition-colors placeholder:[var(--color-linear-muted)]"
               placeholder="••••••••"
             />
+            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-3 flex items-center text-[var(--color-linear-muted)] hover:text-[var(--color-linear-text)] transition-colors">
+              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
           </div>
         </div>
         
