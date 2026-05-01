@@ -1,21 +1,17 @@
 'use client'
 
 import { useState } from 'react'
-import { Mail, Lock, Key, ArrowRight, Loader2, CheckCircle2, X } from 'lucide-react'
-import { requestPasswordResetOTP, verifyPasswordResetOTP, finalizePasswordReset } from './forgot-password-actions'
+import { Mail, ArrowRight, Loader2, X } from 'lucide-react'
+import { requestPasswordResetLink } from './forgot-password-actions'
 import { toast } from 'sonner'
 import { validateEmail } from '@/lib/validation'
 
 export function ForgotPasswordFlow({ onClose }: { onClose: () => void }) {
-    const [step, setStep] = useState<'email' | 'code' | 'reset'>('email')
     const [email, setEmail] = useState('')
-    const [code, setCode] = useState('')
-    const [newPassword, setNewPassword] = useState('')
-    const [confirmPassword, setConfirmPassword] = useState('')
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState('')
 
-    const handleRequestOTP = async (e: React.FormEvent) => {
+    const handleRequestResetLink = async (e: React.FormEvent) => {
         e.preventDefault()
         const emailCheck = validateEmail(email)
         if (!emailCheck.valid) {
@@ -25,49 +21,11 @@ export function ForgotPasswordFlow({ onClose }: { onClose: () => void }) {
         setIsLoading(true)
         setError('')
         
-        const res = await requestPasswordResetOTP(email)
+        const res = await requestPasswordResetLink(email)
         if (res.error) {
             setError(res.error)
         } else {
-            toast.success('Reset code sent! Valid for 5 minutes.')
-            setStep('code')
-        }
-        setIsLoading(false)
-    }
-
-    const handleVerifyOTP = async (e: React.FormEvent) => {
-        e.preventDefault()
-        setIsLoading(true)
-        setError('')
-
-        const res = await verifyPasswordResetOTP(email, code)
-        if (res.error) {
-            setError(res.error)
-        } else {
-            setStep('reset')
-        }
-        setIsLoading(false)
-    }
-
-    const handleFinalize = async (e: React.FormEvent) => {
-        e.preventDefault()
-        if (newPassword !== confirmPassword) {
-            setError('Passwords do not match.')
-            return
-        }
-        if (newPassword.length < 8) {
-            setError('Password must be at least 8 characters.')
-            return
-        }
-
-        setIsLoading(true)
-        setError('')
-
-        const res = await finalizePasswordReset(email, code, newPassword)
-        if (res.error) {
-            setError(res.error)
-        } else {
-            toast.success('Password reset successfully! Please log in.')
+            toast.success('Password reset link sent! Check your email.')
             onClose()
         }
         setIsLoading(false)
@@ -86,19 +44,13 @@ export function ForgotPasswordFlow({ onClose }: { onClose: () => void }) {
                 <div className="p-8">
                     <div className="mb-8">
                         <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 mb-4">
-                            {step === 'email' && <Mail size={24} />}
-                            {step === 'code' && <Key size={24} />}
-                            {step === 'reset' && <Lock size={24} />}
+                            <Mail size={24} />
                         </div>
                         <h2 className="text-2xl font-bold text-gray-900 tracking-tight">
-                            {step === 'email' && 'Forgot Password?'}
-                            {step === 'code' && 'Check your email'}
-                            {step === 'reset' && 'Set new password'}
+                            Forgot Password?
                         </h2>
                         <p className="text-sm text-gray-500 mt-1">
-                            {step === 'email' && "Enter your email and we'll send you a 6-digit code."}
-                            {step === 'code' && `We've sent a 6-digit verification code to ${email}`}
-                            {step === 'reset' && 'Choose a strong password for your account.'}
+                            Enter your account email and we'll send a secure reset link. This does not change your email address.
                         </p>
                     </div>
 
@@ -108,83 +60,23 @@ export function ForgotPasswordFlow({ onClose }: { onClose: () => void }) {
                         </div>
                     )}
 
-                    <form onSubmit={step === 'email' ? handleRequestOTP : step === 'code' ? handleVerifyOTP : handleFinalize} className="space-y-5">
-                        {step === 'email' && (
-                            <div className="space-y-1.5">
-                                <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest pl-1">Email Address</label>
-                                <div className="relative">
-                                    <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-gray-400">
-                                        <Mail size={18} />
-                                    </div>
-                                    <input 
-                                        type="email" 
-                                        required
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        className="w-full pl-12 pr-4 py-3.5 bg-gray-50/50 border border-gray-100 rounded-2xl text-sm font-medium focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all"
-                                        placeholder="you@example.com"
-                                    />
+                    <form onSubmit={handleRequestResetLink} className="space-y-5">
+                        <div className="space-y-1.5">
+                            <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest pl-1">Email Address</label>
+                            <div className="relative">
+                                <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-gray-400">
+                                    <Mail size={18} />
                                 </div>
-                            </div>
-                        )}
-
-                        {step === 'code' && (
-                            <div className="space-y-1.5 text-center">
-                                <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest block mb-2">6-Digit Code</label>
-                                <input 
-                                    type="text" 
+                                <input
+                                    type="email"
                                     required
-                                    maxLength={6}
-                                    value={code}
-                                    onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-                                    className="w-full text-center text-3xl font-black tracking-[0.5em] py-4 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 focus:border-indigo-500 focus:bg-white focus:ring-0 outline-none transition-all placeholder:text-gray-200"
-                                    placeholder="000000"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    className="w-full pl-12 pr-4 py-3.5 bg-gray-50/50 border border-gray-100 rounded-2xl text-sm font-medium focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all"
+                                    placeholder="you@example.com"
                                 />
-                                <button 
-                                    type="button"
-                                    onClick={handleRequestOTP}
-                                    className="text-xs text-indigo-600 font-bold hover:underline mt-4"
-                                >
-                                    Resend code
-                                </button>
                             </div>
-                        )}
-
-                        {step === 'reset' && (
-                            <>
-                                <div className="space-y-1.5">
-                                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest pl-1">New Password</label>
-                                    <div className="relative">
-                                        <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-gray-400">
-                                            <Lock size={18} />
-                                        </div>
-                                        <input 
-                                            type="password" 
-                                            required
-                                            value={newPassword}
-                                            onChange={(e) => setNewPassword(e.target.value)}
-                                            className="w-full pl-12 pr-4 py-3.5 bg-gray-50/50 border border-gray-100 rounded-2xl text-sm font-medium focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all"
-                                            placeholder="8+ characters"
-                                        />
-                                    </div>
-                                </div>
-                                <div className="space-y-1.5">
-                                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest pl-1">Confirm New Password</label>
-                                    <div className="relative">
-                                        <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-gray-400">
-                                            <CheckCircle2 size={18} />
-                                        </div>
-                                        <input 
-                                            type="password" 
-                                            required
-                                            value={confirmPassword}
-                                            onChange={(e) => setConfirmPassword(e.target.value)}
-                                            className="w-full pl-12 pr-4 py-3.5 bg-gray-50/50 border border-gray-100 rounded-2xl text-sm font-medium focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all"
-                                        />
-                                    </div>
-                                </div>
-                            </>
-                        )}
+                        </div>
 
                         <button 
                             type="submit" 
@@ -195,7 +87,7 @@ export function ForgotPasswordFlow({ onClose }: { onClose: () => void }) {
                                 <Loader2 className="animate-spin h-5 w-5" />
                             ) : (
                                 <>
-                                    <span>{step === 'email' ? 'Send Reset Code' : step === 'code' ? 'Verify Code' : 'Update Password'}</span>
+                                    <span>Send Reset Link</span>
                                     <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
                                 </>
                             )}
