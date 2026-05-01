@@ -404,14 +404,7 @@ export async function updateUserRole(targetUserId: string, newRoleName: string, 
         }
     }
 
-    revalidateTag('team-members', "max");
-    revalidateTag('users', "max");
-    if (workspaceId) {
-        revalidateTag(`team-members-${workspaceId}`, "max");
-        revalidateTag(`workspace-${workspaceId}`, "max");
-        revalidatePath(`/dashboard/${workspaceId}`, 'layout');
-        revalidatePath(`/dashboard/${workspaceId}/team`, 'page');
-    }
+    revalidateTeamData(workspaceId);
     revalidatePath('/dashboard', 'layout');
     return { success: true };
 }

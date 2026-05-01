@@ -1,16 +1,16 @@
 'use client';
 
-import { useState, useMemo, memo, useEffect, useRef } from 'react';
+import { useState, useMemo, memo, useRef } from 'react';
 import Link from 'next/link';
 import { Folder, Search, Trash2, Loader2 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { useRouter, useParams } from 'next/navigation';
 import { deleteProject } from '@/app/dashboard/actions';
 import { AppRole } from '@/lib/roles';
-import { createClient } from '@/lib/supabase/client';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { toast } from 'sonner';
+import { useGlobalStore } from '@/lib/store/global';
 
 // Heavy components that contain modals/complex logic should be lazy loaded
 const PrioritySelector = dynamic(() => import('@/components/dashboard/PrioritySelector').then(mod => mod.PrioritySelector), { ssr: false });
@@ -76,6 +76,8 @@ const ProjectRow = memo(({
                 toast.error(result.error);
             } else {
                 toast.success('Project deleted successfully');
+                // Remove from global store instantly
+                useGlobalStore.getState().removeProject(project.id);
                 // Force a sync with the server state
                 router.refresh();
             }
@@ -246,53 +248,11 @@ ProjectRow.displayName = 'ProjectRow';
 
 export function ProjectList({ projects, users, userMap, userRole, workspaceId }: ProjectListProps) {
     const [searchTerm, setSearchTerm] = useState('');
-    const [localProjects, setLocalProjects] = useState<Project[]>(projects);
-    const supabase = useMemo(() => createClient(), []);
+    // Use projects directly from props (kept in sync by the layout's GlobalDataSync)
     const listScrollRef = useRef<HTMLElement>(null);
 
-    // Keep state in sync with props
-    useEffect(() => {
-        setLocalProjects(projects);
-    }, [projects]);
-
-    // Supabase Realtime Listener
-    useEffect(() => {
-        const channel = supabase
-            .channel('projects-list-updates')
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'projects' },
-                (payload) => {
-                    const { eventType, new: newItem, old: oldItem } = payload;
-
-                    setLocalProjects((prev) => {
-                        if (eventType === 'INSERT') {
-                            // Check for duplicates
-                            if (prev.some(p => p.id === newItem.id)) return prev;
-                            return [newItem as Project, ...prev];
-                        }
-
-                        if (eventType === 'UPDATE') {
-                            return prev.map((p) => (p.id === newItem.id ? { ...p, ...newItem } as Project : p));
-                        }
-
-                        if (eventType === 'DELETE') {
-                            return prev.filter((p) => p.id !== oldItem.id);
-                        }
-
-                        return prev;
-                    });
-                }
-            )
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, [supabase]);
-
     const filteredProjects = useMemo(() => {
-        const listToFilter = localProjects;
+        const listToFilter = projects;
         if (!searchTerm.trim()) return listToFilter;
 
         const term = searchTerm.toLowerCase();
@@ -300,7 +260,7 @@ export function ProjectList({ projects, users, userMap, userRole, workspaceId }:
             project.project_name.toLowerCase().includes(term) ||
             (project.lead_id && userMap[project.lead_id]?.toLowerCase().includes(term))
         );
-    }, [localProjects, searchTerm, userMap]);
+    }, [projects, searchTerm, userMap]);
 
     const rowVirtualizer = useVirtualizer({
         count: filteredProjects.length,

@@ -118,6 +118,10 @@ export function CreateProjectButton({ variant = 'header', workspaceId }: CreateP
         loading: 'Creating your project...',
         success: (result: any) => {
           if (result.error) throw new Error(result.error)
+          // Add to global store instantly
+          if (result.project) {
+            useGlobalStore.getState().addProject(result.project)
+          }
           // Force the router to refresh and sync with the new server state
           router.refresh()
           return 'Project created successfully!'
