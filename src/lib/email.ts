@@ -30,11 +30,19 @@ const transporter = nodemailer.createTransport({
   tls: {
     rejectUnauthorized: false,   // allow self-signed / corporate certs
   },
+  // ── Connection Pooling (Speed Optimization) ────────────────────────────────
+  pool: true,                    // Use pooled connections instead of creating a new one every time
+  maxConnections: 5,             // Max simultaneous connections
+  maxMessages: 100,              // Max messages per connection before recycling
+  
   // ── Timeouts (critical for serverless) ─────────────────────────────────────
   connectionTimeout: CONNECTION_TIMEOUT_MS,
   greetingTimeout:   GREETING_TIMEOUT_MS,
   socketTimeout:     SOCKET_TIMEOUT_MS,
 });
+
+// Warm up the pool immediately in the background so the first email doesn't suffer the 5-second TCP handshake penalty
+transporter.verify().catch(() => {});
 
 const FROM_ADDRESS = process.env.EMAIL_FROM || `Tectome <${process.env.SMTP_USER}>`;
 

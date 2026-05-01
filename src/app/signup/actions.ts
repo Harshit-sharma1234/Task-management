@@ -1,11 +1,13 @@
 'use server'
 
 import { redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail, sendBulkEmails } from '@/lib/email'
 import { newSignupNotificationEmail, emailVerificationEmail as getVerificationEmail } from '@/lib/email-templates'
 import { randomInt } from 'crypto'
 import { getBaseUrl } from '@/lib/urls'
+import { getRolePath } from '@/lib/role-utils'
 import { validatePassword, validateEmail } from '@/lib/validation'
 
 const APP_URL = getBaseUrl()
@@ -209,10 +211,13 @@ export async function signup(prevState: any, formData: FormData) {
     }
 
     // ── Handle Invite Token (Automatic Join) ──
+    const supabase = await createClient()
+    await supabase.auth.signInWithPassword({ email, password })
+
     if (token) {
         const { data: invite } = await adminClient
             .from('workspace_invites')
-            .select('*, workspaces(name, slug)')
+            .select('*, workspaces(name, slug), roles(role_name)')
             .eq('token', token)
             .eq('status', 'pending')
             .gt('expires_at', new Date().toISOString())
@@ -220,7 +225,7 @@ export async function signup(prevState: any, formData: FormData) {
 
         if (invite && invite.email.toLowerCase() === email) {
             // Add user to workspace members
-            await adminClient
+            const { error: insertError } = await adminClient
                 .from('workspace_members')
                 .insert({
                     workspace_id: invite.workspace_id,
@@ -229,8 +234,13 @@ export async function signup(prevState: any, formData: FormData) {
                     joined_at: new Date().toISOString(),
                 })
 
+            if (insertError) {
+                console.error('[Signup] Error inserting workspace member:', insertError)
+                return { error: 'Failed to join workspace: ' + insertError.message }
+            }
+
             // Mark invite as accepted
-            await adminClient
+            const { error: updateError } = await adminClient
                 .from('workspace_invites')
                 .update({ 
                     status: 'accepted', 
@@ -238,18 +248,28 @@ export async function signup(prevState: any, formData: FormData) {
                     accepted_by: newUserId
                 })
                 .eq('id', invite.id)
+                
+            if (updateError) {
+                console.error('[Signup] Error updating invite:', updateError)
+            }
 
-            const workspaceName = (invite as any).workspaces?.name || 'the workspace'
-            redirect(`/login?next=/invite/${token}&message=Account created and you have been added to ${workspaceName}! Please log in.`)
+            const workspaceSlug = (invite as any).workspaces?.slug || 'default'
+            const roleName = (invite as any).roles?.role_name || 'Junior Developer'
+            const rolePath = getRolePath(roleName)
+            
+            const { revalidatePath } = await import('next/cache')
+            revalidatePath('/', 'layout')
+            
+            redirect(`/dashboard/${workspaceSlug}/${rolePath}`)
         } else if (token) {
             // Token exists but email didn't match or invite invalid/expired
             // Redirect to invite page anyway so they see the specific error there
-            redirect(`/login?next=/invite/${token}&message=Account created! Please log in to complete joining the workspace.`)
+            redirect(`/invite/${token}`)
         }
     }
 
-    // ── Redirect to login (user must log in, then choose/create a workspace) ──
+    // ── Redirect to workspace creation ──
     const { revalidatePath: rpFallback } = await import('next/cache')
     rpFallback('/', 'layout')
-    redirect('/login?message=Account created successfully! Please log in.')
+    redirect('/workspace?from=signup_fallback')
 }
