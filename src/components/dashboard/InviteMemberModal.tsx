@@ -1,8 +1,8 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import { X, UserPlus, Mail, Shield, BadgeCheck, Copy, Check } from 'lucide-react'
-import { createWorkspaceInvite } from '@/app/dashboard/[workspace]/team/actions'
+import { X, UserPlus, Mail, Shield, BadgeCheck, Copy, Check, MailCheck, MailX } from 'lucide-react'
+import { createWorkspaceInvite, sendInviteEmailAction } from '@/app/dashboard/[workspace]/team/actions'
 import { toast } from 'sonner'
 import { validateEmail } from '@/lib/validation'
 
@@ -25,6 +25,7 @@ export function InviteMemberModal({ isOpen, onClose, workspaceId, isAdmin = fals
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [inviteLink, setInviteLink] = useState<string | null>(null)
+    const [emailSent, setEmailSent] = useState<boolean | null>(null)
     const [copied, setCopied] = useState(false)
     
     // Safety guard for async updates
@@ -34,6 +35,7 @@ export function InviteMemberModal({ isOpen, onClose, workspaceId, isAdmin = fals
         setIsSubmitting(false)
         setError(null)
         setInviteLink(null)
+        setEmailSent(null)
         setCopied(false)
         formRef.current?.reset()
     }
@@ -75,9 +77,24 @@ export function InviteMemberModal({ isOpen, onClose, workspaceId, isAdmin = fals
                 setError(result.error)
                 setIsSubmitting(false)
             } else if (result.inviteLink) {
+                // SUCCESS: Show link immediately (Optimistic UI)
                 setInviteLink(result.inviteLink)
                 setIsSubmitting(false)
-                toast.success('Invitation link generated!')
+                
+                // Now send the email in the background
+                if (result.token && result.email && result.workspaceName) {
+                    // We don't await this so the UI stays interactive
+                    sendInviteEmailAction(result.token, result.email, result.workspaceName).then((emailResult) => {
+                        if (currentVersion !== requestVersionRef.current) return
+                        
+                        setEmailSent(emailResult.success)
+                        if (emailResult.success) {
+                            toast.success(`Invitation email sent to ${result.email}`)
+                        } else {
+                            toast.error(`Email delivery failed to ${result.email}`)
+                        }
+                    })
+                }
             }
         } catch (err) {
             if (currentVersion !== requestVersionRef.current) return
@@ -202,9 +219,29 @@ export function InviteMemberModal({ isOpen, onClose, workspaceId, isAdmin = fals
                         </div>
 
                         <h3 className="text-[24px] font-extrabold text-gray-900 mb-2 tracking-tight">Invite Link Ready!</h3>
-                        <p className="text-[14px] font-medium text-gray-500 mb-10 max-w-[300px] mx-auto leading-relaxed">
+                        <p className="text-[14px] font-medium text-gray-500 mb-6 max-w-[300px] mx-auto leading-relaxed">
                             Share this link with your colleague to grant them access to the workspace.
                         </p>
+
+                        {/* Email sent status badge */}
+                        {emailSent === null && (
+                            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-[13px] font-semibold mb-6 animate-in fade-in duration-500">
+                                <div className="w-3 h-3 border-2 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin" />
+                                Sending invitation email...
+                            </div>
+                        )}
+                        {emailSent === true && (
+                            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-50 border border-green-200 text-green-700 text-[13px] font-semibold mb-6 animate-in fade-in duration-500">
+                                <MailCheck size={15} className="text-green-600" />
+                                Invitation email sent to recipient
+                            </div>
+                        )}
+                        {emailSent === false && (
+                            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-[13px] font-semibold mb-6 animate-in fade-in duration-500">
+                                <MailX size={15} className="text-amber-600" />
+                                Email delivery failed — share the link below manually
+                            </div>
+                        )}
                         
                         {/* Glassmorphic Link Container */}
                         <div className="relative group mb-10">
