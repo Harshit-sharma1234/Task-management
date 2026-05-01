@@ -5,6 +5,7 @@ import { getCachedUserProfile } from '@/lib/cache';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { headers } from 'next/headers';
 
 export async function fetchSettingsData(workspaceSlug: string) {
     const supabase = await createClient();
@@ -169,67 +170,27 @@ export async function updateWorkspaceAction(workspaceId: string, newName: string
     return { success: true };
 }
 
-import { sendEmail } from '@/lib/email';
-import { randomInt } from 'crypto';
-import { baseLayout } from '@/lib/email-templates';
-
 /**
- * Sends a custom password reset OTP email via Nodemailer (Gmail).
+ * Sends a password reset link email.
  */
 export async function resetPasswordAction() {
     const supabase = await createClient();
     const { data: authData } = await supabase.auth.getUser();
     
     if (!authData?.user?.email) return { error: 'Not authenticated or email missing' };
-    const email = authData.user.email;
+    const email = authData.user.email.toLowerCase();
+    const headerStore = await headers();
+    const configuredOrigin = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '');
+    const protocol = headerStore.get('x-forwarded-proto') ?? 'http';
+    const host = headerStore.get('x-forwarded-host') ?? headerStore.get('host');
+    const derivedOrigin = host ? `${protocol}://${host}` : null;
+    const origin = configuredOrigin ?? derivedOrigin;
+    if (!origin) return { error: 'Unable to determine app URL for reset link.' };
 
-    const otpCode = randomInt(100000, 999999).toString();
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // 5 minutes
-
-    const adminClient = createAdminClient();
-    
-    // Save OTP to your custom email_otps table
-    const { error: otpError } = await adminClient
-        .from('email_otps')
-        .upsert({
-            email: email.toLowerCase(),
-            otp_code: otpCode,
-            expires_at: expiresAt,
-            verified: false
-        });
-
-    if (otpError) return { error: 'Failed to generate reset code.' };
-
-    // Send via Nodemailer
-    const html = baseLayout(`
-        <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#1a1a2e;text-align:center;">
-          Reset your password
-        </h1>
-        <p style="margin:0 0 24px;font-size:14px;color:#64748b;text-align:center;line-height:1.6;">
-          Use the following verification code to reset your password. This code is valid for 5 minutes.
-        </p>
-        
-        <div style="background-color:#f8f9fc;border-radius:12px;border:1px solid #e8ecf1;padding:24px;text-align:center;margin-bottom:24px;">
-          <div style="font-size:32px;font-weight:800;letter-spacing:8px;color:#5e6ad2;margin-bottom:8px;">
-            ${otpCode}
-          </div>
-        </div>
-    `);
-;
-
-    // Non-blocking email send
-    (async () => {
-        try {
-            await sendEmail({
-                to: email,
-                subject: `Your Tectome security code: ${otpCode}`,
-                html,
-                source: 'Settings:PasswordReset'
-            });
-        } catch (err) {
-            console.error('[resetPasswordAction] Background email error:', err);
-        }
-    })();
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${origin}/auth/set-password`,
+    });
+    if (error) return { error: error.message };
 
     return { success: true };
 }

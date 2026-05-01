@@ -10,14 +10,12 @@ import { UserAvatar } from '@/components/ui/UserAvatar'
 import { useSettingsStore } from '@/lib/store/settings'
 import { useAvatarStore } from '@/lib/store/avatar'
 import { DeleteWorkspaceModal } from '@/components/dashboard/DeleteWorkspaceModal'
-import { ForgotPasswordFlow } from '@/app/login/ForgotPasswordFlow'
 import { toast } from 'sonner'
 
 export function SettingsTabs({ user }: { user: { id: string, name: string, email: string, avatar_url: string | null, workspacerole: string, hasPassword: boolean, activeWorkspace: { id: string, name: string, slug: string } } }) {
     const setUserData = useSettingsStore((s) => s.setUserData)
     const setGlobalAvatar = useAvatarStore((s) => s.setAvatarUrl)
     const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'workspace'>('profile')
-    const [showForgotFlow, setShowForgotFlow] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
     const [previewUrl, setPreviewUrl] = useState<string | null>(user.avatar_url)
     const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -139,8 +137,7 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
             toast.error(result.error)
         } else {
             setResetSuccess(true)
-            toast.success('Reset code sent to your email!')
-            setShowForgotFlow(true) // Open the same modal used on the login page
+            toast.success('Password reset link sent to your email!')
             setTimeout(() => setResetSuccess(false), 5000)
         }
         setIsResettingPassword(false)
@@ -658,9 +655,6 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
                     </div>
                 )}
             </div>
-            {showForgotFlow && (
-                <ForgotPasswordFlow onClose={() => setShowForgotFlow(false)} />
-            )}
         </div>
     )
 }
