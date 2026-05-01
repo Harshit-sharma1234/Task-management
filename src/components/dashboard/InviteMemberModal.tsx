@@ -26,6 +26,7 @@ export function InviteMemberModal({ isOpen, onClose, workspaceId, isAdmin = fals
     const [error, setError] = useState<string | null>(null)
     const [inviteLink, setInviteLink] = useState<string | null>(null)
     const [emailSent, setEmailSent] = useState<boolean | null>(null)
+    const [emailError, setEmailError] = useState<string | null>(null)
     const [copied, setCopied] = useState(false)
     
     // Safety guard for async updates
@@ -36,6 +37,7 @@ export function InviteMemberModal({ isOpen, onClose, workspaceId, isAdmin = fals
         setError(null)
         setInviteLink(null)
         setEmailSent(null)
+        setEmailError(null)
         setCopied(false)
         formRef.current?.reset()
     }
@@ -62,7 +64,9 @@ export function InviteMemberModal({ isOpen, onClose, workspaceId, isAdmin = fals
         // Validation
         const emailCheck = validateEmail(email)
         if (!emailCheck.valid) {
-            setError(emailCheck.error || 'Invalid email address')
+            const errorMessage = emailCheck.error || 'Invalid email address'
+            setError(errorMessage)
+            toast.error(errorMessage)
             setIsSubmitting(false)
             return
         }
@@ -91,7 +95,9 @@ export function InviteMemberModal({ isOpen, onClose, workspaceId, isAdmin = fals
                         if (emailResult.success) {
                             toast.success(`Invitation email sent to ${result.email}`)
                         } else {
-                            toast.error(`Email delivery failed to ${result.email}`)
+                            const detailedError = emailResult.error || 'Delivery failed'
+                            setEmailError(detailedError)
+                            toast.error(`Email failed: ${detailedError}`)
                         }
                     })
                 }
@@ -237,9 +243,16 @@ export function InviteMemberModal({ isOpen, onClose, workspaceId, isAdmin = fals
                             </div>
                         )}
                         {emailSent === false && (
-                            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-[13px] font-semibold mb-6 animate-in fade-in duration-500">
-                                <MailX size={15} className="text-amber-600" />
-                                Email delivery failed — share the link below manually
+                            <div className="flex flex-col items-center gap-2 mb-6 animate-in fade-in duration-500">
+                                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-[13px] font-semibold">
+                                    <MailX size={15} className="text-amber-600" />
+                                    Email delivery failed
+                                </div>
+                                {emailError && (
+                                    <p className="text-[11px] text-amber-600/80 font-medium max-w-[280px]">
+                                        Reason: {emailError}
+                                    </p>
+                                )}
                             </div>
                         )}
                         

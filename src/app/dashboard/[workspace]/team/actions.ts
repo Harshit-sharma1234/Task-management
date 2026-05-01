@@ -533,9 +533,15 @@ export async function sendInviteEmailAction(token: string, email: string, worksp
             source: 'Team:Invite'
         });
         
-        return { success: emailResult.success };
+        return { 
+            success: emailResult.success,
+            error: emailResult.success ? null : (emailResult.error as any)?.message || 'SMTP error'
+        };
     } catch (err) {
         console.error('[sendInviteEmailAction] Failed:', err);
-        return { success: false };
+        return { 
+            success: false, 
+            error: (err as any)?.message || 'Connection failed' 
+        };
     }
 }
