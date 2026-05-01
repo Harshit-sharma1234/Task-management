@@ -249,21 +249,7 @@ export default function SignupForm() {
             </div>
           </div>
 
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-[var(--color-linear-muted)]">Employee ID</label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-[var(--color-linear-muted)]">
-                <BadgeCheck size={16} />
-              </div>
-              <input 
-                type="text" 
-                name="employee_id"
-                required
-                className="w-full pl-10 pr-3 py-2 bg-[var(--color-linear-bg)] border border-[var(--color-linear-border)] rounded-md text-sm focus:outline-none focus:border-[var(--color-linear-accent)] transition-colors placeholder:text-[var(--color-linear-muted)]/50"
-                placeholder="EMP-001"
-              />
-            </div>
-          </div>
+
           
           <div className="space-y-1">
             <label className="text-xs font-medium text-[var(--color-linear-muted)]">Password</label>
