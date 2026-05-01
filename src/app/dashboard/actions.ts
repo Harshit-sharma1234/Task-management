@@ -202,11 +202,22 @@ export async function createProject(formData: FormData) {
     runSideEffects()
 
     // Instant Revalidation
-    revalidateTag('projects', "max")
-    revalidateTag(`workspace-${workspaceId}`, "max")
-    revalidatePath('/dashboard')
+    try {
+        updateTag('projects');
+        updateTag(`workspace-${workspaceId}`);
+    } catch (e) {}
+    revalidateTag('projects', "default")
+    revalidateTag(`workspace-${workspaceId}`, "default")
+    revalidatePath('/dashboard', 'layout')
     
-    return { success: true, id: newProject.id }
+    // Fetch the full project object to return to the client for instant store update
+    const { data: project } = await adminClient
+        .from('projects')
+        .select('*')
+        .eq('id', newProject.id)
+        .single()
+    
+    return { success: true, id: newProject.id, project }
 }
 
 export async function updateProjectPriority(projectId: string, priority: string | null) {
@@ -250,9 +261,9 @@ export async function updateProjectPriority(projectId: string, priority: string 
     }).catch(() => {})
 
     revalidateProjectDataTags()
-    revalidatePath('/dashboard/projects', 'page')
+    revalidatePath('/dashboard', 'layout')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
-    revalidatePath('/dashboard')
+    revalidatePath('/dashboard', 'layout')
     return { success: true }
 }
 
@@ -306,9 +317,9 @@ export async function updateProjectLead(projectId: string, leadId: string | null
     }).catch(() => {})
 
     revalidateProjectDataTags()
-    revalidatePath('/dashboard/projects', 'page')
+    revalidatePath('/dashboard', 'layout')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
-    revalidatePath('/dashboard')
+    revalidatePath('/dashboard', 'layout')
     return { success: true }
 }
 
@@ -354,9 +365,9 @@ export async function updateProjectTargetDate(projectId: string, startDate: stri
     }).catch(() => {})
 
     revalidateProjectDataTags()
-    revalidatePath('/dashboard/projects', 'page')
+    revalidatePath('/dashboard', 'layout')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
-    revalidatePath('/dashboard')
+    revalidatePath('/dashboard', 'layout')
     return { success: true }
 }
 
@@ -403,9 +414,9 @@ export async function updateProjectDueDate(projectId: string, dueDate: string | 
     }).catch(() => {})
 
     revalidateProjectDataTags()
-    revalidatePath('/dashboard/projects', 'page')
+    revalidatePath('/dashboard', 'layout')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
-    revalidatePath('/dashboard')
+    revalidatePath('/dashboard', 'layout')
     return { success: true }
 }
 
@@ -449,9 +460,9 @@ export async function updateProjectStatus(projectId: string, status: string | nu
     }).catch(() => {})
 
     revalidateProjectDataTags()
-    revalidatePath('/dashboard/projects', 'page')
+    revalidatePath('/dashboard', 'layout')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
-    revalidatePath('/dashboard')
+    revalidatePath('/dashboard', 'layout')
     return { success: true }
 }
 
@@ -474,10 +485,10 @@ export async function updateProjectName(projectId: string, projectName: string) 
     }
 
     revalidateProjectDataTags()
-    revalidatePath('/dashboard/projects', 'page')
+    revalidatePath('/dashboard', 'layout')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
-    revalidatePath('/dashboard')
-    revalidateTag('projects', "max")
+    revalidatePath('/dashboard', 'layout')
+    revalidateTag('projects', "default")
     
     return { success: true }
 }
@@ -521,9 +532,9 @@ export async function updateProjectDescription(projectId: string, description: s
     }).catch(() => {})
 
     revalidateProjectDataTags()
-    revalidatePath('/dashboard/projects', 'page')
+    revalidatePath('/dashboard', 'layout')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
-    revalidatePath('/dashboard')
+    revalidatePath('/dashboard', 'layout')
     return { success: true }
 }
 
@@ -620,9 +631,9 @@ export async function toggleProjectMember(projectId: string, userId: string) {
     }
 
     revalidateProjectDataTags()
-    revalidatePath('/dashboard/projects', 'page')
+    revalidatePath('/dashboard', 'layout')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
-    revalidatePath('/dashboard')
+    revalidatePath('/dashboard', 'layout')
     return { success: true }
 }
 
@@ -770,11 +781,11 @@ export async function updateUserAvatar(userId: string, avatarUrl: string) {
     }
 
     // Invalidate all caches that include avatar data
-    revalidateTag(`user-profile-${user.email}`, "max")
-    revalidateTag('team-members', "max")
-    revalidateTag('issues', "max")
+    revalidateTag(`user-profile-${user.email}`, "default")
+    revalidateTag('team-members', "default")
+    revalidateTag('issues', "default")
     revalidatePath('/dashboard', 'layout')
-    revalidatePath('/dashboard')
+    revalidatePath('/dashboard', 'layout')
     return { success: true, avatarUrl }
 }
 
@@ -839,9 +850,9 @@ export async function provisionEmployee(formData: FormData) {
     }
 
     // Only invalidate cached team members list; no need to re-fetch on every navigation.
-    revalidateTag('team-members', "max")
+    revalidateTag('team-members', "default")
     revalidatePath('/dashboard/admin', 'page')
-    revalidatePath('/dashboard')
+    revalidatePath('/dashboard', 'layout')
     return { success: true, message: `Account created for ${name}. Temporary password: ${tempPassword}` }
 }
 
@@ -871,7 +882,7 @@ export async function addProjectResource(projectId: string, title: string, url: 
 
     revalidateProjectDataTags()
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
-    revalidatePath('/dashboard')
+    revalidatePath('/dashboard', 'layout')
     return { success: true, data }
 }
 
@@ -895,7 +906,7 @@ export async function deleteProjectResource(resourceId: string, projectId: strin
 
     revalidateProjectDataTags()
     revalidatePath(`/dashboard/projects/${projectId}`)
-    revalidatePath('/dashboard')
+    revalidatePath('/dashboard', 'layout')
     return { success: true }
 }
 
@@ -973,8 +984,7 @@ export async function deleteProject(projectId: string) {
 
     // Handle cascading revalidation
     revalidateProjectDataTags()
-    revalidatePath('/dashboard/projects', 'page')
-    revalidatePath('/dashboard', 'page')
+    revalidatePath('/dashboard', 'layout')
 
     return { success: true }
 }
