@@ -107,10 +107,14 @@ export async function sendEmail(params: SendEmailParams) {
 
   const MAX_RETRIES = 3;
   let lastError: Error | null = null;
+  const sendStart = Date.now(); // track total time across all attempts
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     const attemptStart = Date.now();
-    console.log(`[${ts()}] [Email] [${source}] ⏳ Attempt ${attempt}/${MAX_RETRIES} — opening TCP connection...`);
+    const cumulative   = () => `cumulative=${Date.now() - sendStart}ms`;
+
+    console.log(`[${ts()}] [Email] [${source}] ┌── RETRY ${attempt}/${MAX_RETRIES} ─────────────────────────────`);
+    console.log(`[${ts()}] [Email] [${source}] │ ⏳ [TCP]  Connecting to ${SMTP_HOST}:${SMTP_PORT}...`);
 
     try {
       const isHighPriority =
@@ -130,51 +134,67 @@ export async function sendEmail(params: SendEmailParams) {
         } : {},
       });
 
-      const elapsed = Date.now() - attemptStart;
-      console.log(`[${ts()}] [Email] [${source}] ✅ Sent OK (Attempt ${attempt}/${MAX_RETRIES}) in ${elapsed}ms`);
-      console.log(`[${ts()}] [Email] [${source}]    Message-ID : ${info.messageId}`);
-      console.log(`[${ts()}] [Email] [${source}]    Response   : ${info.response}`);
-      console.log(`[${ts()}] [Email] [${source}] ─────────────────────────────────────`);
+      const attemptMs = Date.now() - attemptStart;
+      const totalMs   = Date.now() - sendStart;
+      console.log(`[${ts()}] [Email] [${source}] │ ✅ [SENT] attempt=${attempt}/${MAX_RETRIES} attempt_time=${attemptMs}ms total_time=${totalMs}ms`);
+      console.log(`[${ts()}] [Email] [${source}] │    Message-ID   : ${info.messageId}`);
+      console.log(`[${ts()}] [Email] [${source}] │    SMTP Response: ${info.response}`);
+      console.log(`[${ts()}] [Email] [${source}] │    Envelope     : from=${info.envelope?.from} to=${JSON.stringify(info.envelope?.to)}`);
+      console.log(`[${ts()}] [Email] [${source}] └─── SUCCESS ─────────────────────────────────`);
       return { success: true, id: info.messageId };
 
     } catch (err: any) {
       lastError = err;
-      const elapsed = Date.now() - attemptStart;
-      const code    = err.code || 'N/A';
-      const msg     = err.message || 'Unknown error';
+      const attemptMs   = Date.now() - attemptStart;
+      const code        = err.code        || 'N/A';
+      const msg         = err.message     || 'Unknown error';
+      const command     = err.command     || 'N/A';  // nodemailer: which SMTP command failed
+      const responseCode= err.responseCode|| 'N/A';  // nodemailer: SMTP numeric response code
+      const response    = err.response    || 'N/A';  // nodemailer: full SMTP response string
 
-      console.error(`[${ts()}] [Email] [${source}] ❌ FAILED (Attempt ${attempt}/${MAX_RETRIES}) after ${elapsed}ms`);
-      console.error(`[${ts()}] [Email] [${source}]    Error   : ${msg}`);
-      console.error(`[${ts()}] [Email] [${source}]    Code    : ${code}`);
+      console.error(`[${ts()}] [Email] [${source}] │ ❌ [FAIL] attempt=${attempt}/${MAX_RETRIES} attempt_time=${attemptMs}ms ${cumulative()}`);
+      console.error(`[${ts()}] [Email] [${source}] │    Error         : ${msg}`);
+      console.error(`[${ts()}] [Email] [${source}] │    Error Code    : ${code}`);
+      console.error(`[${ts()}] [Email] [${source}] │    SMTP Command  : ${command}   ← which phase failed`);
+      console.error(`[${ts()}] [Email] [${source}] │    SMTP RespCode : ${responseCode}`);
+      console.error(`[${ts()}] [Email] [${source}] │    SMTP Response : ${response}`);
 
       // ── Diagnostic hints ───────────────────────────────────────────────────
       if (msg.includes('Greeting never received') || msg.includes('ETIMEDOUT') || code === 'ETIMEDOUT') {
-        console.error(`[${ts()}] [Email] [${source}]    🔴 TCP TIMEOUT: Port ${SMTP_PORT} is likely BLOCKED by your cloud provider.`);
-        console.error(`[${ts()}] [Email] [${source}]    💡 FIX: Set SMTP_PORT=587 in Vercel env vars and redeploy.`);
+        console.error(`[${ts()}] [Email] [${source}] │    🔴 PHASE: TCP connect timed out — port ${SMTP_PORT} may still be blocked.`);
+        console.error(`[${ts()}] [Email] [${source}] │    💡 TRY : SMTP_PORT=2525 as fallback, or use a transactional email service.`);
       } else if (msg.includes('ECONNREFUSED') || code === 'ECONNREFUSED') {
-        console.error(`[${ts()}] [Email] [${source}]    🔴 CONNECTION REFUSED: SMTP host ${SMTP_HOST}:${SMTP_PORT} actively rejected connection.`);
+        console.error(`[${ts()}] [Email] [${source}] │    🔴 PHASE: TCP — ${SMTP_HOST}:${SMTP_PORT} actively refused connection.`);
       } else if (msg.includes('ENOTFOUND') || code === 'ENOTFOUND') {
-        console.error(`[${ts()}] [Email] [${source}]    🔴 DNS FAILURE: Cannot resolve host "${SMTP_HOST}". Check SMTP_HOST env var.`);
-      } else if (msg.includes('certificate') || msg.includes('TLS') || msg.includes('SSL')) {
-        console.error(`[${ts()}] [Email] [${source}]    🔴 TLS/SSL ERROR: Certificate or handshake issue.`);
-      } else if (msg.includes('limit') || msg.includes('quota') || code === 'EENVELOPE') {
-        console.warn(`[${ts()}] [Email] [${source}]    ⚠️  QUOTA/LIMIT: Gmail daily sending limit may be exceeded. Aborting retries.`);
+        console.error(`[${ts()}] [Email] [${source}] │    🔴 PHASE: DNS — cannot resolve "${SMTP_HOST}". Check SMTP_HOST env var.`);
+      } else if (command === 'STARTTLS' || msg.includes('certificate') || msg.includes('TLS') || msg.includes('SSL')) {
+        console.error(`[${ts()}] [Email] [${source}] │    🔴 PHASE: TLS handshake failed (command=${command}).`);
+      } else if (command === 'AUTH' || msg.includes('535') || msg.includes('Username and Password not accepted')) {
+        console.error(`[${ts()}] [Email] [${source}] │    🔴 PHASE: AUTH — credentials rejected. Check SMTP_USER / SMTP_PASSWORD.`);
+        console.error(`[${ts()}] [Email] [${source}] └─── ABORTING (no retry — bad credentials) ───────────`);
         break;
-      } else if (msg.includes('535') || msg.includes('Username and Password not accepted')) {
-        console.error(`[${ts()}] [Email] [${source}]    🔴 AUTH FAILED: SMTP credentials rejected. Check SMTP_USER / SMTP_PASSWORD env vars.`);
-        break; // No point retrying bad credentials
+      } else if (msg.includes('limit') || msg.includes('quota') || code === 'EENVELOPE') {
+        console.warn(`[${ts()}] [Email] [${source}] │    ⚠️  PHASE: ENVELOPE/QUOTA — Gmail sending limit exceeded.`);
+        console.warn(`[${ts()}] [Email] [${source}] └─── ABORTING (no retry — quota) ─────────────────────`);
+        break;
       }
 
       if (attempt < MAX_RETRIES) {
-        const delay = 1000 * attempt;
-        console.log(`[${ts()}] [Email] [${source}]    ↩️  Retrying in ${delay}ms...`);
-        await new Promise(r => setTimeout(r, delay));
+        const delayMs = 1000 * attempt;
+        console.log(`[${ts()}] [Email] [${source}] │    ⏱  Waiting ${delayMs}ms before retry ${attempt + 1}/${MAX_RETRIES}... (${cumulative()})`);
+        await new Promise(r => setTimeout(r, delayMs));
+        console.log(`[${ts()}] [Email] [${source}] │    ↩️  Wait complete — starting retry ${attempt + 1}/${MAX_RETRIES}`);
       }
+
+      console.error(`[${ts()}] [Email] [${source}] └─────────────────────────────────────────────────`);
     }
   }
 
-  console.error(`[${ts()}] [Email] [${source}] 💀 All ${MAX_RETRIES} attempts failed. Last error: ${lastError?.message}`);
-  console.error(`[${ts()}] [Email] [${source}] ─────────────────────────────────────`);
+  const totalMs = Date.now() - sendStart;
+  console.error(`[${ts()}] [Email] [${source}] ╳ ALL ${MAX_RETRIES} ATTEMPTS FAILED — total_time=${totalMs}ms`);
+  console.error(`[${ts()}] [Email] [${source}]   Last error : ${lastError?.message}`);
+  console.error(`[${ts()}] [Email] [${source}]   Last code  : ${(lastError as any)?.code || 'N/A'}`);
+  console.error(`[${ts()}] [Email] [${source}] ─────────────────────────────────────────────────`);
   return { success: false, error: lastError?.message || 'Failed after retries' };
 }
 
