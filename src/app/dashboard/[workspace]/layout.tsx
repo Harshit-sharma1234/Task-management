@@ -27,7 +27,7 @@ export default async function WorkspaceDashboardLayout({
   ]);
 
   if (!user) redirect('/login');
-  if (!workspace) redirect('/workspace');
+  if (!workspace) redirect('/workspace?from=layout_missing_workspace');
 
   // 3. & 4. Resolve everything else in parallel
   const [userProfileRes, allWorkspacesRes, projectsRes, teamRes, unreadRes] = await Promise.all([
@@ -49,7 +49,7 @@ export default async function WorkspaceDashboardLayout({
     .eq('user_id', userProfile.id)
     .single();
 
-  if (!membership) redirect('/workspace');
+  if (!membership) redirect('/workspace?from=layout_missing_membership');
 
   const rolesData = (membership as any).roles;
   const roleName = (Array.isArray(rolesData) ? rolesData[0]?.role_name : rolesData?.role_name) || '';
