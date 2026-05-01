@@ -75,8 +75,9 @@ const ProjectRow = memo(({
                 toast.error(result.error);
             } else {
                 toast.success('Project deleted successfully');
-                // Force a sync with the server state
-                router.refresh();
+                // Instant Store Update
+                const { useGlobalStore } = await import('@/lib/store/global');
+                useGlobalStore.getState().removeProject(project.id);
             }
         } catch (err) {
             console.error('Delete error:', err);

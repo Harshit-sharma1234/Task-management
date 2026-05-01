@@ -38,9 +38,13 @@ export const useGlobalStore = create<GlobalState>((set) => ({
     projects: state.projects.map(p => p.id === updatedProject.id ? { ...p, ...updatedProject } : p)
   })),
 
-  addProject: (project) => set((state) => ({
-    projects: [project, ...state.projects]
-  })),
+  addProject: (project) => set((state) => {
+    const exists = state.projects.some(p => p.id === project.id);
+    if (exists) return state;
+    return {
+      projects: [project, ...state.projects]
+    };
+  }),
 
   removeProject: (projectId) => set((state) => ({
     projects: state.projects.filter(p => p.id !== projectId)
