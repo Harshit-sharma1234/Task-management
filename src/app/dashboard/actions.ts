@@ -8,6 +8,7 @@ import { revalidatePath, revalidateTag, updateTag } from 'next/cache'
 import { getUserProfile } from '../../lib/roles'
 import { createNotification } from './[workspace]/notifications/actions'
 import { insertProjectLog } from './[workspace]/logging/actions'
+import { validatePassword } from '../../lib/validation'
 
 /**
  * Granular revalidation for project-related data.
@@ -637,37 +638,49 @@ export async function toggleProjectMember(projectId: string, userId: string) {
     return { success: true }
 }
 
-export async function updateUserPassword(oldPassword: string, newPassword: string) {
+export async function updateUserPassword(email: string, oldPassword: string, newPassword: string) {
+    // Server-side password strength check
+    const passwordCheck = validatePassword(newPassword)
+    if (!passwordCheck.valid) {
+        return { error: passwordCheck.error }
+    }
+
     const supabase = await createClient()
     
-    // 1. Ensure the user is logged in
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
+    // Create a lightweight, non-persisting client for password verification to avoid cookie churn
+    const { createClient: createSupabaseClient } = await import('@supabase/supabase-js')
+    const lightweightClient = createSupabaseClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        { auth: { persistSession: false, autoRefreshToken: false } }
+    )
+
+    // Run session check and password verification in parallel for speed!
+    const [authResult, verifyResult] = await Promise.all([
+        supabase.auth.getUser(),
+        oldPassword ? lightweightClient.auth.signInWithPassword({ email, password: oldPassword }) : Promise.resolve({ error: null })
+    ])
+
+    const { data: { user }, error: authError } = authResult
+
+    if (authError || !user || user.email !== email) {
         return { error: 'You must be logged in to update your password.' }
     }
 
-    // 2. Check if the user HAS a password already
-    // OAuth users might not have a password yet.
     const hasPassword = user.identities?.some(id => id.provider === 'email');
 
-    // 3. Verify OLD password ONLY if they already have one
     if (hasPassword) {
         if (!oldPassword) {
             return { error: 'Current password is required to update your account.' }
         }
-
-        const { error: verifyError } = await supabase.auth.signInWithPassword({
-            email: user.email!,
-            password: oldPassword
-        })
-
-        if (verifyError) {
+        if (verifyResult.error) {
             return { error: 'Incorrect current password. Please try again.' }
         }
     }
 
-    // 4. Update to NEW password
-    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    // Use Admin Client to bypass session nonces and update instantly
+    const adminClient = createAdminClient()
+    const { error } = await adminClient.auth.admin.updateUserById(user.id, { password: newPassword })
     
     if (error) {
         console.error('Error updating password:', error)
