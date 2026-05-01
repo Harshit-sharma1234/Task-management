@@ -4,17 +4,28 @@
 
 import { createClient } from '../../lib/supabase/server'
 import { createAdminClient } from '../../lib/supabase/admin'
-import { revalidatePath, revalidateTag } from 'next/cache'
+import { revalidatePath, revalidateTag, updateTag } from 'next/cache'
 import { getUserProfile } from '../../lib/roles'
 import { createNotification } from './[workspace]/notifications/actions'
 import { insertProjectLog } from './[workspace]/logging/actions'
 
 /**
  * Granular revalidation for project-related data.
- * Corrected to use a single argument as per Next.js API.
+ * Uses updateTag for immediate 'read-your-own-writes' consistency
+ * and a standard 'default' profile for revalidation.
  */
+
 function revalidateProjectDataTags(tags: string[] = ['projects', 'tickets', 'project-resources']) {
-    tags.forEach(tag => revalidateTag(tag, "max"));
+    tags.forEach(tag => {
+        try {
+            // updateTag provides immediate consistency for Server Actions
+            updateTag(tag);
+            // fallback revalidation with a shorter profile
+            revalidateTag(tag, "default");
+        } catch (e) {
+            revalidateTag(tag, "default");
+        }
+    });
 }
 
 import { getCachedUsers, getCachedUserProfile } from '../../lib/cache'
