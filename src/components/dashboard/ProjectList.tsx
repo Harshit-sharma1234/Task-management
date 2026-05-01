@@ -76,6 +76,8 @@ const ProjectRow = memo(({
                 toast.error(result.error);
             } else {
                 toast.success('Project deleted successfully');
+                // Force a sync with the server state
+                router.refresh();
             }
         } catch (err) {
             console.error('Delete error:', err);
