@@ -475,20 +475,34 @@ export async function createWorkspaceInvite(workspaceId: string, email: string, 
         accepted_at: null
     };
 
-    // 5. Atomic Upsert/Create Invite
-    // Using a more efficient approach to handle the invite creation/update
-    const { error: inviteError } = await adminClient
+    // 5. Stable Save Logic (Find or Create)
+    // We fetch the existing ID first to avoid relying on specific DB constraints for upsert
+    const { data: existingInvite } = await adminClient
         .from('workspace_invites')
-        .upsert(invitePayload, { 
-            onConflict: 'workspace_id, email',
-            ignoreDuplicates: false 
-        });
+        .select('id')
+        .eq('workspace_id', workspaceId)
+        .ilike('email', normalizedEmail)
+        .maybeSingle();
+
+    let inviteError = null;
+    if (existingInvite?.id) {
+        // Update existing
+        const { error } = await adminClient
+            .from('workspace_invites')
+            .update(invitePayload)
+            .eq('id', existingInvite.id);
+        inviteError = error;
+    } else {
+        // Insert new
+        const { error } = await adminClient
+            .from('workspace_invites')
+            .insert(invitePayload);
+        inviteError = error;
+    }
 
     if (inviteError) {
-        console.error('[createWorkspaceInvite] Upsert Error:', inviteError);
-        // Fallback for schemas where onConflict doesn't work as expected
-        const { error: insertError } = await adminClient.from('workspace_invites').insert(invitePayload);
-        if (insertError) return { error: `Failed to create invite: ${insertError.message}` };
+        console.error('[createWorkspaceInvite] DB Save Error:', inviteError);
+        return { error: `Failed to save invitation: ${inviteError.message}` };
     }
 
     const workspaceName = workspaceResult.data?.name || 'a workspace';
