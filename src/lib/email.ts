@@ -97,6 +97,16 @@ export async function sendEmail(params: SendEmailParams) {
   }
   dedupeCache.set(dedupeKey, now);
 
+  // ── Test Failure Mode ─────────────────────────────────────────────────────
+  // If the email contains "fail", we simulate a hard SMTP error for UI testing.
+  if (recipientKey.toLowerCase().includes('fail')) {
+    console.error(`[${ts()}] [Email] [${source}] 🧪 TEST MODE: Simulating SMTP failure for ${recipientKey}`);
+    return { 
+      success: false, 
+      error: { message: '550 5.1.1 The email account that you tried to reach does not exist.' } 
+    };
+  }
+
   // ── Pre-send diagnostics ───────────────────────────────────────────────────
   console.log(`[${ts()}] [Email] [${source}] ─────────────────────────────────────`);
   console.log(`[${ts()}] [Email] [${source}] 🚀 Sending email`);
