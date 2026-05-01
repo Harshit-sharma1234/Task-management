@@ -175,6 +175,63 @@ export function onboardingRejectedEmail(params: {
   `);
 }
 
+// ─── Template: Workspace Invitation (sent to new member) ───
+
+export function workspaceInviteEmail(params: {
+  workspaceName: string;
+  inviteLink: string;
+}): string {
+  return baseLayout(`
+    <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:${TEXT_PRIMARY};text-align:center;">
+      Join the team
+    </h1>
+    <p style="margin:0 0 24px;font-size:14px;color:${TEXT_SECONDARY};text-align:center;line-height:1.6;">
+      You've been invited to join the <strong>${params.workspaceName}</strong> workspace on Tectome.
+    </p>
+    
+    <p style="margin:0;font-size:14px;color:${TEXT_SECONDARY};text-align:center;line-height:1.6;">
+      Click the button below to accept your invitation and start collaborating with your team:
+    </p>
+    
+    ${ctaButton('Accept Invitation', params.inviteLink)}
+    
+    <p style="margin:32px 0 0;font-size:12px;color:#94a3b8;text-align:center;line-height:1.5;">
+      This invitation link will expire in 7 days. If you weren't expecting this, you can safely ignore this email.
+    </p>
+  `);
+}
+
+// ─── Template: Member Removed (sent to employee) ───
+
+export function workspaceRemovalEmail(params: {
+  employeeName: string;
+  workspaceName: string;
+  message?: string;
+}): string {
+  const messageBlock = params.message
+    ? `
+    <div style="background-color:#f8f9fc;border-radius:12px;border:1px solid #e8ecf1;padding:20px;margin-top:24px;">
+      <span style="font-size:11px;font-weight:600;color:${TEXT_SECONDARY};text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:8px;">Message from Administrator</span>
+      <p style="margin:0;font-size:14px;color:${TEXT_PRIMARY};line-height:1.6;font-style:italic;">"${params.message}"</p>
+    </div>`
+    : '';
+
+  return baseLayout(`
+    <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:${TEXT_PRIMARY};text-align:center;">
+      Workspace Update
+    </h1>
+    <p style="margin:0;font-size:14px;color:${TEXT_SECONDARY};text-align:center;line-height:1.6;">
+      Hi ${params.employeeName}, your access to the <strong>${params.workspaceName}</strong> workspace on Tectome has been removed.
+    </p>
+    
+    ${messageBlock}
+    
+    <p style="margin:24px 0 0;font-size:13px;color:${TEXT_SECONDARY};text-align:center;line-height:1.6;">
+      If you believe this is a mistake, please contact your workspace administrator.
+    </p>
+  `);
+}
+
 // ─── Template: Email Verification OTP (sent during signup) ───
 
 export function emailVerificationEmail(params: {
