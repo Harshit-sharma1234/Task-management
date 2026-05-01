@@ -2,6 +2,7 @@
 
 import { useState, useMemo, memo } from 'react'
 import { Search, Trash2, Loader2, ShieldCheck } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { useTeamStore } from '@/lib/store/team'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { deleteMember, updateUserRole } from '@/app/dashboard/[workspace]/team/actions'
@@ -14,6 +15,7 @@ import { DeleteMemberModal } from './DeleteMemberModal'
  */
 const TeamMemberRow = memo(({ user, isAdmin, currentUserRole }: { user: any, isAdmin: boolean, currentUserRole: string | null }) => {
     const { refresh } = useTeamStore();
+    const router = useRouter();
     const [isDeleting, setIsDeleting] = useState(false);
     const [isUpdatingRole, setIsUpdatingRole] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -83,24 +85,28 @@ const TeamMemberRow = memo(({ user, isAdmin, currentUserRole }: { user: any, isA
         ), { duration: 10000, position: 'top-center' });
     };
 
-    const confirmDelete = async () => {
+    const confirmDelete = async (message: string) => {
         setIsDeleting(true);
         // Optimistic update
         const store = useTeamStore.getState();
         store.removeUser(user.id);
 
         try {
-            const result = await deleteMember(user.id, store.workspaceId!);
+            const result = await deleteMember(user.id, store.workspaceId!, message);
             if (result.error) {
                 toast.error(result.error);
                 // Rollback on error
                 refresh();
             } else {
-                toast.success('Member deleted successfully');
+                toast.success('Member removed successfully');
+                // Force Next.js to clear its router cache and sync with server
+                router.refresh();
+                // Sync the Zustand store
+                refresh(); 
             }
         } catch (err) {
             console.error('Delete error:', err);
-            toast.error('Failed to delete member');
+            toast.error('Failed to remove member');
             refresh();
         } finally {
             setIsDeleting(false);
@@ -182,6 +188,7 @@ const TeamMemberRow = memo(({ user, isAdmin, currentUserRole }: { user: any, isA
                             onConfirm={confirmDelete}
                             userName={user.name}
                             userEmail={user.email}
+                            avatarUrl={user.avatar_url}
                         />
                     </>
                 )}
