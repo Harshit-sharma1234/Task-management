@@ -89,63 +89,63 @@ export async function GET(request: Request) {
         .select('workspace_id, role_id, workspaces(slug), roles(role_name)')
         .eq('user_id', userProfile.id)
 
-      if (memberships && memberships.length > 0) {
-        if (isInviteRedirect || token) {
-          // Handle Invite Token for existing users
-          if (token) {
-            const { data: invite } = await adminClient
-              .from('workspace_invites')
-              .select('*, workspaces(name, slug), roles(role_name)')
-              .eq('token', token)
-              .eq('status', 'pending')
-              .gt('expires_at', new Date().toISOString())
+      if (isInviteRedirect || token) {
+        // Handle Invite Token for existing users or new users
+        if (token) {
+          const { data: invite } = await adminClient
+            .from('workspace_invites')
+            .select('*, workspaces(name, slug), roles(role_name)')
+            .eq('token', token)
+            .eq('status', 'pending')
+            .gt('expires_at', new Date().toISOString())
+            .maybeSingle()
+
+          if (invite && invite.email.toLowerCase() === user.email?.toLowerCase()) {
+            // Join workspace (if not already a member)
+            const { data: existing } = await adminClient
+              .from('workspace_members')
+              .select('id')
+              .eq('workspace_id', invite.workspace_id)
+              .eq('user_id', user.id)
               .maybeSingle()
 
-            if (invite && invite.email.toLowerCase() === user.email?.toLowerCase()) {
-              // Join workspace (if not already a member)
-              const { data: existing } = await adminClient
+            if (!existing) {
+              await adminClient
                 .from('workspace_members')
-                .select('id')
-                .eq('workspace_id', invite.workspace_id)
-                .eq('user_id', user.id)
-                .maybeSingle()
+                .insert({
+                  workspace_id: invite.workspace_id,
+                  user_id: user.id,
+                  role_id: invite.role_id,
+                  joined_at: new Date().toISOString(),
+                })
 
-              if (!existing) {
-                await adminClient
-                  .from('workspace_members')
-                  .insert({
-                    workspace_id: invite.workspace_id,
-                    user_id: user.id,
-                    role_id: invite.role_id,
-                    joined_at: new Date().toISOString(),
-                  })
-
-                await adminClient
-                  .from('workspace_invites')
-                  .update({ 
-                    status: 'accepted', 
-                    accepted_at: new Date().toISOString(),
-                    accepted_by: user.id
-                  })
-                  .eq('id', invite.id)
-              }
-
-              const slug = (invite as any).workspaces?.slug
-              const roleName = (invite as any).roles?.role_name || 'Junior Developer'
-              
-              const { revalidatePath } = await import('next/cache')
-              revalidatePath('/', 'layout')
-
-              const { getRolePath } = await import('@/lib/role-utils')
-              const rolePath = getRolePath(roleName)
-              
-              return NextResponse.redirect(`${origin}/dashboard/${slug}/${rolePath}`)
+              await adminClient
+                .from('workspace_invites')
+                .update({ 
+                  status: 'accepted', 
+                  accepted_at: new Date().toISOString(),
+                  accepted_by: user.id
+                })
+                .eq('id', invite.id)
             }
-          }
 
-          return NextResponse.redirect(`${origin}${next}`)
+            const slug = (invite as any).workspaces?.slug
+            const roleName = (invite as any).roles?.role_name || 'Junior Developer'
+            
+            const { revalidatePath } = await import('next/cache')
+            revalidatePath('/', 'layout')
+
+            const { getRolePath } = await import('@/lib/role-utils')
+            const rolePath = getRolePath(roleName)
+            
+            return NextResponse.redirect(`${origin}/dashboard/${slug}/${rolePath}`)
+          }
         }
 
+        return NextResponse.redirect(`${origin}${next}`)
+      }
+
+      if (memberships && memberships.length > 0) {
         let target = memberships[0]
         if (lastWorkspaceId) {
           const matched = memberships.find((m: any) => m.workspace_id === lastWorkspaceId)
@@ -154,6 +154,7 @@ export async function GET(request: Request) {
 
         const slug = (target as any).workspaces?.slug
         const roleName = (target as any).roles?.role_name || 'Junior Developer'
+        const { getRolePath } = await import('@/lib/role-utils')
         const rolePath = getRolePath(roleName)
 
         return NextResponse.redirect(`${origin}/dashboard/${slug}/${rolePath}`)

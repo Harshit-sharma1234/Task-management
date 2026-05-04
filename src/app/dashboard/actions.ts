@@ -4,17 +4,29 @@
 
 import { createClient } from '../../lib/supabase/server'
 import { createAdminClient } from '../../lib/supabase/admin'
-import { revalidatePath, revalidateTag } from 'next/cache'
+import { revalidatePath, revalidateTag, updateTag } from 'next/cache'
 import { getUserProfile } from '../../lib/roles'
 import { createNotification } from './[workspace]/notifications/actions'
 import { insertProjectLog } from './[workspace]/logging/actions'
+import { validatePassword } from '../../lib/validation'
 
 /**
  * Granular revalidation for project-related data.
- * Corrected to use a single argument as per Next.js API.
+ * Uses updateTag for immediate 'read-your-own-writes' consistency
+ * and a standard 'default' profile for revalidation.
  */
+
 function revalidateProjectDataTags(tags: string[] = ['projects', 'tickets', 'project-resources']) {
-    tags.forEach(tag => revalidateTag(tag, "max"));
+    tags.forEach(tag => {
+        try {
+            // updateTag provides immediate consistency for Server Actions
+            updateTag(tag);
+            // fallback revalidation with a shorter profile
+            revalidateTag(tag, "default");
+        } catch (e) {
+            revalidateTag(tag, "default");
+        }
+    });
 }
 
 import { getCachedUsers, getCachedUserProfile } from '../../lib/cache'
@@ -191,11 +203,22 @@ export async function createProject(formData: FormData) {
     runSideEffects()
 
     // Instant Revalidation
-    revalidateTag('projects', "max")
-    revalidateTag(`workspace-${workspaceId}`, "max")
-    revalidatePath('/dashboard')
+    try {
+        updateTag('projects');
+        updateTag(`workspace-${workspaceId}`);
+    } catch (e) {}
+    revalidateTag('projects', "default")
+    revalidateTag(`workspace-${workspaceId}`, "default")
+    revalidatePath('/dashboard', 'layout')
     
-    return { success: true, id: newProject.id }
+    // Fetch the full project object to return to the client for instant store update
+    const { data: project } = await adminClient
+        .from('projects')
+        .select('*')
+        .eq('id', newProject.id)
+        .single()
+    
+    return { success: true, id: newProject.id, project }
 }
 
 export async function updateProjectPriority(projectId: string, priority: string | null) {
@@ -239,9 +262,9 @@ export async function updateProjectPriority(projectId: string, priority: string 
     }).catch(() => {})
 
     revalidateProjectDataTags()
-    revalidatePath('/dashboard/projects', 'page')
+    revalidatePath('/dashboard', 'layout')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
-    revalidatePath('/dashboard')
+    revalidatePath('/dashboard', 'layout')
     return { success: true }
 }
 
@@ -295,9 +318,9 @@ export async function updateProjectLead(projectId: string, leadId: string | null
     }).catch(() => {})
 
     revalidateProjectDataTags()
-    revalidatePath('/dashboard/projects', 'page')
+    revalidatePath('/dashboard', 'layout')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
-    revalidatePath('/dashboard')
+    revalidatePath('/dashboard', 'layout')
     return { success: true }
 }
 
@@ -343,9 +366,9 @@ export async function updateProjectTargetDate(projectId: string, startDate: stri
     }).catch(() => {})
 
     revalidateProjectDataTags()
-    revalidatePath('/dashboard/projects', 'page')
+    revalidatePath('/dashboard', 'layout')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
-    revalidatePath('/dashboard')
+    revalidatePath('/dashboard', 'layout')
     return { success: true }
 }
 
@@ -392,9 +415,9 @@ export async function updateProjectDueDate(projectId: string, dueDate: string | 
     }).catch(() => {})
 
     revalidateProjectDataTags()
-    revalidatePath('/dashboard/projects', 'page')
+    revalidatePath('/dashboard', 'layout')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
-    revalidatePath('/dashboard')
+    revalidatePath('/dashboard', 'layout')
     return { success: true }
 }
 
@@ -438,9 +461,9 @@ export async function updateProjectStatus(projectId: string, status: string | nu
     }).catch(() => {})
 
     revalidateProjectDataTags()
-    revalidatePath('/dashboard/projects', 'page')
+    revalidatePath('/dashboard', 'layout')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
-    revalidatePath('/dashboard')
+    revalidatePath('/dashboard', 'layout')
     return { success: true }
 }
 
@@ -463,10 +486,10 @@ export async function updateProjectName(projectId: string, projectName: string) 
     }
 
     revalidateProjectDataTags()
-    revalidatePath('/dashboard/projects', 'page')
+    revalidatePath('/dashboard', 'layout')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
-    revalidatePath('/dashboard')
-    revalidateTag('projects', "max")
+    revalidatePath('/dashboard', 'layout')
+    revalidateTag('projects', "default")
     
     return { success: true }
 }
@@ -510,9 +533,9 @@ export async function updateProjectDescription(projectId: string, description: s
     }).catch(() => {})
 
     revalidateProjectDataTags()
-    revalidatePath('/dashboard/projects', 'page')
+    revalidatePath('/dashboard', 'layout')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
-    revalidatePath('/dashboard')
+    revalidatePath('/dashboard', 'layout')
     return { success: true }
 }
 
@@ -609,43 +632,55 @@ export async function toggleProjectMember(projectId: string, userId: string) {
     }
 
     revalidateProjectDataTags()
-    revalidatePath('/dashboard/projects', 'page')
+    revalidatePath('/dashboard', 'layout')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
-    revalidatePath('/dashboard')
+    revalidatePath('/dashboard', 'layout')
     return { success: true }
 }
 
-export async function updateUserPassword(oldPassword: string, newPassword: string) {
+export async function updateUserPassword(email: string, oldPassword: string, newPassword: string) {
+    // Server-side password strength check
+    const passwordCheck = validatePassword(newPassword)
+    if (!passwordCheck.valid) {
+        return { error: passwordCheck.error }
+    }
+
     const supabase = await createClient()
     
-    // 1. Ensure the user is logged in
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
+    // Create a lightweight, non-persisting client for password verification to avoid cookie churn
+    const { createClient: createSupabaseClient } = await import('@supabase/supabase-js')
+    const lightweightClient = createSupabaseClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        { auth: { persistSession: false, autoRefreshToken: false } }
+    )
+
+    // Run session check and password verification in parallel for speed!
+    const [authResult, verifyResult] = await Promise.all([
+        supabase.auth.getUser(),
+        oldPassword ? lightweightClient.auth.signInWithPassword({ email, password: oldPassword }) : Promise.resolve({ error: null })
+    ])
+
+    const { data: { user }, error: authError } = authResult
+
+    if (authError || !user || user.email !== email) {
         return { error: 'You must be logged in to update your password.' }
     }
 
-    // 2. Check if the user HAS a password already
-    // OAuth users might not have a password yet.
     const hasPassword = user.identities?.some(id => id.provider === 'email');
 
-    // 3. Verify OLD password ONLY if they already have one
     if (hasPassword) {
         if (!oldPassword) {
             return { error: 'Current password is required to update your account.' }
         }
-
-        const { error: verifyError } = await supabase.auth.signInWithPassword({
-            email: user.email!,
-            password: oldPassword
-        })
-
-        if (verifyError) {
+        if (verifyResult.error) {
             return { error: 'Incorrect current password. Please try again.' }
         }
     }
 
-    // 4. Update to NEW password
-    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    // Use Admin Client to bypass session nonces and update instantly
+    const adminClient = createAdminClient()
+    const { error } = await adminClient.auth.admin.updateUserById(user.id, { password: newPassword })
     
     if (error) {
         console.error('Error updating password:', error)
@@ -759,11 +794,11 @@ export async function updateUserAvatar(userId: string, avatarUrl: string) {
     }
 
     // Invalidate all caches that include avatar data
-    revalidateTag(`user-profile-${user.email}`, "max")
-    revalidateTag('team-members', "max")
-    revalidateTag('issues', "max")
+    revalidateTag(`user-profile-${user.email}`, "default")
+    revalidateTag('team-members', "default")
+    revalidateTag('issues', "default")
     revalidatePath('/dashboard', 'layout')
-    revalidatePath('/dashboard')
+    revalidatePath('/dashboard', 'layout')
     return { success: true, avatarUrl }
 }
 
@@ -828,9 +863,9 @@ export async function provisionEmployee(formData: FormData) {
     }
 
     // Only invalidate cached team members list; no need to re-fetch on every navigation.
-    revalidateTag('team-members', "max")
+    revalidateTag('team-members', "default")
     revalidatePath('/dashboard/admin', 'page')
-    revalidatePath('/dashboard')
+    revalidatePath('/dashboard', 'layout')
     return { success: true, message: `Account created for ${name}. Temporary password: ${tempPassword}` }
 }
 
@@ -860,7 +895,7 @@ export async function addProjectResource(projectId: string, title: string, url: 
 
     revalidateProjectDataTags()
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
-    revalidatePath('/dashboard')
+    revalidatePath('/dashboard', 'layout')
     return { success: true, data }
 }
 
@@ -884,7 +919,7 @@ export async function deleteProjectResource(resourceId: string, projectId: strin
 
     revalidateProjectDataTags()
     revalidatePath(`/dashboard/projects/${projectId}`)
-    revalidatePath('/dashboard')
+    revalidatePath('/dashboard', 'layout')
     return { success: true }
 }
 
@@ -962,8 +997,7 @@ export async function deleteProject(projectId: string) {
 
     // Handle cascading revalidation
     revalidateProjectDataTags()
-    revalidatePath('/dashboard/projects', 'page')
-    revalidatePath('/dashboard', 'page')
+    revalidatePath('/dashboard', 'layout')
 
     return { success: true }
 }

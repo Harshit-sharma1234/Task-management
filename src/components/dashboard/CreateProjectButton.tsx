@@ -118,6 +118,9 @@ export function CreateProjectButton({ variant = 'header', workspaceId }: CreateP
         loading: 'Creating your project...',
         success: (result: any) => {
           if (result.error) throw new Error(result.error)
+          if (result.project) {
+              useGlobalStore.getState().addProject(result.project)
+          }
           return 'Project created successfully!'
         },
         error: (err: any) => {
