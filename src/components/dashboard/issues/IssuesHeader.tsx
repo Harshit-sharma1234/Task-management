@@ -34,6 +34,9 @@ export function IssuesHeader({
     { id: 'all', label: 'All issues' },
     { id: 'active', label: 'Active' },
     { id: 'backlog', label: 'Backlog' },
+    { id: 'urgent', label: 'My Urgent' },
+    { id: 'in_progress', label: 'My In Progress' },
+    { id: 'completed', label: 'My Completed' },
   ];
 
   return (
