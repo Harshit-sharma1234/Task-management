@@ -92,8 +92,17 @@ export const LeadSelector = memo(forwardRef<SelectorHandle, LeadSelectorProps>((
         }
 
         setIsOpen(false);
-        // Optimistic update
-        useGlobalStore.getState().updateProject({ id: projectId, lead_id: leadId });
+        // Optimistic update: update both lead_id and the lead object for instant name change
+        const selectedUser = users.find(u => u.id === leadId);
+        useGlobalStore.getState().updateProject({ 
+            id: projectId, 
+            lead_id: leadId,
+            lead: selectedUser ? {
+                id: selectedUser.id,
+                name: selectedUser.name,
+                avatar_url: selectedUser.avatar_url
+            } : null
+        });
 
         startTransition(async () => {
             const res = await updateProjectLead(projectId, leadId);
