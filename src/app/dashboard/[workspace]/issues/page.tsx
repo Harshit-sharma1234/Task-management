@@ -22,20 +22,24 @@ export default async function IssuesPage({
   params: Promise<{ workspace: string }>;
   searchParams: Promise<{ filter?: string }>;
 }) {
-  const user = await getServerUser();
+  // Resolve auth + route params in parallel (getServerUser is React.cache-deduplicated with layout)
+  const [user, resolvedParams, resolvedSearchParams] = await Promise.all([
+    getServerUser(),
+    params,
+    searchParams
+  ]);
 
   if (!user) {
     redirect('/login');
   }
 
-  const { workspace: workspaceSlug } = await params;
+  const { workspace: workspaceSlug } = resolvedParams;
   const workspace = await getCachedWorkspaceBySlug(workspaceSlug);
 
   if (!workspace) {
     redirect('/dashboard');
   }
 
-  const resolvedSearchParams = await searchParams;
   const filter = resolvedSearchParams.filter || 'all';
 
   return (
@@ -51,15 +55,18 @@ export default async function IssuesPage({
 }
 
 async function IssueListContent({ filter, userEmail, workspaceId, workspaceSlug }: { filter: string; userEmail: string; workspaceId: string; workspaceSlug: string }) {
-  // Fetch all required data in parallel including user profile
-  const [ticketsRes, cachedProjects, cachedUsers, profile] = await Promise.all([
+  // Fetch profile first — cached at 3600s TTL so almost always a cache hit (~1ms).
+  // This unlocks the member lookup to run in parallel with the heavy queries below.
+  const profile = await getCachedUserProfile(userEmail);
+
+  // Now fetch everything in a single parallel batch, including member lookup
+  const [ticketsRes, cachedProjects, cachedUsers, member] = await Promise.all([
     getCachedIssuesList(workspaceId, INITIAL_ISSUES_LIMIT),
     getCachedIssueProjects(workspaceId),
     getCachedIssueUsers(workspaceId),
-    getCachedUserProfile(userEmail)
+    profile?.id ? getCachedWorkspaceMember(workspaceId, profile.id) : Promise.resolve(null)
   ]);
 
-  const member = profile?.id ? await getCachedWorkspaceMember(workspaceId, profile.id) : null;
   const currentUser = profile ? { ...profile, roles: member?.roles || null } : null;
 
   const tickets = ticketsRes || [];

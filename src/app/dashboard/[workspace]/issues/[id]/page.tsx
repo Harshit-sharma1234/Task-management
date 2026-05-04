@@ -11,6 +11,7 @@ import { EditableIssueContent } from '@/components/dashboard/issues/EditableIssu
 import { getCachedUserProfile, getCachedIssueUsers, getCachedWorkspaceBySlug, getCachedWorkspaceMember } from '@/lib/cache';
 // Triggering re-parse to fix ReferenceError
 import { IssueActivitySkeleton } from '@/components/dashboard/issues/IssueActivitySkeleton';
+import { getServerUser } from '@/lib/auth-server';
 
 async function IssueActivitySection({
   ticketId,
@@ -79,29 +80,38 @@ async function IssueActivitySection({
 }
 
 export default async function IssueDetailsPage({ params }: { params: Promise<{ id: string; workspace: string }> }) {
-  const { id, workspace: workspaceSlug } = await params;
-  const supabase = await createClient();
-  const adminClient = createAdminClient();
-
-  const { data: { user } } = await supabase.auth.getUser();
+  // Step 1: Resolve auth + params in parallel (getServerUser is React.cache-deduplicated with layout)
+  const [user, resolvedParams] = await Promise.all([
+    getServerUser(),
+    params
+  ]);
 
   if (!user) {
     redirect('/login');
   }
 
-  const workspace = await getCachedWorkspaceBySlug(workspaceSlug);
+  const { id, workspace: workspaceSlug } = resolvedParams;
+  const adminClient = createAdminClient();
+
+  // Step 2: Resolve workspace + profile + supabase client all in parallel
+  const [workspace, profileByAuthRes, supabase] = await Promise.all([
+    getCachedWorkspaceBySlug(workspaceSlug),
+    adminClient
+      .from('users')
+      .select('id, auth_id, email, name, employee_id, avatar_url')
+      .eq('auth_id', user.id)
+      .maybeSingle(),
+    createClient()
+  ]);
+
   if (!workspace) redirect('/dashboard');
 
-  // Resolve profile by auth_id first (avoids email/id mismatch).
-  const { data: profileByAuth } = await adminClient
-    .from('users')
-    .select('id, auth_id, email, name, employee_id, avatar_url')
-    .eq('auth_id', user.id)
-    .maybeSingle();
+  // Resolve profile: prefer auth_id lookup, fall back to cached email lookup
+  const profile = profileByAuthRes.data || await getCachedUserProfile(user.email!);
 
-  // Fetch above-the-fold data first.
-  // Comments/logs are loaded inside Suspense to keep navigation snappy.
-  const [ticketResponse, profile, allUsers] = await Promise.all([
+  // Step 3: Fetch ticket + users + member ALL in parallel
+  // Previously member was a sequential call after this Promise.all
+  const [ticketResponse, allUsers, member] = await Promise.all([
     supabase
       .from('tickets')
       .select(`
@@ -119,11 +129,9 @@ export default async function IssueDetailsPage({ params }: { params: Promise<{ i
       `)
       .eq('id', id)
       .single(),
-    profileByAuth ? Promise.resolve(profileByAuth) : getCachedUserProfile(user.email!),
-    getCachedIssueUsers(workspace.id)
+    getCachedIssueUsers(workspace.id),
+    profile?.id ? getCachedWorkspaceMember(workspace.id, profile.id) : Promise.resolve(null)
   ]);
-
-  const member = profile?.id ? await getCachedWorkspaceMember(workspace.id, profile.id) : null;
 
   const { data: ticket, error: ticketError } = ticketResponse;
 
