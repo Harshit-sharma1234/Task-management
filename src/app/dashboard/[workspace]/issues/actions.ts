@@ -183,6 +183,7 @@ export async function createIssue(formData: FormData) {
 
   // Granular revalidation
   revalidateTag('issues', "max")
+  revalidateTag('dashboard-stats', "max")
   if (projectId) {
     revalidatePath(`/dashboard/projects/${projectId}`);
   }
@@ -751,6 +752,7 @@ export async function updateIssue(ticketId: string, updates: {
   }
   revalidatePath('/dashboard');
   revalidateTag('issues', "max")
+  revalidateTag('dashboard-stats', "max")
   return { success: true, data }
 }
 

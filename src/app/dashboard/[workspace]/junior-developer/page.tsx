@@ -53,7 +53,7 @@ export default async function JuniorDevDashboard({ params }: { params: Promise<{
             </div>
 
             <Suspense fallback={<StatsSkeleton />}>
-                <StatsCards userId={profile.id} workspaceId={workspace.id} />
+                <StatsCards userId={profile.id} workspaceId={workspace.id} workspaceSlug={workspace.slug} />
             </Suspense>
 
             <DashboardOverview userId={profile.id} workspaceId={workspace.id} workspaceSlug={workspace.slug} userRole="Developer" />
