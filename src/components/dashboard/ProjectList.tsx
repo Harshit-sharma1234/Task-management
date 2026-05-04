@@ -25,6 +25,11 @@ interface Project {
     priority: string | null;
     status: string | null;
     start_date: string | null;
+    lead?: {
+        id: string;
+        name: string;
+        avatar_url?: string | null;
+    } | null;
 }
 
 interface User {
@@ -132,7 +137,8 @@ const ProjectRow = memo(({
         return <div className="text-[10px] text-gray-300 font-bold tracking-tight">---</div>;
     };
 
-    const leadUser = users.find(u => u.id === project.lead_id);
+    // Resolve lead user: try workspace team list first, fallback to joined data from DB
+    const leadUser = users.find(u => u.id === project.lead_id) || project.lead;
 
     return (
         <div
@@ -168,7 +174,15 @@ const ProjectRow = memo(({
             {/* Lead */}
             <div className="hidden sm:flex items-center relative z-10 pl-2">
                 {isInteractive ? (
-                    <LeadSelector projectId={project.id} currentLeadId={project.lead_id} users={users} showName={true} hideAvatar={true} align="left" />
+                    <LeadSelector 
+                        projectId={project.id} 
+                        currentLeadId={project.lead_id} 
+                        users={users} 
+                        showName={true} 
+                        hideAvatar={true} 
+                        align="left" 
+                        fallbackUser={project.lead}
+                    />
                 ) : (
                     <div className="py-0.5">
                         {leadUser ? (
@@ -177,7 +191,7 @@ const ProjectRow = memo(({
                             </span>
                         ) : (
                             <span className="text-[11px] font-medium text-gray-400 italic">
-                                Unassigned
+                                {project.lead_id ? 'Unknown Lead' : 'Unassigned'}
                             </span>
                         )}
                     </div>
