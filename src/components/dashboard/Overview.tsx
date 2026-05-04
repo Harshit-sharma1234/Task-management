@@ -119,9 +119,10 @@ export default function DashboardOverview({ userId, workspaceId, workspaceSlug, 
 interface StatsCardsProps {
     userId?: string;
     workspaceId: string;
+    workspaceSlug?: string;
 }
 
-async function StatsCards({ userId, workspaceId }: StatsCardsProps) {
+async function StatsCards({ userId, workspaceId, workspaceSlug }: StatsCardsProps) {
     if (userId) {
         // Fetch personalized stats
         const { getCachedUserStatsV2 } = await import('@/lib/cache');
@@ -131,7 +132,15 @@ async function StatsCards({ userId, workspaceId }: StatsCardsProps) {
                 <StatCard label="My Urgent Issues" value={userStats.urgentIssuesCount} icon={CircleDot} color="text-red-500" bg="bg-red-50" delay="delay-0" />
                 <StatCard label="Tickets Completed" value={userStats.completedTicketsCount} icon={CheckCircle2} color="text-green-500" bg="bg-green-50" delay="delay-75" />
                 <StatCard label="In Progress" value={userStats.inProgressTicketsCount} icon={Clock} color="text-indigo-600" bg="bg-indigo-50" delay="delay-150" />
-                <StatCard label="Projects Assigned" value={userStats.projectsAssignedCount} icon={Folder} color="text-purple-600" bg="bg-purple-50" delay="delay-300" />
+                <StatCard 
+                    label="Projects Assigned" 
+                    value={userStats.projectsAssignedCount} 
+                    icon={Folder} 
+                    color="text-purple-600" 
+                    bg="bg-purple-50" 
+                    delay="delay-300" 
+                    href={workspaceSlug ? `/dashboard/${workspaceSlug}/projects?filter=assigned` : undefined}
+                />
             </div>
         );
     }
@@ -149,11 +158,12 @@ async function StatsCards({ userId, workspaceId }: StatsCardsProps) {
     )
 }
 
-function StatCard({ label, value, icon: Icon, color, bg, delay }: any) {
-    return (
+function StatCard({ label, value, icon: Icon, color, bg, delay, href }: any) {
+    const content = (
         <div className={cn(
-            "premium-card rounded-2xl p-6 group animate-slide-up relative overflow-hidden",
-            delay
+            "premium-card rounded-2xl p-6 group animate-slide-up relative overflow-hidden h-full",
+            delay,
+            href && "hover:border-indigo-200 transition-colors cursor-pointer"
         )}>
             <div className={cn("absolute -right-4 -top-4 w-24 h-24 rounded-full opacity-[0.03] transition-transform duration-700 group-hover:scale-150", bg)} />
             <div className="flex justify-between items-start relative z-10">
@@ -168,7 +178,13 @@ function StatCard({ label, value, icon: Icon, color, bg, delay }: any) {
                 </div>
             </div>
         </div>
-    )
+    );
+
+    if (href) {
+        return <Link href={href}>{content}</Link>;
+    }
+
+    return content;
 }
 
 /**
