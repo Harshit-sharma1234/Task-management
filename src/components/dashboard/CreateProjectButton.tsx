@@ -132,7 +132,7 @@ export function CreateProjectButton({ variant = 'header', workspaceId }: CreateP
         success: (result: any) => {
           if (result.error) throw new Error(result.error)
           if (result.project) {
-              useGlobalStore.getState().addProject(result.project)
+            useGlobalStore.getState().addProject(result.project)
           }
           return 'Project created successfully!'
         },
@@ -323,18 +323,6 @@ export function CreateProjectButton({ variant = 'header', workspaceId }: CreateP
                   </button>
                   {openPill === 'lead' && (
                     <div className="absolute z-20 mt-2 w-56 rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden max-h-72 overflow-y-auto">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setLeadId('')
-                          setOpenPill(null)
-                        }}
-                        className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center justify-between ${!leadId ? 'bg-gray-50' : ''
-                          }`}
-                      >
-                        <span className="text-gray-800">No lead</span>
-                        {!leadId && <Check size={16} className="text-indigo-600" />}
-                      </button>
                       {users.map(u => (
                         <button
                           key={u.id}
