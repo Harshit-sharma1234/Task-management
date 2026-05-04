@@ -5,8 +5,10 @@ interface GlobalState {
   team: any[];
   activeWorkspaceId: string | null;
   isInitialLoadComplete: boolean;
+  myProjectIds: string[];
   
   setProjects: (projects: any[]) => void;
+  setMyProjectIds: (ids: string[]) => void;
   setTeam: (team: any[]) => void;
   setActiveWorkspaceId: (id: string | null) => void;
   setInitialLoadComplete: (val: boolean) => void;
@@ -28,8 +30,10 @@ export const useGlobalStore = create<GlobalState>((set) => ({
   team: [],
   activeWorkspaceId: null,
   isInitialLoadComplete: false,
+  myProjectIds: [],
 
   setProjects: (projects) => set({ projects }),
+  setMyProjectIds: (ids) => set({ myProjectIds: ids }),
   setTeam: (team) => set({ team }),
   setActiveWorkspaceId: (id) => set({ activeWorkspaceId: id }),
   setInitialLoadComplete: (val) => set({ isInitialLoadComplete: val }),

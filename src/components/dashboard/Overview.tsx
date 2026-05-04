@@ -113,9 +113,6 @@ export default function DashboardOverview({ userId, workspaceId, workspaceSlug, 
     )
 }
 
-/**
- * ── STATS CARDS ──
- */
 interface StatsCardsProps {
     userId?: string;
     workspaceId: string;
@@ -132,7 +129,7 @@ async function StatsCards({ userId, workspaceId, workspaceSlug }: StatsCardsProp
                 <StatCard label="My Urgent Issues" value={userStats.urgentIssuesCount} icon={CircleDot} color="text-red-500" bg="bg-red-50" delay="delay-0" href={`/dashboard/${workspaceSlug}/issues?filter=urgent`} />
                 <StatCard label="Tickets Completed" value={userStats.completedTicketsCount} icon={CheckCircle2} color="text-green-500" bg="bg-green-50" delay="delay-75" href={`/dashboard/${workspaceSlug}/issues?filter=completed`} />
                 <StatCard label="In Progress" value={userStats.inProgressTicketsCount} icon={Clock} color="text-indigo-600" bg="bg-indigo-50" delay="delay-150" href={`/dashboard/${workspaceSlug}/issues?filter=in_progress`} />
-                <StatCard label="Projects Assigned" value={userStats.projectsAssignedCount} icon={Folder} color="text-purple-600" bg="bg-purple-50" delay="delay-300" href={`/dashboard/${workspaceSlug}/projects`} />
+                <StatCard label="Projects Assigned" value={userStats.projectsAssignedCount} icon={Folder} color="text-purple-600" bg="bg-purple-50" delay="delay-300" href={`/dashboard/${workspaceSlug}/projects?filter=assigned`} />
             </div>
         );
     }
@@ -168,7 +165,7 @@ function StatCard({ label, value, icon: Icon, color, bg, delay, href }: any) {
         </>
     );
 
-    const className = cn(
+    const cardClassName = cn(
         "premium-card rounded-2xl p-6 group animate-slide-up relative overflow-hidden h-full block",
         delay,
         href && "cursor-pointer hover:shadow-md transition-shadow"
@@ -176,17 +173,17 @@ function StatCard({ label, value, icon: Icon, color, bg, delay, href }: any) {
 
     if (href) {
         return (
-            <Link href={href} className={className}>
+            <Link href={href} className={cardClassName}>
                 {CardContent}
             </Link>
         );
     }
 
     return (
-        <div className={className}>
+        <div className={cardClassName}>
             {CardContent}
         </div>
-    )
+    );
 }
 
 /**
