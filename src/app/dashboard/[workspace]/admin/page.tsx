@@ -53,7 +53,7 @@ export default async function AdminDashboard({ params }: { params: Promise<{ wor
             </div>
 
             <Suspense fallback={<StatsSkeleton />}>
-                <StatsCards userId={profile.id} workspaceId={workspace.id} />
+                <StatsCards userId={profile.id} workspaceId={workspace.id} workspaceSlug={workspace.slug} />
             </Suspense>
 
             <DashboardOverview userId={profile.id} workspaceId={workspace.id} workspaceSlug={workspace.slug} userRole="Admin" />

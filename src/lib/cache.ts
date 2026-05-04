@@ -147,8 +147,8 @@ export const getCachedUserStatsV2 = (userId: string, workspaceId: string) =>
       ]);
 
       const leadIds = leadProjectsRes.data?.map(p => p.id) || [];
-      const memberIds = memberProjectsRes.data?.map(m => (m as any).project_id) || [];
-      const uniqueProjectIds = new Set([...leadIds, ...memberIds]);
+      // Removed memberProjectsRes inclusion as per user feedback about 'unassigned' leads/members
+      const uniqueProjectIds = new Set(leadIds);
 
       return {
         urgentIssuesCount: urgentTicketsRes.count || 0,
