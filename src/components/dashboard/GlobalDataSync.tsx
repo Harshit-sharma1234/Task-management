@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import { useGlobalStore } from '@/lib/store/global';
 import { useTeamStore } from '@/lib/store/team';
 import { useNotificationStore } from '@/lib/store/notifications';
+import { useSettingsStore } from '@/lib/store/settings';
 import { createClient } from '@/lib/supabase/client';
 
 interface GlobalDataSyncProps {
@@ -30,6 +31,7 @@ export function GlobalDataSync({ initialData }: GlobalDataSyncProps) {
     const { setProjects, setTeam, setInitialLoadComplete, setActiveWorkspaceId, updateProject } = useGlobalStore();
     const { setTeamData } = useTeamStore();
     const { setUnreadCount } = useNotificationStore();
+    const { setUserData } = useSettingsStore();
     const supabase = createClient();
 
     // IMMEDIATE HYDRATION / RE-HYDRATION ON WORKSPACE CHANGE
@@ -43,6 +45,9 @@ export function GlobalDataSync({ initialData }: GlobalDataSyncProps) {
             initialData.activeWorkspaceId || ''
         );
         setUnreadCount(initialData.unreadCount);
+        if (initialData.profile) {
+            setUserData(initialData.profile);
+        }
         if (initialData.activeWorkspaceId) {
             setActiveWorkspaceId(initialData.activeWorkspaceId);
         }
