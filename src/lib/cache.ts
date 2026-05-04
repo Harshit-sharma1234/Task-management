@@ -451,7 +451,7 @@ export const getCachedIssuesList = (workspaceId: string, limit: number = 120) =>
     },
     ['issues-list', workspaceId, String(limit)],
     {
-      revalidate: 30,
+      revalidate: 60,
       tags: ['issues', 'projects', 'team-members', `workspace-${workspaceId}`],
     }
   )();
