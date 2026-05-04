@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Lock, CheckCircle2, Loader2, ArrowRight } from 'lucide-react'
+import { Lock, CheckCircle2, Loader2, ArrowRight, Eye, EyeOff } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 
@@ -11,6 +11,7 @@ export default function SetPasswordForm() {
     const [confirmPassword, setConfirmPassword] = useState('')
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState('')
+    const [showPassword, setShowPassword] = useState(false)
     const router = useRouter()
     const supabase = createClient()
 
@@ -65,13 +66,16 @@ export default function SetPasswordForm() {
                             <Lock size={18} />
                         </div>
                         <input 
-                            type="password" 
+                            type={showPassword ? 'text' : 'password'} 
                             required
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            className="w-full pl-12 pr-4 py-3.5 bg-[var(--color-linear-bg)] border border-[var(--color-linear-border)] rounded-2xl text-sm font-medium focus:ring-4 focus:ring-[var(--color-linear-accent)]/20 focus:border-[var(--color-linear-accent)] outline-none transition-all placeholder:[var(--color-linear-muted)]"
+                            className="w-full pl-12 pr-12 py-3.5 bg-[var(--color-linear-bg)] border border-[var(--color-linear-border)] rounded-2xl text-sm font-medium focus:ring-4 focus:ring-[var(--color-linear-accent)]/20 focus:border-[var(--color-linear-accent)] outline-none transition-all placeholder:[var(--color-linear-muted)]"
                             placeholder="At least 8 characters"
                         />
+                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-4 flex items-center text-[var(--color-linear-muted)] hover:text-[var(--color-linear-text)] transition-colors">
+                            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
                     </div>
                 </div>
 
@@ -82,13 +86,16 @@ export default function SetPasswordForm() {
                             <CheckCircle2 size={18} />
                         </div>
                         <input 
-                            type="password" 
+                            type={showPassword ? 'text' : 'password'} 
                             required
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
-                            className="w-full pl-12 pr-4 py-3.5 bg-[var(--color-linear-bg)] border border-[var(--color-linear-border)] rounded-2xl text-sm font-medium focus:ring-4 focus:ring-[var(--color-linear-accent)]/20 focus:border-[var(--color-linear-accent)] outline-none transition-all placeholder:[var(--color-linear-muted)]"
+                            className="w-full pl-12 pr-12 py-3.5 bg-[var(--color-linear-bg)] border border-[var(--color-linear-border)] rounded-2xl text-sm font-medium focus:ring-4 focus:ring-[var(--color-linear-accent)]/20 focus:border-[var(--color-linear-accent)] outline-none transition-all placeholder:[var(--color-linear-muted)]"
                             placeholder="Repeat password"
                         />
+                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-4 flex items-center text-[var(--color-linear-muted)] hover:text-[var(--color-linear-text)] transition-colors">
+                            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
                     </div>
                 </div>
             </div>
