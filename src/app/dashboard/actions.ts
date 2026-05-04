@@ -214,7 +214,7 @@ export async function createProject(formData: FormData) {
     // Fetch the full project object to return to the client for instant store update
     const { data: project } = await adminClient
         .from('projects')
-        .select('*')
+        .select('*, lead:users!lead_id(id, name, avatar_url)')
         .eq('id', newProject.id)
         .single()
     
