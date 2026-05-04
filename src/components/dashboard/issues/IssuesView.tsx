@@ -194,9 +194,15 @@ export function IssuesView({
       result = tickets.filter(t => t.status === 'in_progress' || t.status === 'to_do');
     } else if (activeFilter === 'backlog') {
       result = tickets.filter(t => t.status === 'backlog');
+    } else if (activeFilter === 'urgent') {
+      result = tickets.filter(t => t.priority === 'urgent' && (t.assignee_id === currentUser?.id || t.reviewer_id === currentUser?.id) && t.status !== 'done');
+    } else if (activeFilter === 'completed') {
+      result = tickets.filter(t => t.status === 'done' && (t.assignee_id === currentUser?.id || t.reviewer_id === currentUser?.id));
+    } else if (activeFilter === 'in_progress') {
+      result = tickets.filter(t => (t.status === 'in_progress' || t.status === 'in_review') && (t.assignee_id === currentUser?.id || t.reviewer_id === currentUser?.id));
     }
     return result;
-  }, [tickets, activeFilter]);
+  }, [tickets, activeFilter, currentUser]);
 
   // Transform data based on display settings
   const groupedData = useMemo(() => {

@@ -119,19 +119,20 @@ export default function DashboardOverview({ userId, workspaceId, workspaceSlug, 
 interface StatsCardsProps {
     userId?: string;
     workspaceId: string;
+    workspaceSlug?: string;
 }
 
-async function StatsCards({ userId, workspaceId }: StatsCardsProps) {
-    if (userId) {
+async function StatsCards({ userId, workspaceId, workspaceSlug }: StatsCardsProps) {
+    if (userId && workspaceSlug) {
         // Fetch personalized stats
         const { getCachedUserStatsV2 } = await import('@/lib/cache');
         const userStats = await getCachedUserStatsV2(userId, workspaceId);
         return (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                <StatCard label="My Urgent Issues" value={userStats.urgentIssuesCount} icon={CircleDot} color="text-red-500" bg="bg-red-50" delay="delay-0" />
-                <StatCard label="Tickets Completed" value={userStats.completedTicketsCount} icon={CheckCircle2} color="text-green-500" bg="bg-green-50" delay="delay-75" />
-                <StatCard label="In Progress" value={userStats.inProgressTicketsCount} icon={Clock} color="text-indigo-600" bg="bg-indigo-50" delay="delay-150" />
-                <StatCard label="Projects Assigned" value={userStats.projectsAssignedCount} icon={Folder} color="text-purple-600" bg="bg-purple-50" delay="delay-300" />
+                <StatCard label="My Urgent Issues" value={userStats.urgentIssuesCount} icon={CircleDot} color="text-red-500" bg="bg-red-50" delay="delay-0" href={`/dashboard/${workspaceSlug}/issues?filter=urgent`} />
+                <StatCard label="Tickets Completed" value={userStats.completedTicketsCount} icon={CheckCircle2} color="text-green-500" bg="bg-green-50" delay="delay-75" href={`/dashboard/${workspaceSlug}/issues?filter=completed`} />
+                <StatCard label="In Progress" value={userStats.inProgressTicketsCount} icon={Clock} color="text-indigo-600" bg="bg-indigo-50" delay="delay-150" href={`/dashboard/${workspaceSlug}/issues?filter=in_progress`} />
+                <StatCard label="Projects Assigned" value={userStats.projectsAssignedCount} icon={Folder} color="text-purple-600" bg="bg-purple-50" delay="delay-300" href={`/dashboard/${workspaceSlug}/projects`} />
             </div>
         );
     }
@@ -141,20 +142,17 @@ async function StatsCards({ userId, workspaceId }: StatsCardsProps) {
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <StatCard label="Urgent Issues" value={stats.urgentIssuesCount} icon={CircleDot} color="text-red-500" bg="bg-red-50" delay="delay-0" />
-            <StatCard label="Completed" value={stats.completedProjectsCount} icon={CheckCircle2} color="text-green-500" bg="bg-green-50" delay="delay-75" />
-            <StatCard label="In Progress" value={stats.inProgressProjectsCount} icon={Clock} color="text-indigo-600" bg="bg-indigo-50" delay="delay-150" />
-            <StatCard label="Total Tickets" value={stats.tasksCount || 0} icon={Folder} color="text-purple-600" bg="bg-purple-50" delay="delay-300" />
+            <StatCard label="Urgent Issues" value={stats.urgentIssuesCount} icon={CircleDot} color="text-red-500" bg="bg-red-50" delay="delay-0" href={workspaceSlug ? `/dashboard/${workspaceSlug}/issues?filter=urgent` : undefined} />
+            <StatCard label="Completed" value={stats.completedProjectsCount} icon={CheckCircle2} color="text-green-500" bg="bg-green-50" delay="delay-75" href={workspaceSlug ? `/dashboard/${workspaceSlug}/issues?filter=completed` : undefined} />
+            <StatCard label="In Progress" value={stats.inProgressProjectsCount} icon={Clock} color="text-indigo-600" bg="bg-indigo-50" delay="delay-150" href={workspaceSlug ? `/dashboard/${workspaceSlug}/issues?filter=in_progress` : undefined} />
+            <StatCard label="Total Tickets" value={stats.tasksCount || 0} icon={Folder} color="text-purple-600" bg="bg-purple-50" delay="delay-300" href={workspaceSlug ? `/dashboard/${workspaceSlug}/issues` : undefined} />
         </div>
     )
 }
 
-function StatCard({ label, value, icon: Icon, color, bg, delay }: any) {
-    return (
-        <div className={cn(
-            "premium-card rounded-2xl p-6 group animate-slide-up relative overflow-hidden",
-            delay
-        )}>
+function StatCard({ label, value, icon: Icon, color, bg, delay, href }: any) {
+    const CardContent = (
+        <>
             <div className={cn("absolute -right-4 -top-4 w-24 h-24 rounded-full opacity-[0.03] transition-transform duration-700 group-hover:scale-150", bg)} />
             <div className="flex justify-between items-start relative z-10">
                 <div>
@@ -167,6 +165,26 @@ function StatCard({ label, value, icon: Icon, color, bg, delay }: any) {
                     <Icon size={20} strokeWidth={2.5} />
                 </div>
             </div>
+        </>
+    );
+
+    const className = cn(
+        "premium-card rounded-2xl p-6 group animate-slide-up relative overflow-hidden h-full block",
+        delay,
+        href && "cursor-pointer hover:shadow-md transition-shadow"
+    );
+
+    if (href) {
+        return (
+            <Link href={href} className={className}>
+                {CardContent}
+            </Link>
+        );
+    }
+
+    return (
+        <div className={className}>
+            {CardContent}
         </div>
     )
 }
