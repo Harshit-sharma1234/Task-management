@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useTransition, memo, useCallback, forwardR
 import { updateProjectPriority } from '@/app/dashboard/actions';
 import { toast } from 'sonner';
 import { AlertCircle, SignalHigh, SignalMedium, SignalLow, Ban } from 'lucide-react';
+import { useGlobalStore } from '@/lib/store/global';
 
 interface PrioritySelectorProps {
     projectId: string;
@@ -89,6 +90,7 @@ export const PrioritySelector = memo(forwardRef<SelectorHandle, PrioritySelector
         // Optimistic: instantly update the UI
         const previousPriority = optimisticPriority;
         setOptimisticPriority(value);
+        useGlobalStore.getState().updateProject({ id: projectId, priority: value });
         setIsOpen(false);
 
         startTransition(async () => {
@@ -96,6 +98,7 @@ export const PrioritySelector = memo(forwardRef<SelectorHandle, PrioritySelector
             if (res.error) {
                 // Revert on failure
                 setOptimisticPriority(previousPriority);
+                useGlobalStore.getState().updateProject({ id: projectId, priority: previousPriority });
                 toast.error(res.error);
             }
         });

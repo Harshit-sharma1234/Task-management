@@ -33,7 +33,7 @@ export default async function WorkspaceDashboardLayout({
   const [userProfileRes, allWorkspacesRes, projectsRes, teamRes, unreadRes] = await Promise.all([
     adminClient.from('users').select('id, name, avatar_url').eq('auth_id', user.id).single(),
     adminClient.from('workspace_members').select('workspace_id, workspaces(id, name, slug), roles(role_name)').eq('user_id', user.id), 
-    adminClient.from('projects').select('id, project_name, description, status, priority, lead_id, start_date, created_at').eq('workspace_id', workspace.id).order('created_at', { ascending: false }),
+    adminClient.from('projects').select('id, project_name, description, status, priority, lead_id, start_date, created_at, lead:users!lead_id(id, name, avatar_url)').eq('workspace_id', workspace.id).order('created_at', { ascending: false }),
     adminClient.from('workspace_members').select('user_id, users(id, name, email, avatar_url), roles(role_name)').eq('workspace_id', workspace.id),
     adminClient.from('notifications').select('id', { count: 'estimated', head: true }).eq('user_id', user.id).eq('workspace_id', workspace.id).eq('is_read', false),
   ]);
@@ -54,10 +54,14 @@ export default async function WorkspaceDashboardLayout({
   const rolesData = (membership as any).roles;
   const roleName = (Array.isArray(rolesData) ? rolesData[0]?.role_name : rolesData?.role_name) || '';
 
-  const team = (teamRes.data || []).map((m: any) => ({
-    ...m.users,
-    roles: m.roles,
-  }));
+  const team = (teamRes.data || []).map((m: any) => {
+    const user = Array.isArray(m.users) ? m.users[0] : m.users;
+    const role = Array.isArray(m.roles) ? m.roles[0] : m.roles;
+    return {
+      ...user,
+      roles: { role_name: role?.role_name },
+    };
+  }).filter(u => u.id);
 
   const availableWorkspaces = (allWorkspacesRes.data || []).map((m: any) => {
     const ws = Array.isArray(m.workspaces) ? m.workspaces[0] : m.workspaces;
