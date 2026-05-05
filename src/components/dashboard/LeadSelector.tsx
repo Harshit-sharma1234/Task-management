@@ -6,6 +6,7 @@ import { User as UserIcon, Search, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { getInitials, getBadgeColor } from '@/lib/avatar';
+import { useGlobalStore } from '@/lib/store/global';
 
 interface User {
     id: string;
@@ -22,6 +23,11 @@ interface LeadSelectorProps {
     showName?: boolean;
     hideAvatar?: boolean;
     align?: 'left' | 'right';
+    fallbackUser?: {
+        id: string;
+        name: string;
+        avatar_url?: string | null;
+    } | null;
 }
 
 // Re-export for backward compatibility with any external consumers
@@ -36,7 +42,8 @@ export const LeadSelector = memo(forwardRef<SelectorHandle, LeadSelectorProps>((
     showEmail = false,
     showName = false,
     hideAvatar = false,
-    align = 'left'
+    align = 'left',
+    fallbackUser = null
 }, ref) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -56,8 +63,13 @@ export const LeadSelector = memo(forwardRef<SelectorHandle, LeadSelectorProps>((
     }, [users, searchQuery]);
 
     // Current lead processing
-    const currentLead = useMemo(() => users.find(u => u.id === currentLeadId), [users, currentLeadId]);
-    const leadLabel = currentLead ? (showEmail ? currentLead.email : currentLead.name) : 'Unassigned';
+    const currentLead = useMemo(() => {
+        return users.find(u => u.id === currentLeadId) || (fallbackUser?.id === currentLeadId ? fallbackUser : null);
+    }, [users, currentLeadId, fallbackUser]);
+
+    const leadLabel = currentLead 
+        ? (showEmail ? (currentLead as any).email || currentLead.name : currentLead.name) 
+        : (currentLeadId ? 'Unknown Lead' : 'Unassigned');
 
     // Click outside logic
     useEffect(() => {
@@ -74,15 +86,29 @@ export const LeadSelector = memo(forwardRef<SelectorHandle, LeadSelectorProps>((
 
     // Handle lead selection
     const handleSelect = useCallback((leadId: string | null) => {
-        if (leadId === currentLeadId) {
+        if (leadId === currentLeadId || !leadId) {
             setIsOpen(false);
             return;
         }
 
         setIsOpen(false);
+        // Optimistic update: update both lead_id and the lead object for instant name change
+        const selectedUser = users.find(u => u.id === leadId);
+        useGlobalStore.getState().updateProject({ 
+            id: projectId, 
+            lead_id: leadId,
+            lead: selectedUser ? {
+                id: selectedUser.id,
+                name: selectedUser.name,
+                avatar_url: selectedUser.avatar_url
+            } : null
+        });
+
         startTransition(async () => {
             const res = await updateProjectLead(projectId, leadId);
             if (res.error) {
+                // Revert on failure
+                useGlobalStore.getState().updateProject({ id: projectId, lead_id: currentLeadId });
                 toast.error(res.error);
             }
         });
@@ -99,7 +125,7 @@ export const LeadSelector = memo(forwardRef<SelectorHandle, LeadSelectorProps>((
             >
                 {!hideAvatar && (
                     <UserAvatar
-                        name={currentLead ? currentLead.name : 'Unassigned'}
+                        name={currentLead ? currentLead.name : (currentLeadId ? '?' : 'Unassigned')}
                         avatarUrl={currentLead?.avatar_url}
                         size="sm"
                     />
@@ -126,23 +152,6 @@ export const LeadSelector = memo(forwardRef<SelectorHandle, LeadSelectorProps>((
                     </div>
 
                     <div className="flex flex-col max-h-64 overflow-y-auto p-1">
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                handleSelect(null);
-                            }}
-                            className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 transition-colors w-full text-left group"
-                        >
-                            <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-400 shrink-0">
-                                    <UserIcon size={12} />
-                                </div>
-                                <span className={`text-xs font-semibold ${!currentLeadId ? 'text-gray-900' : 'text-gray-600'}`}>
-                                    Unassigned
-                                </span>
-                            </div>
-                            {!currentLeadId && <Check size={14} className="text-indigo-600" />}
-                        </button>
 
                         {filteredUsers.length === 0 && searchQuery && (
                             <div className="p-3 text-center text-xs text-gray-400">No users found</div>

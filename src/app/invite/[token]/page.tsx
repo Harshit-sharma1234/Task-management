@@ -125,6 +125,33 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
 
   const emailMatch = userProfile?.email?.toLowerCase() === invite.email.toLowerCase();
 
+  if (emailMatch) {
+    // Server-side auto accept
+    await adminClient
+      .from('workspace_members')
+      .insert({
+        workspace_id: invite.workspace_id,
+        user_id: userProfile.id,
+        role_id: invite.role_id,
+        joined_at: new Date().toISOString(),
+      });
+
+    await adminClient
+      .from('workspace_invites')
+      .update({ 
+        status: 'accepted', 
+        accepted_at: new Date().toISOString(),
+        accepted_by: userProfile.id
+      })
+      .eq('id', invite.id);
+
+    const roleName = (invite as any).roles?.role_name || 'Junior Developer';
+    const { getRolePath } = await import('@/lib/role-utils');
+    const rolePath = getRolePath(roleName);
+    
+    redirect(`/dashboard/${(invite as any).workspaces?.slug}/${rolePath}`);
+  }
+
   return (
     <AcceptInviteClient 
       invite={{

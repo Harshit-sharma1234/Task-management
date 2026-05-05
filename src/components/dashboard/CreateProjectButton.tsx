@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { createProject, fetchUsersForProject } from '@/app/dashboard/actions'
 import { useGlobalStore } from '@/lib/store/global'
 import { useTeamStore } from '@/lib/store/team'
+import { useSettingsStore } from '@/lib/store/settings'
 
 interface User {
   id: string
@@ -46,6 +47,8 @@ export function CreateProjectButton({ variant = 'header', workspaceId }: CreateP
   const teamWorkspaceId = useTeamStore((state) => state.workspaceId)
   const resolvedWorkspaceId = workspaceId || activeWorkspaceId || teamWorkspaceId || ''
 
+  const { user: currentUser } = useSettingsStore();
+
   // Fetch users when modal is opened
   useEffect(() => {
     if (isOpen && users.length === 0 && resolvedWorkspaceId) {
@@ -62,6 +65,16 @@ export function CreateProjectButton({ variant = 'header', workspaceId }: CreateP
         });
     }
   }, [isOpen, users.length, resolvedWorkspaceId])
+
+  // Auto-select current user as lead when they become available
+  useEffect(() => {
+    if (isOpen && users.length > 0 && !leadId && currentUser?.id) {
+      const isMember = users.some(u => u.id === currentUser.id);
+      if (isMember) {
+        setLeadId(currentUser.id);
+      }
+    }
+  }, [isOpen, users, leadId, currentUser?.id]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -118,6 +131,9 @@ export function CreateProjectButton({ variant = 'header', workspaceId }: CreateP
         loading: 'Creating your project...',
         success: (result: any) => {
           if (result.error) throw new Error(result.error)
+          if (result.project) {
+            useGlobalStore.getState().addProject(result.project)
+          }
           return 'Project created successfully!'
         },
         error: (err: any) => {
@@ -307,18 +323,6 @@ export function CreateProjectButton({ variant = 'header', workspaceId }: CreateP
                   </button>
                   {openPill === 'lead' && (
                     <div className="absolute z-20 mt-2 w-56 rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden max-h-72 overflow-y-auto">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setLeadId('')
-                          setOpenPill(null)
-                        }}
-                        className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center justify-between ${!leadId ? 'bg-gray-50' : ''
-                          }`}
-                      >
-                        <span className="text-gray-800">No lead</span>
-                        {!leadId && <Check size={16} className="text-indigo-600" />}
-                      </button>
                       {users.map(u => (
                         <button
                           key={u.id}

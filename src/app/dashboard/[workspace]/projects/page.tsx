@@ -1,10 +1,13 @@
 'use client';
 
+
+
+
 import { ProjectList } from '@/components/dashboard/ProjectList';
 import { useGlobalStore } from '@/lib/store/global';
 import { ProjectSkeleton } from '@/components/dashboard/ProjectSkeleton';
 import { useTeamStore } from '@/lib/store/team';
-import { useMemo } from 'react';
+import { useMemo, Suspense } from 'react';
 
 /**
  * ProjectsPage is now a Client Component that consumes the Global Sync State.
@@ -32,13 +35,15 @@ export default function ProjectsPage() {
 
     return (
         <div className="flex flex-col h-full w-full bg-[#fbfbfb]">
-            <ProjectList 
-                projects={projects} 
-                users={users} 
-                userMap={userMap} 
-                userRole={currentUserRole as any}
-                workspaceId={activeWorkspaceId || undefined}
-            />
+            <Suspense fallback={<ProjectSkeleton />}>
+                <ProjectList 
+                    projects={projects} 
+                    users={users} 
+                    userMap={userMap} 
+                    userRole={currentUserRole as any}
+                    workspaceId={activeWorkspaceId || undefined}
+                />
+            </Suspense>
         </div>
     );
 }

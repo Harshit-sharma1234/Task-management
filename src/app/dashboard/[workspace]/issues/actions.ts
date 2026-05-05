@@ -12,87 +12,87 @@ export async function createIssue(formData: FormData) {
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-    if (authError || !user) {
-      return { error: 'You must be logged in to create an issue' }
-    }
+  if (authError || !user) {
+    return { error: 'You must be logged in to create an issue' }
+  }
 
-    // Use cached profile
-    const profile = await getCachedUserProfile(user.email!)
-    if (!profile) {
-      return { error: 'User profile not found. Please try logging in again.' }
-    }
+  // Use cached profile
+  const profile = await getCachedUserProfile(user.email!)
+  if (!profile) {
+    return { error: 'User profile not found. Please try logging in again.' }
+  }
 
-    const title = formData.get('title') as string
-    const description = formData.get('description') as string
-    const status = formData.get('status') as string
-    const priority = formData.get('priority') as string
-    const projectId = formData.get('project_id') as string
-    const assigneeId = formData.get('assignee_id') as string
-    const reviewerId = formData.get('reviewer_id') as string | null
+  const title = formData.get('title') as string
+  const description = formData.get('description') as string
+  const status = formData.get('status') as string
+  const priority = formData.get('priority') as string
+  const projectId = formData.get('project_id') as string
+  const assigneeId = formData.get('assignee_id') as string
+  const reviewerId = formData.get('reviewer_id') as string | null
 
-    // Validation
-    if (!title?.trim()) return { error: 'Title is required' }
-    if (!description?.trim()) return { error: 'Description is required' }
-    if (!status) return { error: 'Status is required' }
-    if (!priority) return { error: 'Priority is required' }
-    if (!projectId) return { error: 'Project is required' }
+  // Validation
+  if (!title?.trim()) return { error: 'Title is required' }
+  if (!description?.trim()) return { error: 'Description is required' }
+  if (!status) return { error: 'Status is required' }
+  if (!priority) return { error: 'Priority is required' }
+  if (!projectId) return { error: 'Project is required' }
 
-    // 1. Resolve project context and verify membership in parallel to eliminate waterfalls
-    const adminClient = createAdminClient()
-    const providedWorkspaceId = formData.get('workspace_id') as string;
-    
-    const [
-      { data: projectData, error: projectError },
-      { data: membership }
-    ] = await Promise.all([
-      adminClient.from('projects').select('workspace_id').eq('id', projectId).single(),
-      providedWorkspaceId 
-        ? adminClient.from('workspace_members').select('id').eq('workspace_id', providedWorkspaceId).eq('user_id', profile.id).maybeSingle()
-        : Promise.resolve({ data: null, error: null }) // We'll have to check after project lookup if missing
-    ]);
+  // 1. Resolve project context and verify membership in parallel to eliminate waterfalls
+  const adminClient = createAdminClient()
+  const providedWorkspaceId = formData.get('workspace_id') as string;
 
-    if (projectError || !projectData) {
-      console.error('[createIssue] Project lookup failed:', projectError)
-      return { error: 'Project not found' }
-    }
+  const [
+    { data: projectData, error: projectError },
+    { data: membership }
+  ] = await Promise.all([
+    adminClient.from('projects').select('workspace_id').eq('id', projectId).single(),
+    providedWorkspaceId
+      ? adminClient.from('workspace_members').select('id').eq('workspace_id', providedWorkspaceId).eq('user_id', profile.id).maybeSingle()
+      : Promise.resolve({ data: null, error: null }) // We'll have to check after project lookup if missing
+  ]);
 
-    const workspaceId = projectData.workspace_id;
+  if (projectError || !projectData) {
+    console.error('[createIssue] Project lookup failed:', projectError)
+    return { error: 'Project not found' }
+  }
 
-    // If membership wasn't checked because providedWorkspaceId was missing, check it now
-    let finalMembership = membership;
-    if (!providedWorkspaceId) {
-      const { data: retryMembership } = await adminClient
-        .from('workspace_members')
-        .select('id')
-        .eq('workspace_id', workspaceId)
-        .eq('user_id', profile.id)
-        .maybeSingle();
-      finalMembership = retryMembership;
-    }
+  const workspaceId = projectData.workspace_id;
 
-    if (!finalMembership) {
-      return { error: 'Unauthorized: You are not a member of this workspace.' }
-    }// Step 1: Create Ticket (Atomic) - Use adminClient to bypass restrictive legacy RLS
-    const { data, error } = await adminClient
-      .from('tickets')
-      .insert({
-        title,
-        description: description || null,
-        status: status || 'to_do',
-        priority: priority || 'no_priority',
-        project_id: projectId,
-        workspace_id: workspaceId,
-        assignee_id: assigneeId || null,
-        reviewer_id: reviewerId || null,
-        created_by: profile.id
-      })
-      .select('id, project_id, workspace_id')
-      .single()
+  // If membership wasn't checked because providedWorkspaceId was missing, check it now
+  let finalMembership = membership;
+  if (!providedWorkspaceId) {
+    const { data: retryMembership } = await adminClient
+      .from('workspace_members')
+      .select('id')
+      .eq('workspace_id', workspaceId)
+      .eq('user_id', profile.id)
+      .maybeSingle();
+    finalMembership = retryMembership;
+  }
 
-    if (error) {
-      console.error('SUPABASE ERROR CREATING TICKET:', error)
-      return { error: `Failed to create issue: ${error.message}` }
-    }
+  if (!finalMembership) {
+    return { error: 'Unauthorized: You are not a member of this workspace.' }
+  }// Step 1: Create Ticket (Atomic) - Use adminClient to bypass restrictive legacy RLS
+  const { data, error } = await adminClient
+    .from('tickets')
+    .insert({
+      title,
+      description: description || null,
+      status: status || 'to_do',
+      priority: priority || 'no_priority',
+      project_id: projectId,
+      workspace_id: workspaceId,
+      assignee_id: assigneeId || null,
+      reviewer_id: reviewerId || null,
+      created_by: profile.id
+    })
+    .select('id, project_id, workspace_id')
+    .single()
+
+  if (error) {
+    console.error('SUPABASE ERROR CREATING TICKET:', error)
+    return { error: `Failed to create issue: ${error.message}` }
+  }
 
   // --- Background Operations (Parallel) ---
   const runSideEffects = async () => {
@@ -116,7 +116,7 @@ export async function createIssue(formData: FormData) {
           const { data: { publicUrl } } = adminClient.storage
             .from('issue-attachments')
             .getPublicUrl(fileName)
-          
+
           return { name: file.name, url: publicUrl, type: file.type, size: file.size }
         })
 
@@ -131,7 +131,7 @@ export async function createIssue(formData: FormData) {
 
       // 2. Side effects: Activity, Notifications, Auto-Membership
       sideEffects.push(logActivity(adminClient, profile.id, data.id, 'created', 'Issue created'))
-      
+
       if (assigneeId) {
         sideEffects.push(createNotification({
           userId: assigneeId,
@@ -142,7 +142,7 @@ export async function createIssue(formData: FormData) {
           type: 'assignment',
           message: `${profile.name} assigned you a new issue: ${title}`
         }))
-        
+
         // Auto-membership
         const membershipPromise = Promise.resolve(
           adminClient
@@ -183,12 +183,11 @@ export async function createIssue(formData: FormData) {
 
   // Granular revalidation
   revalidateTag('issues', "max")
-  revalidateTag('dashboard-stats', "max")
   if (projectId) {
     revalidatePath(`/dashboard/projects/${projectId}`);
   }
   revalidatePath('/dashboard');
-  
+
   return { success: true, data }
 }
 
@@ -342,7 +341,7 @@ export async function updateIssueContent(formData: FormData) {
     revalidatePath(`/dashboard/projects/${ticket.project_id}`);
   }
   revalidatePath('/dashboard');
-  revalidateTag('issues', "max")
+  revalidateTag('issues', "default")
   return { success: true, data }
 }
 
@@ -439,15 +438,15 @@ export async function addComment(ticketId: string, comment: string, formData?: F
         const { data: mentionedUsers } = await supabase.from('users').select('id, name').in('name', mentionedNames)
         if (mentionedUsers) {
           for (const mUser of mentionedUsers) {
-              notificationPromises.push(createNotification({
-                userId: mUser.id,
-                actorId: profile.id,
-                workspaceId,
-                entityType: 'ticket',
-                entityId: ticketId,
-                type: 'mention',
-                message: `${profile.name} mentioned you in: ${ticket.title}`
-              }))
+            notificationPromises.push(createNotification({
+              userId: mUser.id,
+              actorId: profile.id,
+              workspaceId,
+              entityType: 'ticket',
+              entityId: ticketId,
+              type: 'mention',
+              message: `${profile.name} mentioned you in: ${ticket.title}`
+            }))
           }
         }
       }
@@ -634,7 +633,7 @@ export async function updateIssue(ticketId: string, updates: {
   // CONSTRAINT: Only Reviewer or Admin/PM can move to Review, In Review or Done
   if (updates.status && ['review', 'in_review', 'done'].includes(updates.status)) {
     const isActuallyReviewer = profile.id === ticket.reviewer_id;
-    
+
     if (!isAdminOrPm && !isActuallyReviewer) {
       console.error(`[updateIssue] ACCESS DENIED: User ${profile.id} is not the Reviewer or Admin/PM`);
       return { error: 'Only the designated Reviewer, Admin, or Project Manager can move this issue to Review, In Review, or Done.' }
@@ -683,7 +682,7 @@ export async function updateIssue(ticketId: string, updates: {
       }
 
       await Promise.all(membershipUpserts);
-      revalidateTag('projects', "max");
+      revalidateTag('projects', "default");
     }
   }
 
@@ -752,7 +751,6 @@ export async function updateIssue(ticketId: string, updates: {
   }
   revalidatePath('/dashboard');
   revalidateTag('issues', "max")
-  revalidateTag('dashboard-stats', "max")
   return { success: true, data }
 }
 
@@ -795,7 +793,7 @@ export async function deleteIssue(ticketId: string) {
   }
 
   function revalidateProjectDataTags(tags: string[] = ['projects', 'tickets']) {
-    tags.forEach(tag => revalidateTag(tag, "max"));
+    tags.forEach(tag => revalidateTag(tag, "default"));
   }
   revalidateProjectDataTags(['issues', 'dashboard-stats']);
 
@@ -862,7 +860,7 @@ export async function bulkUpdateIssues(
   }
   revalidatePath('/dashboard');
 
-  revalidateTag('issues', "max")
+  revalidateTag('issues', "default")
   return { success: true, updatedCount: data?.length || 0 }
 }
 
@@ -908,8 +906,8 @@ export async function bulkDeleteIssues(ticketIds: string[]) {
   revalidatePath('/dashboard/issues', 'page');
   revalidatePath('/dashboard');
 
-  revalidateTag('issues', "max")
-  revalidateTag('dashboard-stats', "max")
+  revalidateTag('issues', "default")
+  revalidateTag('dashboard-stats', "default")
   return { success: true, deletedCount: ticketIds.length }
 }
 
