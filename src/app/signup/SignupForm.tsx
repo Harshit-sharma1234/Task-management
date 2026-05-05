@@ -1,7 +1,7 @@
 'use client';
 
 import { useActionState, useState, useTransition, useMemo } from 'react';
-import { Mail, Lock, Loader2, AlertCircle, User, BadgeCheck, ShieldCheck, ArrowLeft } from 'lucide-react';
+import { Mail, Lock, Loader2, AlertCircle, User, BadgeCheck, ShieldCheck, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { signup, requestOTP, verifyOTP } from './actions';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
@@ -34,6 +34,7 @@ export default function SignupForm() {
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   
   const [isPending, startTransition] = useTransition();
   const [state, signupAction, isSignupPending] = useActionState(signup, null);
@@ -249,21 +250,7 @@ export default function SignupForm() {
             </div>
           </div>
 
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-[var(--color-linear-muted)]">Employee ID</label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-[var(--color-linear-muted)]">
-                <BadgeCheck size={16} />
-              </div>
-              <input 
-                type="text" 
-                name="employee_id"
-                required
-                className="w-full pl-10 pr-3 py-2 bg-[var(--color-linear-bg)] border border-[var(--color-linear-border)] rounded-md text-sm focus:outline-none focus:border-[var(--color-linear-accent)] transition-colors placeholder:text-[var(--color-linear-muted)]/50"
-                placeholder="EMP-001"
-              />
-            </div>
-          </div>
+
           
           <div className="space-y-1">
             <label className="text-xs font-medium text-[var(--color-linear-muted)]">Password</label>
@@ -272,14 +259,17 @@ export default function SignupForm() {
                 <Lock size={16} />
               </div>
               <input 
-                type="password" 
+                type={showPassword ? 'text' : 'password'} 
                 name="password"
                 required
                 minLength={8}
                 autoComplete="new-password"
-                className="w-full pl-10 pr-3 py-2 bg-[var(--color-linear-bg)] border border-[var(--color-linear-border)] rounded-md text-sm focus:outline-none focus:border-[var(--color-linear-accent)] transition-colors placeholder:text-[var(--color-linear-muted)]/50"
+                className="w-full pl-10 pr-10 py-2 bg-[var(--color-linear-bg)] border border-[var(--color-linear-border)] rounded-md text-sm focus:outline-none focus:border-[var(--color-linear-accent)] transition-colors placeholder:text-[var(--color-linear-muted)]/50"
                 placeholder="••••••••"
               />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-3 flex items-center text-[var(--color-linear-muted)] hover:text-[var(--color-linear-text)] transition-colors">
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
             </div>
             <p className="text-[10px] text-[var(--color-linear-muted)] mt-1">Must contain uppercase, lowercase, and numbers (min 8 chars)</p>
           </div>

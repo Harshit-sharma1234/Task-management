@@ -5,7 +5,7 @@ import { sendEmail } from '@/lib/email'
 import { randomInt } from 'crypto'
 import { baseLayout } from '@/lib/email-templates' // Re-import baseLayout logic or similar
 
-import { validateEmail } from '@/lib/validation'
+import { validateEmail, validatePassword } from '@/lib/validation'
 
 /**
  * Custom template for Password Reset OTP
@@ -135,6 +135,12 @@ export async function verifyPasswordResetOTP(email: string, otp: string) {
 }
 
 export async function finalizePasswordReset(email: string, otp: string, newPassword: string) {
+    // Server-side password strength check
+    const passwordCheck = validatePassword(newPassword)
+    if (!passwordCheck.valid) {
+        return { error: passwordCheck.error }
+    }
+
     const adminClient = createAdminClient()
 
     // 1. Verify OTP again (security)

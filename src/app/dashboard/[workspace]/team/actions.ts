@@ -5,13 +5,12 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getCachedUsers, getCachedUserProfile } from '@/lib/cache';
-import { revalidateTag, revalidatePath } from 'next/cache';
 import { getBaseUrl } from '@/lib/urls';
 import { validateEmail } from '@/lib/validation';
 import crypto from 'crypto';
 import { sendEmail } from '@/lib/email';
 import { workspaceInviteEmail, workspaceRemovalEmail } from '@/lib/email-templates';
-
+import { revalidateTag, revalidatePath } from 'next/cache';
 
 export async function fetchTeamData(workspaceId: string) {
     const supabase = await createClient();
@@ -221,13 +220,13 @@ export async function deleteMember(targetUserId: string, workspaceId?: string, m
             console.error('[deleteMember] Auth Error:', authError);
         }
     }
-    revalidateTag('team-members', "max");
-    revalidateTag('users', "max");
+    revalidateTag('team-members', "default");
+    revalidateTag('users', "default");
     if (workspaceId) {
-        revalidateTag(`team-members-${workspaceId}`, "max");
-        revalidateTag(`workspace-${workspaceId}`, "max");
+        revalidateTag(`team-members-${workspaceId}`, "default");
+        revalidateTag(`workspace-${workspaceId}`, "default");
         // Invalidate all projects in the workspace to refresh their member lists
-        revalidateTag('projects', "max");
+        revalidateTag('projects', "default");
         revalidatePath(`/dashboard/${workspaceId}`, 'layout');
         revalidatePath(`/dashboard/${workspaceId}/team`, 'page');
     }
@@ -392,11 +391,11 @@ export async function updateUserRole(targetUserId: string, newRoleName: string, 
         }
     }
 
-    revalidateTag('team-members', "max");
-    revalidateTag('users', "max");
+    revalidateTag('team-members', "default");
+    revalidateTag('users', "default");
     if (workspaceId) {
-        revalidateTag(`team-members-${workspaceId}`, "max");
-        revalidateTag(`workspace-${workspaceId}`, "max");
+        revalidateTag(`team-members-${workspaceId}`, "default");
+        revalidateTag(`workspace-${workspaceId}`, "default");
         revalidatePath(`/dashboard/${workspaceId}`, 'layout');
         revalidatePath(`/dashboard/${workspaceId}/team`, 'page');
     }

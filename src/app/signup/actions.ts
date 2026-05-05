@@ -1,11 +1,13 @@
 'use server'
 
 import { redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail, sendBulkEmails } from '@/lib/email'
 import { newSignupNotificationEmail, emailVerificationEmail as getVerificationEmail } from '@/lib/email-templates'
 import { randomInt } from 'crypto'
 import { getBaseUrl } from '@/lib/urls'
+import { getRolePath } from '@/lib/role-utils'
 import { validatePassword, validateEmail } from '@/lib/validation'
 
 const APP_URL = getBaseUrl()
@@ -59,19 +61,19 @@ export async function requestOTP(email: string) {
 
     const html = getVerificationEmail({ otpCode, expiresInMinutes: 10 });
     
-    // Non-blocking email send
-    (async () => {
-        try {
-            await sendEmail({
-                to: email,
-                subject: `Your Verification Code: ${otpCode}`,
-                html,
-                source: 'Signup:OTP'
-            })
-        } catch (err) {
-            console.error('[OTP] Background email error:', err)
-        }
-    })()
+    // Blocking email send ensures Next.js doesn't throttle the promise after the request ends
+    try {
+        await sendEmail({
+            to: email,
+            subject: `Your Verification Code: ${otpCode}`,
+            html,
+            source: 'Signup:OTP',
+            priority: 'high'
+        })
+    } catch (err) {
+        console.error('[OTP] Email send error:', err)
+        return { error: 'Failed to send verification code. Please try again.' }
+    }
 
     return { success: true }
 }
@@ -111,7 +113,6 @@ export async function verifyOTP(email: string, otp: string) {
 export async function signup(prevState: any, formData: FormData) {
     const name = (formData.get('name') as string)?.trim()
     const email = (formData.get('email') as string)?.trim().toLowerCase()
-    const employeeId = (formData.get('employee_id') as string)?.trim()
     const password = formData.get('password') as string
     const token = formData.get('token') as string | null
 
@@ -121,9 +122,6 @@ export async function signup(prevState: any, formData: FormData) {
     }
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         return { error: 'A valid email address is required.' }
-    }
-    if (!employeeId || employeeId.length < 2) {
-        return { error: 'Employee ID is required.' }
     }
     if (!password) {
         return { error: 'Password is required.' }
@@ -157,23 +155,12 @@ export async function signup(prevState: any, formData: FormData) {
         return { error: 'Email has not been verified. Please verify your email first.' }
     }
 
-    // ── Check duplicate employee ID ──
-    const { data: existingEmpId } = await adminClient
-        .from('users')
-        .select('id')
-        .eq('employee_id', employeeId)
-        .maybeSingle()
-
-    if (existingEmpId) {
-        return { error: 'This Employee ID is already registered. Please contact your admin.' }
-    }
-
     // ── Create Auth user (auto-confirmed, no Supabase email) ──
     const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
         email,
         password,
         email_confirm: true,
-        user_metadata: { full_name: name, employee_id: employeeId }
+        user_metadata: { full_name: name }
     })
 
     if (authError) {
@@ -194,7 +181,7 @@ export async function signup(prevState: any, formData: FormData) {
             auth_id: newUserId,
             email,
             name,
-            employee_id: employeeId
+            employee_id: `EXT-${newUserId.slice(0, 8).toUpperCase()}`
         }, { onConflict: 'id' })
 
     if (dbError) {
@@ -209,10 +196,13 @@ export async function signup(prevState: any, formData: FormData) {
     }
 
     // ── Handle Invite Token (Automatic Join) ──
+    const supabase = await createClient()
+    await supabase.auth.signInWithPassword({ email, password })
+
     if (token) {
         const { data: invite } = await adminClient
             .from('workspace_invites')
-            .select('*, workspaces(name, slug)')
+            .select('*, workspaces(name, slug), roles(role_name)')
             .eq('token', token)
             .eq('status', 'pending')
             .gt('expires_at', new Date().toISOString())
@@ -220,7 +210,7 @@ export async function signup(prevState: any, formData: FormData) {
 
         if (invite && invite.email.toLowerCase() === email) {
             // Add user to workspace members
-            await adminClient
+            const { error: insertError } = await adminClient
                 .from('workspace_members')
                 .insert({
                     workspace_id: invite.workspace_id,
@@ -229,8 +219,13 @@ export async function signup(prevState: any, formData: FormData) {
                     joined_at: new Date().toISOString(),
                 })
 
+            if (insertError) {
+                console.error('[Signup] Error inserting workspace member:', insertError)
+                return { error: 'Failed to join workspace: ' + insertError.message }
+            }
+
             // Mark invite as accepted
-            await adminClient
+            const { error: updateError } = await adminClient
                 .from('workspace_invites')
                 .update({ 
                     status: 'accepted', 
@@ -238,18 +233,28 @@ export async function signup(prevState: any, formData: FormData) {
                     accepted_by: newUserId
                 })
                 .eq('id', invite.id)
+                
+            if (updateError) {
+                console.error('[Signup] Error updating invite:', updateError)
+            }
 
-            const workspaceName = (invite as any).workspaces?.name || 'the workspace'
-            redirect(`/login?next=/invite/${token}&message=Account created and you have been added to ${workspaceName}! Please log in.`)
+            const workspaceSlug = (invite as any).workspaces?.slug || 'default'
+            const roleName = (invite as any).roles?.role_name || 'Junior Developer'
+            const rolePath = getRolePath(roleName)
+            
+            const { revalidatePath } = await import('next/cache')
+            revalidatePath('/', 'layout')
+            
+            redirect(`/dashboard/${workspaceSlug}/${rolePath}`)
         } else if (token) {
             // Token exists but email didn't match or invite invalid/expired
             // Redirect to invite page anyway so they see the specific error there
-            redirect(`/login?next=/invite/${token}&message=Account created! Please log in to complete joining the workspace.`)
+            redirect(`/invite/${token}`)
         }
     }
 
-    // ── Redirect to login (user must log in, then choose/create a workspace) ──
+    // ── Redirect to workspace creation ──
     const { revalidatePath: rpFallback } = await import('next/cache')
     rpFallback('/', 'layout')
-    redirect('/login?message=Account created successfully! Please log in.')
+    redirect('/workspace?from=signup_fallback')
 }

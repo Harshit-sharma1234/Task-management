@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useMemo, memo, useEffect, useRef } from 'react';
+import { useState, useMemo, memo, useRef } from 'react';
 import Link from 'next/link';
-import { Folder, Search, Trash2, Loader2 } from 'lucide-react';
+import { Folder, Search, Trash2, Loader2, Filter, User as UserIcon } from 'lucide-react';
+import { useSettingsStore } from '@/lib/store/settings';
 import dynamic from 'next/dynamic';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { deleteProject } from '@/app/dashboard/actions';
 import { AppRole } from '@/lib/roles';
-import { createClient } from '@/lib/supabase/client';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { toast } from 'sonner';
@@ -25,6 +25,11 @@ interface Project {
     priority: string | null;
     status: string | null;
     start_date: string | null;
+    lead?: {
+        id: string;
+        name: string;
+        avatar_url?: string | null;
+    } | null;
 }
 
 interface User {
@@ -76,6 +81,9 @@ const ProjectRow = memo(({
                 toast.error(result.error);
             } else {
                 toast.success('Project deleted successfully');
+                // Instant Store Update
+                const { useGlobalStore } = await import('@/lib/store/global');
+                useGlobalStore.getState().removeProject(project.id);
             }
         } catch (err) {
             console.error('Delete error:', err);
@@ -129,7 +137,8 @@ const ProjectRow = memo(({
         return <div className="text-[10px] text-gray-300 font-bold tracking-tight">---</div>;
     };
 
-    const leadUser = users.find(u => u.id === project.lead_id);
+    // Resolve lead user: try workspace team list first, fallback to joined data from DB
+    const leadUser = users.find(u => u.id === project.lead_id) || project.lead;
 
     return (
         <div
@@ -165,7 +174,15 @@ const ProjectRow = memo(({
             {/* Lead */}
             <div className="hidden sm:flex items-center relative z-10 pl-2">
                 {isInteractive ? (
-                    <LeadSelector projectId={project.id} currentLeadId={project.lead_id} users={users} showName={true} hideAvatar={true} align="left" />
+                    <LeadSelector 
+                        projectId={project.id} 
+                        currentLeadId={project.lead_id} 
+                        users={users} 
+                        showName={true} 
+                        hideAvatar={true} 
+                        align="left" 
+                        fallbackUser={project.lead}
+                    />
                 ) : (
                     <div className="py-0.5">
                         {leadUser ? (
@@ -174,7 +191,7 @@ const ProjectRow = memo(({
                             </span>
                         ) : (
                             <span className="text-[11px] font-medium text-gray-400 italic">
-                                Unassigned
+                                {project.lead_id ? 'Unknown Lead' : 'Unassigned'}
                             </span>
                         )}
                     </div>
@@ -241,64 +258,44 @@ const ProjectRow = memo(({
 });
 
 ProjectRow.displayName = 'ProjectRow';
-
 export function ProjectList({ projects, users, userMap, userRole, workspaceId }: ProjectListProps) {
+    const searchParams = useSearchParams();
+    const filterParam = searchParams.get('filter');
+
     const [searchTerm, setSearchTerm] = useState('');
-    const [localProjects, setLocalProjects] = useState<Project[]>(projects);
-    const supabase = useMemo(() => createClient(), []);
+    const [priorityFilter, setPriorityFilter] = useState<string>('all');
+    const [statusFilter, setStatusFilter] = useState<string>('all');
+    const [assignedToMe, setAssignedToMe] = useState<boolean>(filterParam === 'assigned');
+    const { user } = useSettingsStore();
+
+    // Use projects directly from props (kept in sync by the layout's GlobalDataSync)
     const listScrollRef = useRef<HTMLElement>(null);
 
-    // Keep state in sync with props
-    useEffect(() => {
-        setLocalProjects(projects);
-    }, [projects]);
-
-    // Supabase Realtime Listener
-    useEffect(() => {
-        const channel = supabase
-            .channel('projects-list-updates')
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'projects' },
-                (payload) => {
-                    const { eventType, new: newItem, old: oldItem } = payload;
-
-                    setLocalProjects((prev) => {
-                        if (eventType === 'INSERT') {
-                            // Check for duplicates
-                            if (prev.some(p => p.id === newItem.id)) return prev;
-                            return [newItem as Project, ...prev];
-                        }
-
-                        if (eventType === 'UPDATE') {
-                            return prev.map((p) => (p.id === newItem.id ? { ...p, ...newItem } as Project : p));
-                        }
-
-                        if (eventType === 'DELETE') {
-                            return prev.filter((p) => p.id !== oldItem.id);
-                        }
-
-                        return prev;
-                    });
-                }
-            )
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, [supabase]);
-
     const filteredProjects = useMemo(() => {
-        const listToFilter = localProjects;
-        if (!searchTerm.trim()) return listToFilter;
+        let list = projects;
 
-        const term = searchTerm.toLowerCase();
-        return listToFilter.filter(project =>
-            project.project_name.toLowerCase().includes(term) ||
-            (project.lead_id && userMap[project.lead_id]?.toLowerCase().includes(term))
-        );
-    }, [localProjects, searchTerm, userMap]);
+        if (searchTerm.trim()) {
+            const term = searchTerm.toLowerCase();
+            list = list.filter(project =>
+                project.project_name.toLowerCase().includes(term) ||
+                (project.lead_id && userMap[project.lead_id]?.toLowerCase().includes(term))
+            );
+        }
+
+        if (priorityFilter !== 'all') {
+            list = list.filter(p => p.priority === priorityFilter);
+        }
+
+        if (statusFilter !== 'all') {
+            list = list.filter(p => p.status === (statusFilter === 'backlog' ? null : statusFilter));
+        }
+
+        if (assignedToMe && user?.id) {
+            list = list.filter(p => p.lead_id === user.id);
+        }
+
+        return list;
+    }, [projects, searchTerm, priorityFilter, statusFilter, assignedToMe, user?.id, userMap]);
 
     const rowVirtualizer = useVirtualizer({
         count: filteredProjects.length,
@@ -332,6 +329,67 @@ export function ProjectList({ projects, users, userMap, userRole, workspaceId }:
                 </div>
             </header>
 
+            {/* Filters Row */}
+            <div className="px-8 py-3 border-b border-gray-100 bg-white flex items-center gap-4 shrink-0 overflow-x-auto no-scrollbar shadow-sm">
+                <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest whitespace-nowrap">
+                    <Filter size={12} />
+                    Filters
+                </div>
+                
+                <div className="h-4 w-px bg-gray-200 mx-1"></div>
+
+                <div className="flex items-center gap-2">
+                    <select 
+                        value={priorityFilter}
+                        onChange={(e) => setPriorityFilter(e.target.value)}
+                        className="text-[11px] font-bold uppercase tracking-tight bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer text-gray-600"
+                    >
+                        <option value="all">All Priorities</option>
+                        <option value="urgent">Urgent</option>
+                        <option value="high">High</option>
+                        <option value="medium">Medium</option>
+                        <option value="low">Low</option>
+                    </select>
+
+                    <select 
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        className="text-[11px] font-bold uppercase tracking-tight bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer text-gray-600"
+                    >
+                        <option value="all">All Statuses</option>
+                        <option value="backlog">Backlog</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="done">Done</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
+
+                    <button
+                        onClick={() => setAssignedToMe(!assignedToMe)}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-tight transition-all border ${
+                            assignedToMe 
+                                ? 'bg-indigo-50 text-indigo-700 border-indigo-200 ring-2 ring-indigo-500/10' 
+                                : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                        }`}
+                    >
+                        <UserIcon size={12} />
+                        Assigned to me
+                    </button>
+
+                    {(priorityFilter !== 'all' || statusFilter !== 'all' || assignedToMe) && (
+                        <button 
+                            onClick={() => {
+                                setPriorityFilter('all');
+                                setStatusFilter('all');
+                                setAssignedToMe(false);
+                            }}
+                            className="text-[10px] font-bold text-red-500 uppercase tracking-widest hover:text-red-600 transition-colors ml-4 py-1 px-2 hover:bg-red-50 rounded-md"
+                        >
+                            Reset
+                        </button>
+                    )}
+                </div>
+            </div>
+
             {/* Main Content Grid */}
             <main ref={listScrollRef} className="flex-1 p-8 overflow-y-auto">
                 <div className="max-w-7xl mx-auto">
@@ -341,11 +399,11 @@ export function ProjectList({ projects, users, userMap, userRole, workspaceId }:
                                 <Folder size={40} />
                             </div>
                             <h3 className="text-lg text-gray-900 font-semibold mb-2">
-                                {searchTerm ? 'No matching projects' : 'No projects found'}
+                                {(searchTerm || priorityFilter !== 'all' || statusFilter !== 'all' || assignedToMe) ? 'No matching projects' : 'No projects found'}
                             </h3>
                             <p className="text-gray-500 mb-6 text-center max-w-sm">
-                                {searchTerm
-                                    ? `We couldn't find any projects matching "${searchTerm}".`
+                                {(searchTerm || priorityFilter !== 'all' || statusFilter !== 'all' || assignedToMe)
+                                    ? `We couldn't find any projects matching your current filters.`
                                     : "You haven't created any projects yet. Start by creating a project to organize your team's tasks."}
                             </p>
                         </div>

@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useTransition, memo, useCallback, forwardR
 import { updateProjectStatus } from '@/app/dashboard/actions';
 import { toast } from 'sonner';
 import { Circle, CircleDashed, CircleDot, Clock, Search, CheckCircle2, XCircle } from 'lucide-react';
+import { useGlobalStore } from '@/lib/store/global';
 
 export interface SelectorHandle {
     toggle: () => void;
@@ -64,6 +65,7 @@ export const StatusSelector = memo(forwardRef<SelectorHandle, StatusSelectorProp
         // Optimistic: instantly update the UI
         const previousStatus = optimisticStatus;
         setOptimisticStatus(value);
+        useGlobalStore.getState().updateProject({ id: projectId, status: value });
         setIsOpen(false);
 
         startTransition(async () => {
@@ -71,6 +73,7 @@ export const StatusSelector = memo(forwardRef<SelectorHandle, StatusSelectorProp
             if (res.error) {
                 // Revert on failure
                 setOptimisticStatus(previousStatus);
+                useGlobalStore.getState().updateProject({ id: projectId, status: previousStatus });
                 toast.error(res.error);
             }
         });
