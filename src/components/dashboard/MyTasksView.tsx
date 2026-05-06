@@ -26,6 +26,7 @@ interface MyTasksViewProps {
 export function MyTasksView({ initialTickets, projects, users, currentUser, workspaceSlug, workspaceId }: MyTasksViewProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState('all');
+
   const [assigneeFilter, setAssigneeFilter] = useState('all');
 
   const [displaySettings, setDisplaySettings] = useState<DisplaySettings>({
