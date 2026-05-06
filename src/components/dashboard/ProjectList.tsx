@@ -527,10 +527,10 @@ export function ProjectList({ projects, users, userMap, userRole, workspaceId }:
                                 <Folder size={40} />
                             </div>
                             <h3 className="text-lg text-gray-900 font-semibold mb-2">
-                                {(searchTerm || priorityFilter !== 'all' || statusFilter !== 'all' || assignedToMe) ? 'No matching projects' : 'No projects found'}
+                                {(searchTerm || priorityFilter !== 'all' || statusFilter !== 'all' || leadFilter !== 'all') ? 'No matching projects' : 'No projects found'}
                             </h3>
                             <p className="text-gray-500 mb-6 text-center max-w-sm">
-                                {(searchTerm || priorityFilter !== 'all' || statusFilter !== 'all' || assignedToMe)
+                                {(searchTerm || priorityFilter !== 'all' || statusFilter !== 'all' || leadFilter !== 'all')
                                     ? `We couldn't find any projects matching your current filters.`
                                     : "You haven't created any projects yet. Start by creating a project to organize your team's tasks."}
                             </p>
