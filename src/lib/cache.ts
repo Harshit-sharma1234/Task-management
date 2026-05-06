@@ -69,8 +69,7 @@ export const getCachedUsers = (workspaceId: string) => cache(unstable_cache(
 /**
  * Cached fetch for workspace-specific dashboard statistics (counts).
  */
-export const getCachedStats = (workspaceId: string) => cache(unstable_cache(
-  async () => {
+export const getCachedStats = cache(async (workspaceId: string) => {
     const supabase = createAdminClient();
     const [projectsRes, ticketsRes] = await Promise.all([
       supabase.from('projects')
@@ -115,55 +114,41 @@ export const getCachedStats = (workspaceId: string) => cache(unstable_cache(
       urgentIssuesCount,
       projectStats
     };
-  },
-  ['dashboard-stats-counts-v3', workspaceId],
-  {
-    revalidate: 60,
-    tags: ['dashboard-stats', 'projects', 'tickets', `workspace-${workspaceId}`]
-  }
-))();
+});
 
 /**
  * Cached fetch for global dashboard statistics (counts), specific to a user AND a workspace.
  */
-export const getCachedUserStatsV2 = (userId: string, workspaceId: string) =>
-  unstable_cache(
-    async () => {
-      const supabase = createAdminClient();
-      const [
-        urgentTicketsRes,
-        completedTicketsRes,
-        inProgressTicketsRes,
-        allTicketsRes,
-        leadProjectsRes,
-        memberProjectsRes
-      ] = await Promise.all([
-        supabase.from('tickets').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).or(`assignee_id.eq.${userId},reviewer_id.eq.${userId}`).eq('priority', 'urgent').neq('status', 'done'),
-        supabase.from('tickets').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).or(`assignee_id.eq.${userId},reviewer_id.eq.${userId}`).eq('status', 'done'),
-        supabase.from('tickets').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).or(`assignee_id.eq.${userId},reviewer_id.eq.${userId}`).in('status', ['in_progress', 'in_review']),
-        supabase.from('tickets').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).or(`assignee_id.eq.${userId},reviewer_id.eq.${userId}`),
-        supabase.from('projects').select('id').eq('workspace_id', workspaceId).eq('lead_id', userId),
-        supabase.from('project_members').select('project_id, projects!inner(workspace_id)').eq('user_id', userId).eq('projects.workspace_id', workspaceId)
-      ]);
+export const getCachedUserStatsV2 = cache(async (userId: string, workspaceId: string) => {
+    const supabase = createAdminClient();
+    const [
+      urgentTicketsRes,
+      completedTicketsRes,
+      inProgressTicketsRes,
+      allTicketsRes,
+      leadProjectsRes,
+      memberProjectsRes
+    ] = await Promise.all([
+      supabase.from('tickets').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).or(`assignee_id.eq.${userId},reviewer_id.eq.${userId}`).eq('priority', 'urgent').neq('status', 'done'),
+      supabase.from('tickets').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).or(`assignee_id.eq.${userId},reviewer_id.eq.${userId}`).eq('status', 'done'),
+      supabase.from('tickets').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).or(`assignee_id.eq.${userId},reviewer_id.eq.${userId}`).in('status', ['in_progress', 'in_review']),
+      supabase.from('tickets').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).or(`assignee_id.eq.${userId},reviewer_id.eq.${userId}`),
+      supabase.from('projects').select('id').eq('workspace_id', workspaceId).eq('lead_id', userId),
+      supabase.from('project_members').select('project_id, projects!inner(workspace_id)').eq('user_id', userId).eq('projects.workspace_id', workspaceId)
+    ]);
 
-      const leadIds = leadProjectsRes.data?.map(p => p.id) || [];
-      // Removed memberProjectsRes inclusion as per user feedback about 'unassigned' leads/members
-      const uniqueProjectIds = new Set(leadIds);
+    const leadIds = leadProjectsRes.data?.map(p => p.id) || [];
+    // Removed memberProjectsRes inclusion as per user feedback about 'unassigned' leads/members
+    const uniqueProjectIds = new Set(leadIds);
 
-      return {
-        urgentIssuesCount: urgentTicketsRes.count || 0,
-        completedTicketsCount: completedTicketsRes.count || 0,
-        inProgressTicketsCount: inProgressTicketsRes.count || 0,
-        tasksCount: allTicketsRes.count || 0,
-        projectsAssignedCount: uniqueProjectIds.size
-      };
-    },
-    [`dashboard-user-stats-${userId}-${workspaceId}`],
-    {
-      revalidate: 60,
-      tags: ['dashboard-stats', 'projects', 'tickets', `user-tasks-${userId}`, `workspace-${workspaceId}`]
-    }
-  )();
+    return {
+      urgentIssuesCount: urgentTicketsRes.count || 0,
+      completedTicketsCount: completedTicketsRes.count || 0,
+      inProgressTicketsCount: inProgressTicketsRes.count || 0,
+      tasksCount: allTicketsRes.count || 0,
+      projectsAssignedCount: uniqueProjectIds.size
+    };
+});
 
 /**
  * Cached fetch for a specific workspace by its slug.
@@ -225,29 +210,21 @@ export const getCachedUserProfile = (email: string) =>
 /**
  * Cached fetch for recent tickets in a specific workspace.
  */
-export const getCachedRecentTickets = (limit: number = 10, workspaceId: string) =>
-  unstable_cache(
-    async () => {
-      const supabase = createAdminClient();
-      const { data, error } = await supabase
-        .from('tickets')
-        .select('id, title, status, priority, created_at, assignee_id, reviewer_id, projects(project_name), assignees:users!assignee_id(id, name, avatar_url)')
-        .eq('workspace_id', workspaceId)
-        .order('created_at', { ascending: false })
-        .limit(limit);
+export const getCachedRecentTickets = cache(async (limit: number = 10, workspaceId: string) => {
+    const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from('tickets')
+      .select('id, title, status, priority, created_at, assignee_id, reviewer_id, projects(project_name), assignees:users!assignee_id(id, name, avatar_url)')
+      .eq('workspace_id', workspaceId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
 
-      if (error) {
-        console.error(`[Cache] Error fetching recent tickets for workspace ${workspaceId}:`, error);
-        return [];
-      }
-      return data || [];
-    },
-    [`recent-tickets-${limit}-${workspaceId}`],
-    {
-      revalidate: 60,
-      tags: ['tickets', `workspace-${workspaceId}`]
+    if (error) {
+      console.error(`[Cache] Error fetching recent tickets for workspace ${workspaceId}:`, error);
+      return [];
     }
-  )();
+    return data || [];
+});
 
 /**
  * Cached fetch for a specific user's unread notification count.
@@ -279,8 +256,7 @@ export const getCachedUnreadCount = (userId: string, workspaceId: string) =>
 /**
  * Cached fetch for all projects in a specific workspace.
  */
-export const getCachedProjects = (workspaceId: string) => cache(unstable_cache(
-  async () => {
+export const getCachedProjects = cache(async (workspaceId: string) => {
     const supabase = createAdminClient();
     const { data, error } = await supabase
       .from('projects')
@@ -293,13 +269,7 @@ export const getCachedProjects = (workspaceId: string) => cache(unstable_cache(
       return [];
     }
     return data || [];
-  },
-  ['projects-list', workspaceId],
-  {
-    revalidate: 60,
-    tags: ['projects', `workspace-${workspaceId}`]
-  }
-))();
+});
 
 /**
  * Cached fetch for Issue page project dropdown (lightweight), specific to workspace.
@@ -459,29 +429,21 @@ export const getCachedIssuesList = (workspaceId: string, limit: number = 120) =>
 /**
  * Cached fetch for tickets assigned to or reviewed by a specific user, scoped to workspace.
  */
-export const getCachedUserTasks = (userId: string, workspaceId: string) =>
-  unstable_cache(
-    async () => {
-      const supabase = createAdminClient();
-      const { data, error } = await supabase
-        .from('tickets')
-        .select('id, title, status, priority, created_at, assignee_id, reviewer_id, projects(project_name)')
-        .eq('workspace_id', workspaceId)
-        .or(`assignee_id.eq.${userId},reviewer_id.eq.${userId}`)
-        .order('created_at', { ascending: false });
+export const getCachedUserTasks = cache(async (userId: string, workspaceId: string) => {
+    const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from('tickets')
+      .select('id, title, status, priority, created_at, assignee_id, reviewer_id, projects(project_name)')
+      .eq('workspace_id', workspaceId)
+      .or(`assignee_id.eq.${userId},reviewer_id.eq.${userId}`)
+      .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error(`[Cache] Error fetching user tasks for user ${userId} in workspace ${workspaceId}:`, error);
-        return [];
-      }
-      return data || [];
-    },
-    [`user-tasks-${userId}-${workspaceId}`],
-    {
-      revalidate: 60,
-      tags: ['tickets', `user-tasks-${userId}`, `workspace-${workspaceId}`]
+    if (error) {
+      console.error(`[Cache] Error fetching user tasks for user ${userId} in workspace ${workspaceId}:`, error);
+      return [];
     }
-  )();
+    return data || [];
+});
 
 /**
  * Cached fetch for My Tasks page with full detail relations, scoped to workspace.
@@ -541,8 +503,7 @@ export const getCachedMyTasksDetailed = (userId: string, workspaceId: string) =>
 /**
  * Cached fetch for upcoming deadlines (projects or tickets due within 30 days), scoped to workspace.
  */
-export const getCachedUpcomingDeadlines = (workspaceId: string) => unstable_cache(
-  async () => {
+export const getCachedUpcomingDeadlines = cache(async (workspaceId: string) => {
     const supabase = createAdminClient();
     const now = new Date().toISOString();
     const inThirtyDays = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
@@ -560,13 +521,7 @@ export const getCachedUpcomingDeadlines = (workspaceId: string) => unstable_cach
       .limit(5);
 
     return projects || [];
-  },
-  ['upcoming-deadlines-v3', workspaceId],
-  {
-    revalidate: 60,
-    tags: ['projects', 'tickets', `workspace-${workspaceId}`]
-  }
-)();
+});
 
 /**
  * Cached fetch for recent unread notifications for a user within a workspace.
