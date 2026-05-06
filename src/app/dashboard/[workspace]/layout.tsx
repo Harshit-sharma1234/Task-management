@@ -9,6 +9,7 @@ import { LoadingProgress } from '@/components/dashboard/LoadingProgress';
 import { DashboardToaster } from '@/components/dashboard/DashboardToaster';
 import { GlobalDataSync } from '@/components/dashboard/GlobalDataSync';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { LayoutWrapper } from '@/components/dashboard/LayoutWrapper';
 
 export default async function WorkspaceDashboardLayout({
   children,
@@ -90,26 +91,25 @@ export default async function WorkspaceDashboardLayout({
   };
 
   return (
-    <div className="flex h-screen bg-white text-gray-900 font-sans overflow-hidden">
-      <DashboardToaster />
-      <GlobalDataSync key={workspace.id} initialData={snapshot} />
-      <LoadingProgress />
-      <Sidebar 
-        userId={user.id} 
-        userRole={roleName}
-        workspaceName={workspace.name}
-        workspaceSlug={workspace.slug}
-        availableWorkspaces={availableWorkspaces}
-        activeWorkspaceId={workspace.id}
-        initialUnreadCount={snapshot.unreadCount}
-        profileData={{
-          name: snapshot.profile.name || '',
-          email: snapshot.profile.email,
-          avatar_url: snapshot.profile.avatar_url,
-          role: roleName,
-        }}
-      />
-      <div className="flex-1 flex flex-col min-w-0 bg-[#fbfbfb]">
+    <LayoutWrapper
+      sidebar={
+        <Sidebar 
+          userId={user.id} 
+          userRole={roleName}
+          workspaceName={workspace.name}
+          workspaceSlug={workspace.slug}
+          availableWorkspaces={availableWorkspaces}
+          activeWorkspaceId={workspace.id}
+          initialUnreadCount={snapshot.unreadCount}
+          profileData={{
+            name: snapshot.profile.name || '',
+            email: snapshot.profile.email,
+            avatar_url: snapshot.profile.avatar_url,
+            role: roleName,
+          }}
+        />
+      }
+      header={
         <Header 
           userId={user.id} 
           email={user.email!} 
@@ -121,10 +121,10 @@ export default async function WorkspaceDashboardLayout({
             role: roleName,
           }} 
         />
-        <main className="flex-1 overflow-y-auto w-full outline-none">
-          {children}
-        </main>
-      </div>
-    </div>
+      }
+      globalSync={<GlobalDataSync key={workspace.id} initialData={snapshot} />}
+    >
+      {children}
+    </LayoutWrapper>
   );
 }

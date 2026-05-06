@@ -43,8 +43,8 @@ export function IssuesHeader({
     <>
       <div className="flex flex-col bg-white border-b border-gray-100 sticky top-0 z-10 shadow-sm">
         <div className="h-16 flex items-center justify-between px-8">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4 overflow-x-auto no-scrollbar -mx-2 px-2 lg:mx-0 lg:px-0">
+            <div className="flex items-center gap-2 whitespace-nowrap">
               {filters.map((filter) => (
                 <button
                   key={filter.id}

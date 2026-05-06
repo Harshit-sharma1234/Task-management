@@ -142,7 +142,7 @@ const ProjectRow = memo(({
 
     return (
         <div
-            className="grid grid-cols-[1fr_100px_140px_140px_140px_48px] items-center py-2 hover:bg-gray-50/50 transition-colors group text-sm relative hover:z-20 focus-within:z-20 border-b border-gray-100"
+            className="grid grid-cols-[1fr_auto] md:grid-cols-[1fr_100px_140px_140px_140px_48px] items-center py-2 hover:bg-gray-50/50 transition-colors group text-sm relative hover:z-20 focus-within:z-20 border-b border-gray-100"
             onMouseEnter={() => setIsInteractive(true)}
             onFocus={() => setIsInteractive(true)}
         >
@@ -222,8 +222,8 @@ const ProjectRow = memo(({
                     {project.status ? project.status.replace('_', ' ') : 'backlog'}
                 </span>
             </div>
-            {/* Actions */}
-            <div className="flex items-center justify-end pr-5 relative z-10">
+            {/* Actions (Hidden on mobile unless group-hover, maybe?) */}
+            <div className="hidden md:flex items-center justify-end pr-5 relative z-10">
                 {canDelete && (
                     <button
                         onClick={(e) => {
@@ -242,17 +242,17 @@ const ProjectRow = memo(({
                         )}
                     </button>
                 )}
-
-                <ConfirmModal
-                    isOpen={showDeleteModal}
-                    title="Delete Project"
-                    message={`Are you sure you want to delete "${project.project_name}"? This will permanently delete all associated tickets and data.`}
-                    confirmLabel={isDeleting ? 'Deleting...' : 'Delete Project'}
-                    isDestructive={true}
-                    onConfirm={handleDelete}
-                    onCancel={() => setShowDeleteModal(false)}
-                />
             </div>
+
+            <ConfirmModal
+                isOpen={showDeleteModal}
+                title="Delete Project"
+                message={`Are you sure you want to delete "${project.project_name}"? This will permanently delete all associated tickets and data.`}
+                confirmLabel={isDeleting ? 'Deleting...' : 'Delete Project'}
+                isDestructive={true}
+                onConfirm={handleDelete}
+                onCancel={() => setShowDeleteModal(false)}
+            />
         </div>
     );
 });
@@ -410,7 +410,7 @@ export function ProjectList({ projects, users, userMap, userRole, workspaceId }:
                     ) : (
                         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
                             {/* List Header */}
-                            <div className="grid grid-cols-[1fr_100px_140px_140px_140px_48px] items-center border-b border-gray-100 bg-gray-50/50 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                            <div className="grid grid-cols-[1fr_auto] md:grid-cols-[1fr_100px_140px_140px_140px_48px] items-center border-b border-gray-100 bg-gray-50/50 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
                                 <div className="pl-5">Name</div>
                                 <div className="hidden md:block">Priority</div>
                                 <div className="hidden sm:block">Lead</div>

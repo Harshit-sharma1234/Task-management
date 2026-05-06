@@ -34,21 +34,21 @@ export default async function AdminDashboard({ params }: { params: Promise<{ wor
 
     return (
         <div className="flex flex-col h-full w-full p-10 overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-300">
-            <div className="flex items-center justify-between mb-10">
-                <div>
-                    <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight leading-none">
-                        Welcome back, <span className="text-indigo-600">{userName}</span>
-                    </h1>
-                    <p className="text-[15px] font-medium text-slate-500 mt-2">
+            <div className="flex flex-col gap-4 mb-10">
+                <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight leading-none">
+                    Welcome back, <span className="text-indigo-600">{userName}</span>
+                </h1>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <p className="text-[15px] font-medium text-slate-500">
                         System overview and workspace management.
                     </p>
-                </div>
-                <div className="flex items-center gap-4">
-                    <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white border border-indigo-100 rounded-xl shadow-sm shadow-indigo-50/50">
-                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
-                        <span className="text-[11px] font-extrabold text-indigo-600 uppercase tracking-widest">System Administrator</span>
+                    <div className="flex items-center gap-4">
+                        <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white border border-indigo-100 rounded-xl shadow-sm shadow-indigo-50/50">
+                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
+                            <span className="text-[11px] font-extrabold text-indigo-600 uppercase tracking-widest">System Administrator</span>
+                        </div>
+                        <CreateProjectButton variant="header" workspaceId={workspace.id} />
                     </div>
-                    <CreateProjectButton variant="header" workspaceId={workspace.id} />
                 </div>
             </div>
 

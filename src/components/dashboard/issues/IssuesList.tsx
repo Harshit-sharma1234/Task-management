@@ -111,11 +111,11 @@ const IssueRow = memo(({
       onFocus={() => setIsInteractive(true)}
     >
       <div className="flex items-center gap-3 min-w-0">
-        {/* Selection Checkbox */}
+        {/* Selection Checkbox (Hidden on mobile for more space) */}
         <div
           onClick={(e) => onToggleSelection(e, ticket.id)}
           className={twMerge(
-            "w-4 h-4 rounded border transition-all flex items-center justify-center shrink-0 cursor-default",
+            "hidden sm:flex w-4 h-4 rounded border transition-all items-center justify-center shrink-0 cursor-default",
             isSelected
               ? "bg-indigo-600 border-indigo-600 shadow-sm opacity-100"
               : "border-gray-200 bg-white opacity-0 group-hover:opacity-100 group-hover:border-indigo-400"
@@ -148,14 +148,14 @@ const IssueRow = memo(({
           href={issueHref}
           onMouseEnter={prefetchIssue}
           onFocus={prefetchIssue}
-          className="text-[11px] font-bold text-gray-400 uppercase tracking-tighter shrink-0 w-14 hover:text-indigo-600 transition-colors"
+          className="text-[10px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-tighter shrink-0 w-12 sm:w-14 hover:text-indigo-600 transition-colors"
         >
           {ticket.projects?.project_name?.substring(0, 3).toUpperCase() || 'KAP'}-{ticket.id.substring(0, 2).toUpperCase()}
         </Link>
 
         {/* Status Selector */}
         <div
-          className="w-8 shrink-0 flex justify-center"
+          className="w-6 sm:w-8 shrink-0 flex justify-center"
           onClick={(e) => e.stopPropagation()}
         >
           {isInteractive ? (
@@ -176,17 +176,12 @@ const IssueRow = memo(({
         </div>
 
         <div className="flex items-center gap-2 min-w-0">
-          {isMyTasks === true && ticket.reviewer_id === currentUser?.id && ticket.assignee_id !== currentUser?.id && (
-            <span className="shrink-0 px-1.5 py-0.5 bg-fuchsia-50 text-fuchsia-600 border border-fuchsia-100 rounded text-[9px] font-bold uppercase tracking-wider">
-              Reviewer
-            </span>
-          )}
           <Link
             href={issueHref}
             onMouseEnter={prefetchIssue}
             onFocus={prefetchIssue}
             className={twMerge(
-              "text-sm font-semibold truncate transition-colors",
+              "text-xs sm:text-sm font-semibold truncate transition-colors",
               isSelected ? "text-indigo-900" : "text-gray-700 group-hover:text-indigo-600"
             )}>
             {ticket.title}
@@ -195,20 +190,20 @@ const IssueRow = memo(({
       </div>
 
       <div
-        className="flex items-center gap-6 shrink-0"
+        className="flex items-center gap-3 sm:gap-6 shrink-0"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Project Link */}
+        {/* Project Link - Hidden on mobile */}
         <Link
           href={ticket.projects?.id ? `/dashboard/${workspaceSlug}/projects/${ticket.projects.id}` : '#'}
           onClick={(e) => !ticket.projects?.id && e.preventDefault()}
-          className="flex items-center gap-2 px-2 py-1 bg-gray-50 rounded-md border border-gray-100 hover:bg-gray-100 hover:border-gray-200 transition-all cursor-pointer group/project"
+          className="hidden sm:flex items-center gap-2 px-2 py-1 bg-gray-50 rounded-md border border-gray-100 hover:bg-gray-100 hover:border-gray-200 transition-all cursor-pointer group/project"
         >
           <div className="w-3.5 h-3.5 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden group-hover/project:bg-indigo-100 transition-colors">
             <LayoutGrid size={10} className="text-gray-500 group-hover/project:text-indigo-600" />
           </div>
-          <span className="text-[10px] font-bold text-gray-500 truncate max-w-[120px] group-hover/project:text-indigo-600">
-            {ticket.projects?.project_name || 'Individual Task'}
+          <span className="text-[10px] font-bold text-gray-500 truncate max-w-[80px] md:max-w-[120px] group-hover/project:text-indigo-600">
+            {ticket.projects?.project_name || 'Task'}
           </span>
         </Link>
 
@@ -226,12 +221,12 @@ const IssueRow = memo(({
             <UserAvatar
               name={ticket.assignees?.name || 'Assignee'}
               avatarUrl={ticket.assignees?.avatar_url}
-              size="sm"
+              size="xs"
             />
           )}
         </div>
 
-        <span className="text-[11px] text-gray-400 font-bold uppercase tracking-tighter w-14 text-right">
+        <span className="hidden sm:block text-[11px] text-gray-400 font-bold uppercase tracking-tighter w-14 text-right">
           {new Date(ticket.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
         </span>
       </div>
