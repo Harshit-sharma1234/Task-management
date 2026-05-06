@@ -138,8 +138,8 @@ export async function POST(request: NextRequest) {
 
     // Trigger revalidation for Next.js cache (background)
     const { revalidateTag } = await import('next/cache');
-    revalidateTag(`team-members-${invite.workspace_id}`);
-    revalidateTag('team-members');
+    revalidateTag(`team-members-${invite.workspace_id}`, "default");
+    revalidateTag('team-members', "default");
 
     // Mark invite as accepted
     const { error: updateError } = await adminClient
