@@ -26,6 +26,7 @@ interface MyTasksViewProps {
 export function MyTasksView({ initialTickets, projects, users, currentUser, workspaceSlug, workspaceId }: MyTasksViewProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState('all');
+  const [assigneeFilter, setAssigneeFilter] = useState('all');
 
   const [displaySettings, setDisplaySettings] = useState<DisplaySettings>({
     viewMode: 'list',
@@ -41,8 +42,13 @@ export function MyTasksView({ initialTickets, projects, users, currentUser, work
     } else if (activeFilter === 'backlog') {
       result = initialTickets.filter(t => t.status === 'backlog');
     }
+
+    if (assigneeFilter !== 'all') {
+      result = result.filter(t => t.assignee_id === assigneeFilter);
+    }
+    
     return result;
-  }, [initialTickets, activeFilter]);
+  }, [initialTickets, activeFilter, assigneeFilter]);
 
   // Transform data based on display settings
   const groupedData = useMemo(() => {
@@ -56,6 +62,9 @@ export function MyTasksView({ initialTickets, projects, users, currentUser, work
         totalIssues={filteredTickets.length}
         activeFilter={activeFilter}
         onFilterChange={setActiveFilter}
+        assigneeFilter={assigneeFilter}
+        onAssigneeFilterChange={setAssigneeFilter}
+        users={users}
         onOpenModal={() => setIsModalOpen(true)}
         displaySettings={displaySettings}
         onDisplaySettingsChange={setDisplaySettings}
