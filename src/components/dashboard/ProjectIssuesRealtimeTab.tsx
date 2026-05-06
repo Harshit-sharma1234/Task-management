@@ -269,6 +269,9 @@ export function ProjectIssuesRealtimeTab({
         totalIssues={filteredTickets.length}
         activeFilter={activeFilter}
         onFilterChange={handleFilterChange}
+        assigneeFilter="all"
+        onAssigneeFilterChange={() => {}}
+        users={users}
         onOpenModal={() => setIsModalOpen(true)}
         displaySettings={displaySettings}
         onDisplaySettingsChange={setDisplaySettings}
