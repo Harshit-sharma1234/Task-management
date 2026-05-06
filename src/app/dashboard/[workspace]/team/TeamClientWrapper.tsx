@@ -19,7 +19,7 @@ export function TeamClientWrapper({ workspaceId }: { workspaceId: string }) {
     }
 
     if (!hasFetched) {
-      fetchTeamData(workspaceId).then(data => {
+      fetchTeamData(workspaceId, true).then(data => {
         setTeamData(data.users, data.isAdmin, data.currentUserRole, workspaceId);
       }).catch(err => {
         console.error(err);
