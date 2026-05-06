@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     title: 'Developer Dashboard',
 }
 
-export const revalidate = 60;
+export const dynamic = 'force-dynamic';
 
 export default async function SeniorDevDashboard({ params }: { params: Promise<{ workspace: string }> }) {
     const { workspace: workspaceSlug } = await params;

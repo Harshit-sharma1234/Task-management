@@ -2,7 +2,7 @@
 
 import { useState, useMemo, memo, useRef } from 'react';
 import Link from 'next/link';
-import { Folder, Search, Trash2, Loader2, Filter, User as UserIcon } from 'lucide-react';
+import { Folder, Search, Trash2, Loader2, Filter, User as UserIcon, ChevronDown, X } from 'lucide-react';
 import { useSettingsStore } from '@/lib/store/settings';
 import dynamic from 'next/dynamic';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
@@ -11,6 +11,7 @@ import { AppRole } from '@/lib/roles';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { toast } from 'sonner';
+import { twMerge } from 'tailwind-merge';
 
 // Heavy components that contain modals/complex logic should be lazy loaded
 const PrioritySelector = dynamic(() => import('@/components/dashboard/PrioritySelector').then(mod => mod.PrioritySelector), { ssr: false });
@@ -265,7 +266,10 @@ export function ProjectList({ projects, users, userMap, userRole, workspaceId }:
     const [searchTerm, setSearchTerm] = useState('');
     const [priorityFilter, setPriorityFilter] = useState<string>('all');
     const [statusFilter, setStatusFilter] = useState<string>('all');
-    const [assignedToMe, setAssignedToMe] = useState<boolean>(filterParam === 'assigned');
+    const [leadFilter, setLeadFilter] = useState<string>(filterParam === 'assigned' ? (useSettingsStore.getState().user?.id || 'all') : 'all');
+    const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
+    const [filterSearch, setFilterSearch] = useState('');
+
     const { user } = useSettingsStore();
 
     // Use projects directly from props (kept in sync by the layout's GlobalDataSync)
@@ -290,12 +294,12 @@ export function ProjectList({ projects, users, userMap, userRole, workspaceId }:
             list = list.filter(p => p.status === (statusFilter === 'backlog' ? null : statusFilter));
         }
 
-        if (assignedToMe && user?.id) {
-            list = list.filter(p => p.lead_id === user.id);
+        if (leadFilter !== 'all') {
+            list = list.filter(p => p.lead_id === leadFilter);
         }
 
         return list;
-    }, [projects, searchTerm, priorityFilter, statusFilter, assignedToMe, user?.id, userMap]);
+    }, [projects, searchTerm, priorityFilter, statusFilter, leadFilter, userMap]);
 
     const rowVirtualizer = useVirtualizer({
         count: filteredProjects.length,
@@ -322,71 +326,195 @@ export function ProjectList({ projects, users, userMap, userRole, workspaceId }:
                             placeholder="Search projects..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-9 pr-4 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 w-64 bg-gray-50/50"
+                            className="pl-9 pr-4 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 w-64 bg-gray-50/50 transition-all focus:bg-white focus:shadow-sm"
                         />
                     </div>
                     <CreateProjectButton variant="header" workspaceId={workspaceId} />
                 </div>
             </header>
 
-            {/* Filters Row */}
-            <div className="px-8 py-3 border-b border-gray-100 bg-white flex items-center gap-4 shrink-0 overflow-x-auto no-scrollbar shadow-sm">
-                <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest whitespace-nowrap">
-                    <Filter size={12} />
-                    Filters
-                </div>
-                
-                <div className="h-4 w-px bg-gray-200 mx-1"></div>
-
-                <div className="flex items-center gap-2">
-                    <select 
-                        value={priorityFilter}
-                        onChange={(e) => setPriorityFilter(e.target.value)}
-                        className="text-[11px] font-bold uppercase tracking-tight bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer text-gray-600"
-                    >
-                        <option value="all">All Priorities</option>
-                        <option value="urgent">Urgent</option>
-                        <option value="high">High</option>
-                        <option value="medium">Medium</option>
-                        <option value="low">Low</option>
-                    </select>
-
-                    <select 
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
-                        className="text-[11px] font-bold uppercase tracking-tight bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer text-gray-600"
-                    >
-                        <option value="all">All Statuses</option>
-                        <option value="backlog">Backlog</option>
-                        <option value="in_progress">In Progress</option>
-                        <option value="done">Done</option>
-                        <option value="cancelled">Cancelled</option>
-                    </select>
-
-                    <button
-                        onClick={() => setAssignedToMe(!assignedToMe)}
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-tight transition-all border ${
-                            assignedToMe 
-                                ? 'bg-indigo-50 text-indigo-700 border-indigo-200 ring-2 ring-indigo-500/10' 
-                                : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
-                        }`}
-                    >
-                        <UserIcon size={12} />
-                        Assigned to me
-                    </button>
-
-                    {(priorityFilter !== 'all' || statusFilter !== 'all' || assignedToMe) && (
-                        <button 
-                            onClick={() => {
-                                setPriorityFilter('all');
-                                setStatusFilter('all');
-                                setAssignedToMe(false);
-                            }}
-                            className="text-[10px] font-bold text-red-500 uppercase tracking-widest hover:text-red-600 transition-colors ml-4 py-1 px-2 hover:bg-red-50 rounded-md"
+            {/* Premium Unified Filters Row */}
+            <div className="px-8 py-3 border-b border-gray-100 bg-white flex items-center justify-between shrink-0 shadow-sm z-30">
+                <div className="flex items-center gap-3">
+                    {/* Unified Filter Menu */}
+                    <div className="relative">
+                        <button
+                            onClick={() => setIsFilterMenuOpen(!isFilterMenuOpen)}
+                            className={twMerge(
+                                "flex items-center gap-2 px-3 py-1.5 rounded-lg border text-[11px] font-bold uppercase tracking-tight transition-all duration-200",
+                                (statusFilter !== 'all' || priorityFilter !== 'all' || leadFilter !== 'all')
+                                    ? "bg-indigo-50 border-indigo-200 text-indigo-700 shadow-sm"
+                                    : "bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50"
+                            )}
                         >
-                            Reset
+                            <Filter size={14} className={statusFilter !== 'all' || priorityFilter !== 'all' || leadFilter !== 'all' ? "text-indigo-600" : "text-gray-400"} />
+                            <span>Filter</span>
+                            {(statusFilter !== 'all' || priorityFilter !== 'all' || leadFilter !== 'all') && (
+                                <span className="flex items-center justify-center min-w-[16px] h-4 bg-indigo-600 text-white text-[9px] rounded-full px-1">
+                                    {[statusFilter !== 'all', priorityFilter !== 'all', leadFilter !== 'all'].filter(Boolean).length}
+                                </span>
+                            )}
+                            <ChevronDown size={14} className={twMerge("transition-transform", isFilterMenuOpen && "rotate-180")} />
                         </button>
-                    )}
+
+                        {isFilterMenuOpen && (
+                            <>
+                                <div className="fixed inset-0 z-40" onClick={() => setIsFilterMenuOpen(false)} />
+                                <div className="absolute left-0 mt-2 w-72 bg-white border border-gray-100 shadow-2xl rounded-xl z-50 animate-in fade-in slide-in-from-top-2 duration-200 overflow-hidden flex flex-col">
+                                    <div className="p-3 border-b border-gray-50 flex items-center gap-2 bg-gray-50/50">
+                                        <Search size={14} className="text-gray-400" />
+                                        <input
+                                            type="text"
+                                            placeholder="Add Filter..."
+                                            value={filterSearch}
+                                            onChange={(e) => setFilterSearch(e.target.value)}
+                                            className="bg-transparent border-none focus:ring-0 text-xs w-full placeholder:text-gray-400 font-medium"
+                                        />
+                                    </div>
+
+                                    <div className="max-h-[450px] overflow-y-auto p-1.5 scrollbar-thin flex flex-col gap-1">
+                                        {/* Status Section */}
+                                        {!filterSearch && (
+                                            <div className="px-2 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Status</div>
+                                        )}
+                                        {[
+                                            { id: 'all', label: 'All Statuses', icon: <Filter size={14} /> },
+                                            { id: 'backlog', label: 'Backlog', icon: <div className="w-2 h-2 rounded-full bg-orange-500" /> },
+                                            { id: 'in_progress', label: 'In Progress', icon: <div className="w-2 h-2 rounded-full bg-indigo-500" /> },
+                                            { id: 'done', label: 'Done', icon: <div className="w-2 h-2 rounded-full bg-green-500" /> },
+                                            { id: 'cancelled', label: 'Cancelled', icon: <div className="w-2 h-2 rounded-full bg-red-500" /> },
+                                        ].filter(f => f.label.toLowerCase().includes(filterSearch.toLowerCase())).map((f) => (
+                                            <button
+                                                key={f.id}
+                                                onClick={() => {
+                                                    setStatusFilter(f.id);
+                                                    setIsFilterMenuOpen(false);
+                                                }}
+                                                className={twMerge(
+                                                    "w-full flex items-center gap-3 px-2.5 py-1.5 rounded-lg text-left text-xs font-medium transition-colors",
+                                                    statusFilter === f.id ? "bg-indigo-50 text-indigo-700" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                                                )}
+                                            >
+                                                <div className="w-5 flex justify-center">{f.icon}</div>
+                                                <span>{f.label}</span>
+                                                {statusFilter === f.id && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-600" />}
+                                            </button>
+                                        ))}
+
+                                        {/* Priority Section */}
+                                        {!filterSearch && (
+                                            <div className="px-2 py-1.5 mt-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Priority</div>
+                                        )}
+                                        {[
+                                            { id: 'all', label: 'All Priorities', icon: <Filter size={14} /> },
+                                            { id: 'urgent', label: 'Urgent', icon: <div className="flex gap-0.5"><div className="w-1 h-3 bg-red-500 rounded-sm" /><div className="w-1 h-3 bg-red-500 rounded-sm" /><div className="w-1 h-3 bg-red-500 rounded-sm" /></div> },
+                                            { id: 'high', label: 'High', icon: <div className="flex gap-0.5"><div className="w-1 h-2 bg-orange-500 rounded-sm" /><div className="w-1 h-2.5 bg-orange-500 rounded-sm" /><div className="w-1 h-3 bg-orange-500 rounded-sm" /></div> },
+                                            { id: 'medium', label: 'Medium', icon: <div className="flex gap-0.5"><div className="w-1 h-1.5 bg-indigo-400 rounded-sm" /><div className="w-1 h-2.5 bg-indigo-400 rounded-sm" /><div className="w-1 h-3 bg-gray-200 rounded-sm" /></div> },
+                                            { id: 'low', label: 'Low', icon: <div className="flex gap-0.5"><div className="w-1 h-1.5 bg-indigo-400 rounded-sm" /><div className="w-1 h-3 bg-gray-200 rounded-sm" /><div className="w-1 h-3 bg-gray-200 rounded-sm" /></div> },
+                                        ].filter(f => f.label.toLowerCase().includes(filterSearch.toLowerCase())).map((f) => (
+                                            <button
+                                                key={f.id}
+                                                onClick={() => {
+                                                    setPriorityFilter(f.id);
+                                                    setIsFilterMenuOpen(false);
+                                                }}
+                                                className={twMerge(
+                                                    "w-full flex items-center gap-3 px-2.5 py-1.5 rounded-lg text-left text-xs font-medium transition-colors",
+                                                    priorityFilter === f.id ? "bg-indigo-50 text-indigo-700" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                                                )}
+                                            >
+                                                <div className="w-5 flex justify-center">{f.icon}</div>
+                                                <span>{f.label}</span>
+                                                {priorityFilter === f.id && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-600" />}
+                                            </button>
+                                        ))}
+
+                                        {/* Lead Section */}
+                                        {!filterSearch && (
+                                            <div className="px-2 py-1.5 mt-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider border-t border-gray-50 pt-3">Lead</div>
+                                        )}
+                                        <button
+                                            onClick={() => {
+                                                setLeadFilter('all');
+                                                setIsFilterMenuOpen(false);
+                                            }}
+                                            className={twMerge(
+                                                "w-full flex items-center gap-3 px-2.5 py-1.5 rounded-lg text-left text-xs font-medium transition-colors",
+                                                leadFilter === 'all' ? "bg-indigo-50 text-indigo-700" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                                            )}
+                                        >
+                                            <div className="w-5 flex justify-center"><UserIcon size={14} className="text-gray-400" /></div>
+                                            <span>All Leads</span>
+                                        </button>
+                                        
+                                        {(users || []).filter(u => u.name.toLowerCase().includes(filterSearch.toLowerCase())).map((u) => (
+                                            <button
+                                                key={u.id}
+                                                onClick={() => {
+                                                    setLeadFilter(u.id);
+                                                    setIsFilterMenuOpen(false);
+                                                }}
+                                                className={twMerge(
+                                                    "w-full flex items-center gap-3 px-2.5 py-1.5 rounded-lg text-left text-xs font-medium transition-colors",
+                                                    leadFilter === u.id ? "bg-indigo-50 text-indigo-700" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                                                )}
+                                            >
+                                                <div className="w-5 flex justify-center">
+                                                    <UserAvatar name={u.name} avatarUrl={u.avatar_url} size="xs" />
+                                                </div>
+                                                <span className="truncate">{u.name}</span>
+                                                {leadFilter === u.id && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-600" />}
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    {(statusFilter !== 'all' || priorityFilter !== 'all' || leadFilter !== 'all') && (
+                                        <div className="p-2 border-t border-gray-50 bg-gray-50/30">
+                                            <button
+                                                onClick={() => {
+                                                    setStatusFilter('all');
+                                                    setPriorityFilter('all');
+                                                    setLeadFilter('all');
+                                                    setIsFilterMenuOpen(false);
+                                                }}
+                                                className="w-full py-1.5 text-center text-[10px] font-bold text-gray-400 hover:text-indigo-600 transition-colors uppercase tracking-widest"
+                                            >
+                                                Clear All Filters
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            </>
+                        )}
+                    </div>
+
+                    {/* Quick Badges */}
+                    <div className="flex items-center gap-1.5">
+                        {statusFilter !== 'all' && (
+                            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-[10px] font-bold border border-gray-200 uppercase tracking-tight">
+                                <span>{statusFilter.replace('_', ' ')}</span>
+                                <button onClick={() => setStatusFilter('all')} className="hover:text-red-500"><X size={10} /></button>
+                            </div>
+                        )}
+                        {priorityFilter !== 'all' && (
+                            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-orange-50 text-orange-700 rounded-full text-[10px] font-bold border border-orange-100 uppercase tracking-tight">
+                                <span>{priorityFilter}</span>
+                                <button onClick={() => setPriorityFilter('all')} className="hover:text-red-500"><X size={10} /></button>
+                            </div>
+                        )}
+                        {leadFilter !== 'all' && (
+                            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-full text-[10px] font-bold border border-indigo-100 uppercase tracking-tight">
+                                <span>{users.find(u => u.id === leadFilter)?.name || 'User'}</span>
+                                <button onClick={() => setLeadFilter('all')} className="hover:text-red-500"><X size={10} /></button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                    <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">
+                        {filteredProjects.length} {filteredProjects.length === 1 ? 'Project' : 'Projects'}
+                    </span>
                 </div>
             </div>
 
