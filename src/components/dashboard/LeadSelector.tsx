@@ -137,7 +137,7 @@ export const LeadSelector = memo(forwardRef<SelectorHandle, LeadSelectorProps>((
             </button>
 
             {isOpen && (
-                <div className={`absolute ${align === 'left' ? 'left-auto right-0 sm:left-0 sm:right-auto' : 'right-0'} top-full mt-2 w-52 sm:w-64 bg-white border border-gray-100 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200`}>
+                <div className={`absolute ${align === 'left' ? 'left-auto right-0 sm:left-0 sm:right-auto' : 'right-0'} top-full mt-2 w-52 sm:w-64 bg-white border border-gray-100 rounded-xl shadow-xl z-[80] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200`}>
                     <div className="p-2 border-b border-gray-50 flex items-center gap-2 bg-gray-50/50">
                         <Search size={14} className="text-gray-400 ml-2" />
                         <input

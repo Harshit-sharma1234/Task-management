@@ -191,23 +191,24 @@ export function CreateProjectButton({ variant = 'header', workspaceId }: CreateP
       )}
 
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-[2px] px-4 py-10 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden relative border border-gray-100">
-            <div className="px-8 pt-7 pb-5 border-b border-gray-100 flex justify-between items-start bg-white">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/30 backdrop-blur-[2px] px-4 py-6">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden relative border border-gray-100 flex flex-col animate-in zoom-in-95 duration-200">
+            <div className="px-4 sm:px-8 pt-4 sm:pt-7 pb-3 sm:pb-5 border-b border-gray-100 flex justify-between items-start bg-white">
               <div className="min-w-0">
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">New project</div>
+                <div className="text-[10px] sm:text-xs font-semibold text-gray-400 uppercase tracking-wider">New project</div>
               </div>
               <button
                 onClick={closeModal}
                 type="button"
-                className="text-gray-400 hover:text-gray-600 text-2xl font-light leading-none -mt-1"
+                className="text-gray-400 hover:text-gray-600 text-xl sm:text-2xl font-light leading-none -mt-1"
                 aria-label="Close"
               >
                 &times;
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="px-8 py-6">
+            <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+              <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-4 sm:py-6 custom-scrollbar">
               {error && (
                 <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-md border border-red-100">
                   {error}
@@ -221,31 +222,31 @@ export function CreateProjectButton({ variant = 'header', workspaceId }: CreateP
               <input type="hidden" name="start_date" value={startDate} />
               <input type="hidden" name="workspace_id" value={resolvedWorkspaceId} />
 
-              <div className="space-y-3">
+              <div className="space-y-1.5 sm:space-y-3">
                 <input
                   type="text"
                   id="project_name"
                   name="project_name"
                   required
-                  className="w-full text-[34px] leading-tight font-bold text-gray-900 placeholder:text-gray-300 outline-none bg-transparent"
+                  className="w-full text-[24px] sm:text-[34px] leading-tight font-bold text-gray-900 placeholder:text-gray-300 outline-none bg-transparent"
                   placeholder="Project name"
                 />
 
                 <input
                   type="text"
-                  className="w-full text-sm text-gray-600 placeholder:text-gray-400 outline-none bg-transparent"
+                  className="w-full text-xs sm:text-sm text-gray-600 placeholder:text-gray-400 outline-none bg-transparent"
                   placeholder="Add a short summary..."
                   aria-label="Short summary"
                 />
               </div>
 
-              <div className="mt-5 flex flex-wrap gap-2" ref={pillsRef}>
+              <div className="mt-4 grid grid-cols-2 sm:flex sm:flex-wrap gap-2" ref={pillsRef}>
                 {/* Status pill */}
                 <div className="relative">
                   <button
                     type="button"
                     onClick={() => setOpenPill(p => (p === 'status' ? null : 'status'))}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
+                    className="inline-flex items-center justify-between sm:justify-start gap-2 px-3 py-1.5 rounded-full bg-gray-50 border border-gray-200 text-[10px] sm:text-xs font-semibold text-gray-700 hover:bg-gray-100 transition-colors w-full sm:w-auto"
                   >
                     <CircleDot size={14} className="text-gray-400" />
                     {statusOptions.find(o => o.value === status)?.label || 'Backlog'}
@@ -277,14 +278,14 @@ export function CreateProjectButton({ variant = 'header', workspaceId }: CreateP
                   <button
                     type="button"
                     onClick={() => setOpenPill(p => (p === 'priority' ? null : 'priority'))}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
+                    className="inline-flex items-center justify-between sm:justify-start gap-2 px-3 py-1.5 rounded-full bg-gray-50 border border-gray-200 text-[10px] sm:text-xs font-semibold text-gray-700 hover:bg-gray-100 transition-colors w-full sm:w-auto"
                   >
                     <MoreHorizontal size={14} className="text-gray-400" />
                     {priorityOptions.find(o => o.value === priority)?.label || 'No priority'}
                     <ChevronDown size={14} className="text-gray-400" />
                   </button>
                   {openPill === 'priority' && (
-                    <div className="absolute z-20 mt-2 w-48 rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden">
+                    <div className="absolute z-20 mt-2 right-0 sm:left-0 w-48 rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                       {priorityOptions.map(o => {
                         const Icon = o.icon
                         return (
@@ -315,7 +316,7 @@ export function CreateProjectButton({ variant = 'header', workspaceId }: CreateP
                   <button
                     type="button"
                     onClick={() => setOpenPill(p => (p === 'lead' ? null : 'lead'))}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
+                    className="inline-flex items-center justify-between sm:justify-start gap-2 px-3 py-1.5 rounded-full bg-gray-50 border border-gray-200 text-[10px] sm:text-xs font-semibold text-gray-700 hover:bg-gray-100 transition-colors w-full sm:w-auto"
                   >
                     <User size={14} className="text-gray-400" />
                     {leadName ? `Lead: ${leadName}` : 'Lead'}
@@ -362,7 +363,7 @@ export function CreateProjectButton({ variant = 'header', workspaceId }: CreateP
                       setIsAssigneeDropdownOpen(v => !v)
                       setOpenPill(null)
                     }}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
+                    className="inline-flex items-center justify-between sm:justify-start gap-2 px-3 py-1.5 rounded-full bg-gray-50 border border-gray-200 text-[10px] sm:text-xs font-semibold text-gray-700 hover:bg-gray-100 transition-colors w-full sm:w-auto"
                   >
                     <Users size={14} className="text-gray-400" />
                     {selectedAssignees.length ? `Members (${selectedAssignees.length})` : 'Members'}
@@ -370,7 +371,7 @@ export function CreateProjectButton({ variant = 'header', workspaceId }: CreateP
                   </button>
 
                   {isAssigneeDropdownOpen && (
-                    <div className="absolute z-20 mt-2 w-64 rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden">
+                    <div className="absolute z-20 mt-2 right-0 sm:left-0 w-64 rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                       {users.length === 0 ? (
                         <div className="p-3 text-sm text-gray-500 text-center">No users available</div>
                       ) : (
@@ -403,7 +404,7 @@ export function CreateProjectButton({ variant = 'header', workspaceId }: CreateP
                   <button
                     type="button"
                     onClick={() => setOpenPill(p => (p === 'start' ? null : 'start'))}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
+                    className="inline-flex items-center justify-between sm:justify-start gap-2 px-3 py-1.5 rounded-full bg-gray-50 border border-gray-200 text-[10px] sm:text-xs font-semibold text-gray-700 hover:bg-gray-100 transition-colors w-full sm:w-auto"
                   >
                     <Calendar size={14} className="text-gray-400" />
                     {startDate ? `Start: ${startDate}` : 'Start'}
@@ -448,11 +449,12 @@ export function CreateProjectButton({ variant = 'header', workspaceId }: CreateP
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
+                    className="inline-flex items-center justify-between sm:justify-start gap-2 px-3 py-1.5 rounded-full bg-gray-50 border border-gray-200 text-[10px] sm:text-xs font-semibold text-gray-700 hover:bg-gray-100 transition-colors w-full sm:w-auto"
                   >
                     <Paperclip size={14} className="text-gray-400" />
-                    {selectedFiles.length ? `Attachments (${selectedFiles.length})` : 'Attachments'}
+                    <span className="truncate">{selectedFiles.length ? `Attachments (${selectedFiles.length})` : 'Attachments'}</span>
                   </button>
+                  {/* Selected attachments dropdown/list is handled separately but if we had one it would be right-0 */}
                 </div>
               </div>
 
@@ -481,34 +483,34 @@ export function CreateProjectButton({ variant = 'header', workspaceId }: CreateP
                 </div>
               )}
 
-              <div className="mt-6 border-t border-gray-100 pt-6">
+              <div className="mt-4 border-t border-gray-100 pt-4">
                 <textarea
                   id="description"
                   name="description"
                   required
-                  rows={10}
-                  className="w-full text-sm text-gray-700 placeholder:text-gray-400 outline-none bg-transparent resize-none leading-relaxed"
+                  className="w-full text-sm text-gray-700 placeholder:text-gray-400 outline-none bg-transparent resize-none leading-relaxed min-h-[100px] sm:min-h-[200px]"
                   placeholder="Write a description, a project brief, or collect ideas..."
                 />
               </div>
+            </div>
 
-              <div className="flex justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isLoading ? 'Creating...' : 'Create Project'}
-                </button>
-              </div>
-            </form>
+            <div className="flex justify-end gap-3 px-4 sm:px-8 py-3 sm:py-4 border-t border-gray-100 bg-gray-50 shrink-0">
+              <button
+                type="button"
+                onClick={closeModal}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isLoading ? 'Creating...' : 'Create Project'}
+              </button>
+            </div>
+          </form>
           </div>
         </div>
       )}

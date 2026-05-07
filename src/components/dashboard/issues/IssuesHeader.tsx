@@ -42,8 +42,8 @@ export function IssuesHeader({
   return (
     <>
       <div className="flex flex-col bg-white border-b border-gray-100 sticky top-0 z-10 shadow-sm">
-        <div className="min-h-[4rem] flex flex-col sm:flex-row sm:items-center justify-between px-4 sm:px-8 py-3 sm:py-0 gap-4">
-          <div className="flex items-center gap-4 overflow-x-auto no-scrollbar -mx-2 px-2 lg:mx-0 lg:px-0">
+        <div className="min-h-[4rem] flex flex-col md:flex-row md:items-center justify-between px-4 sm:px-8 py-3 md:py-0 gap-4">
+          <div className="flex items-center gap-4 overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
             <div className="flex items-center gap-2 whitespace-nowrap">
               {filters.map((filter) => (
                 <button

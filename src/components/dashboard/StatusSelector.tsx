@@ -93,7 +93,7 @@ export const StatusSelector = memo(forwardRef<SelectorHandle, StatusSelectorProp
             </button>
 
             {isOpen && (
-                <div className={`absolute ${align === 'left' ? 'left-0' : 'right-0'} top-full mt-2 w-52 bg-white rounded-xl shadow-xl border border-gray-100 py-1.5 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200`}>
+                <div className={`absolute ${align === 'left' ? 'left-0' : 'right-0'} top-full mt-2 w-52 bg-white rounded-xl shadow-xl border border-gray-100 py-1.5 z-[80] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200`}>
                     <div className="px-3 py-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider border-b border-gray-50 mb-1">
                         Change Status
                     </div>

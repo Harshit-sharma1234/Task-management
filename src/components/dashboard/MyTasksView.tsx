@@ -63,7 +63,7 @@ export function MyTasksView({ initialTickets, projects, users, currentUser, work
 
       {/* Content Area */}
       <div className="flex-1 overflow-hidden">
-        <div className="h-full overflow-y-auto pt-6 px-8 w-full">
+        <div className="h-full overflow-y-auto pt-6 px-4 sm:px-8 w-full no-scrollbar">
           {displaySettings.viewMode === 'list' ? (
             <IssuesList
               tickets={filteredTickets}

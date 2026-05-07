@@ -171,8 +171,8 @@ export function AddIssueModal({ isOpen, onClose, projects, users, workspaceId }:
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-[2px] animate-in fade-in duration-200">
-      <div className="w-full max-w-2xl bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-[2px] animate-in fade-in duration-200">
+      <div className="w-full max-w-xl max-h-[90vh] bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50/50">
           <div className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase tracking-widest">
@@ -204,7 +204,7 @@ export function AddIssueModal({ isOpen, onClose, projects, users, workspaceId }:
             <textarea
               placeholder="Add description... *"
               required
-              className="bg-transparent border-none text-sm text-gray-600 placeholder-gray-300 focus:outline-none w-full min-h-[120px] resize-none leading-relaxed flex-1"
+              className="bg-transparent border-none text-sm text-gray-600 placeholder-gray-300 focus:outline-none w-full min-h-[100px] sm:min-h-[120px] resize-none leading-relaxed flex-1"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             />
@@ -245,9 +245,9 @@ export function AddIssueModal({ isOpen, onClose, projects, users, workspaceId }:
           </div>
 
           {/* Controls Bar */}
-          <div className="px-4 sm:px-6 py-4 border-t border-gray-100 flex flex-wrap items-center gap-2 sm:gap-3 bg-gray-50/30">
+          <div className="px-4 sm:px-6 py-4 border-t border-gray-100 flex flex-wrap items-center gap-2 sm:gap-3 bg-gray-50/30 overflow-x-hidden">
             {/* Status Selector */}
-            <div className="relative group flex-1 sm:flex-none min-w-[100px]">
+            <div className="relative group flex-1 sm:flex-none min-w-[90px] sm:min-w-[100px]">
               <select
                 className="appearance-none bg-white border border-gray-200 rounded-md px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/20 pr-8 cursor-pointer shadow-sm w-full"
                 value={formData.status}
@@ -270,7 +270,7 @@ export function AddIssueModal({ isOpen, onClose, projects, users, workspaceId }:
             </div>
 
             {/* Priority Selector */}
-            <div className="relative group flex-1 sm:flex-none min-w-[100px]">
+            <div className="relative group flex-1 sm:flex-none min-w-[90px] sm:min-w-[100px]">
               <select
                 className="appearance-none bg-white border border-gray-200 rounded-md px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/20 pr-8 cursor-pointer shadow-sm w-full"
                 value={formData.priority}
@@ -293,7 +293,7 @@ export function AddIssueModal({ isOpen, onClose, projects, users, workspaceId }:
             </div>
 
             {/* Assignee Selector */}
-            <div className="relative group flex-1 sm:flex-none min-w-[120px]">
+            <div className="relative group flex-1 sm:flex-none min-w-[110px] sm:min-w-[120px]">
               <select
                 className="appearance-none bg-white border border-gray-200 rounded-md px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/20 pr-8 cursor-pointer w-full shadow-sm"
                 value={formData.assignee_id}
@@ -312,7 +312,7 @@ export function AddIssueModal({ isOpen, onClose, projects, users, workspaceId }:
             </div>
 
             {/* Reviewer Selector */}
-            <div className="relative group flex-1 sm:flex-none min-w-[120px]">
+            <div className="relative group flex-1 sm:flex-none min-w-[110px] sm:min-w-[120px]">
               <select
                 className="appearance-none bg-white border border-gray-200 rounded-md px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/20 pr-8 cursor-pointer w-full shadow-sm"
                 value={formData.reviewer_id}

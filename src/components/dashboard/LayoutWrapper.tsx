@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, ReactNode, useEffect } from 'react';
+import React, { useState, ReactNode, useEffect } from 'react';
 import { Menu, X } from 'lucide-react';
 import { DashboardToaster } from './DashboardToaster';
 import { LoadingProgress } from './LoadingProgress';
@@ -54,19 +54,9 @@ export function LayoutWrapper({ children, sidebar, header, globalSync }: LayoutW
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0 bg-[#fbfbfb] relative">
-        {/* Mobile Menu Toggle (Injected into Header area if needed, or overlay) */}
-        {!isSidebarOpen && (
-          <div className="md:hidden absolute top-4 left-6 z-[100]">
-            <button
-              onClick={() => setIsSidebarOpen(true)}
-              className="p-2 bg-white border border-slate-200 rounded-lg shadow-sm text-slate-600 hover:bg-slate-50 transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-            >
-              <Menu size={20} />
-            </button>
-          </div>
-        )}
-
-        {header}
+        {header && React.isValidElement(header) ? (
+          React.cloneElement(header as React.ReactElement<any>, { onMenuClick: () => setIsSidebarOpen(true) })
+        ) : header}
 
         <main className="flex-1 overflow-y-auto w-full outline-none">
           {children}

@@ -168,7 +168,7 @@ export function ProjectOverview({ project, users, currentMemberIds, currentUser,
         </div>
 
         {/* Horizontal Properties Row */}
-        <div className="pt-4 border-t border-gray-100 relative z-[1] focus-within:z-50 transition-all duration-200">
+        <div className="pt-4 border-t border-gray-100 relative z-[1] focus-within:z-[80] transition-all duration-200">
           {/* "Properties" label — shown inline on sm+, as its own row on mobile */}
           <span className="sm:hidden text-[11px] text-gray-400 font-bold uppercase tracking-widest block mb-2">Properties</span>
           <div className="flex flex-wrap items-center gap-x-2 gap-y-2 text-sm text-gray-500">

@@ -135,7 +135,8 @@ export function BulkActionToolbar({ selectedIds, onClear, totalTickets, currentU
                         className="flex items-center gap-2 px-3 py-1.5 rounded-full hover:bg-gray-800 text-xs font-semibold transition-all disabled:opacity-50"
                     >
                         {loadingAction === 'done' ? <Loader2 size={13} className="animate-spin text-green-400" /> : <CheckCircle2 size={13} className="text-green-400" />}
-                        Mark as Done
+                        <span className="hidden sm:inline">Mark as Done</span>
+                        <span className="sm:hidden text-[10px]">Done</span>
                     </button>
 
                     <div className="relative">
@@ -144,7 +145,7 @@ export function BulkActionToolbar({ selectedIds, onClear, totalTickets, currentU
                             className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-all text-xs font-semibold hover:bg-gray-800 ${showMoreActions ? 'bg-gray-800' : ''}`}
                         >
                             <MoreHorizontal size={13} />
-                            Actions
+                            <span className="hidden sm:inline">Actions</span>
                         </button>
 
                         {showMoreActions && (

@@ -226,7 +226,7 @@ const IssueRow = memo(({
           )}
         </div>
 
-        <span className="hidden sm:block text-[11px] text-gray-400 font-bold uppercase tracking-tighter w-14 text-right">
+        <span className="hidden md:block text-[11px] text-gray-400 font-bold uppercase tracking-tighter w-14 text-right">
           {new Date(ticket.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
         </span>
       </div>
