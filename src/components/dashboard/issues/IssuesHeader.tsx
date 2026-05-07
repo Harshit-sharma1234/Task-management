@@ -42,7 +42,7 @@ export function IssuesHeader({
   return (
     <>
       <div className="flex flex-col bg-white border-b border-gray-100 sticky top-0 z-10 shadow-sm">
-        <div className="h-16 flex items-center justify-between px-8">
+        <div className="min-h-[4rem] flex flex-col sm:flex-row sm:items-center justify-between px-4 sm:px-8 py-3 sm:py-0 gap-4">
           <div className="flex items-center gap-4 overflow-x-auto no-scrollbar -mx-2 px-2 lg:mx-0 lg:px-0">
             <div className="flex items-center gap-2 whitespace-nowrap">
               {filters.map((filter) => (
@@ -50,7 +50,7 @@ export function IssuesHeader({
                   key={filter.id}
                   onClick={() => onFilterChange(filter.id)}
                   className={twMerge(
-                    "text-xs font-semibold px-3 py-1.5 rounded-md transition-all duration-200",
+                    "text-[10px] sm:text-xs font-semibold px-2.5 sm:px-3 py-1.5 rounded-md transition-all duration-200",
                     activeFilter === filter.id 
                       ? "bg-gray-100 text-gray-900 shadow-sm" 
                       : "text-gray-500 hover:bg-gray-50 hover:text-gray-700"
@@ -61,7 +61,7 @@ export function IssuesHeader({
               ))}
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3">
             <DisplayOptions 
               settings={displaySettings} 
               onChange={onDisplaySettingsChange} 
@@ -69,10 +69,11 @@ export function IssuesHeader({
             {!hideCreateButton && (
               <button 
                 onClick={onOpenModal}
-                className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm"
+                className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white rounded-md text-xs sm:text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm"
               >
                 <Plus size={16} />
-                <span>New Issue</span>
+                <span className="hidden sm:inline">New Issue</span>
+                <span className="sm:hidden">New</span>
               </button>
             )}
           </div>

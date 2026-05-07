@@ -221,7 +221,7 @@ export function IssuesView({
       />
 
       <div className="flex-1 overflow-hidden">
-        <div ref={listScrollRef} className="h-full overflow-y-auto px-8 w-full">
+        <div ref={listScrollRef} className="h-full overflow-y-auto px-4 sm:px-8 w-full">
           {isHydratingMore && (
             <div className="mb-3 text-[11px] font-medium text-gray-400">Loading more issues...</div>
           )}

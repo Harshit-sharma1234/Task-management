@@ -14,34 +14,42 @@ interface PrioritySelectorProps {
 }
 
 const priorities = [
-    { value: 'urgent', label: 'Urgent', shortcut: '1', icon: (
-        <div className="flex gap-0.5 items-end h-3">
-            <div className="w-1 h-3 bg-red-500 rounded-sm"></div>
-            <div className="w-1 h-3 bg-red-500 rounded-sm"></div>
-            <div className="w-1 h-3 bg-red-500 rounded-sm"></div>
-        </div>
-    ) },
-    { value: 'high', label: 'High', shortcut: '2', icon: (
-        <div className="flex gap-0.5 items-end h-3">
-            <div className="w-1 h-2 bg-red-400 rounded-sm"></div>
-            <div className="w-1 h-2.5 bg-red-400 rounded-sm"></div>
-            <div className="w-1 h-3 bg-red-400 rounded-sm"></div>
-        </div>
-    ) },
-    { value: 'medium', label: 'Medium', shortcut: '3', icon: (
-        <div className="flex gap-0.5 items-end h-3">
-            <div className="w-1 h-1.5 bg-yellow-400 rounded-sm"></div>
-            <div className="w-1 h-2.5 bg-yellow-400 rounded-sm"></div>
-            <div className="w-1 h-3 bg-yellow-100 rounded-sm"></div>
-        </div>
-    ) },
-    { value: 'low', label: 'Low', shortcut: '4', icon: (
-        <div className="flex gap-0.5 items-end h-3">
-            <div className="w-1 h-1.5 bg-indigo-400 rounded-sm"></div>
-            <div className="w-1 h-3 bg-indigo-100 rounded-sm"></div>
-            <div className="w-1 h-3 bg-indigo-100 rounded-sm"></div>
-        </div>
-    ) },
+    {
+        value: 'urgent', label: 'Urgent', shortcut: '1', icon: (
+            <div className="flex gap-0.5 items-end h-3">
+                <div className="w-1 h-3 bg-red-500 rounded-sm"></div>
+                <div className="w-1 h-3 bg-red-500 rounded-sm"></div>
+                <div className="w-1 h-3 bg-red-500 rounded-sm"></div>
+            </div>
+        )
+    },
+    {
+        value: 'high', label: 'High', shortcut: '2', icon: (
+            <div className="flex gap-0.5 items-end h-3">
+                <div className="w-1 h-2 bg-red-400 rounded-sm"></div>
+                <div className="w-1 h-2.5 bg-red-400 rounded-sm"></div>
+                <div className="w-1 h-3 bg-red-400 rounded-sm"></div>
+            </div>
+        )
+    },
+    {
+        value: 'medium', label: 'Medium', shortcut: '3', icon: (
+            <div className="flex gap-0.5 items-end h-3">
+                <div className="w-1 h-1.5 bg-yellow-400 rounded-sm"></div>
+                <div className="w-1 h-2.5 bg-yellow-400 rounded-sm"></div>
+                <div className="w-1 h-3 bg-yellow-100 rounded-sm"></div>
+            </div>
+        )
+    },
+    {
+        value: 'low', label: 'Low', shortcut: '4', icon: (
+            <div className="flex gap-0.5 items-end h-3">
+                <div className="w-1 h-1.5 bg-indigo-400 rounded-sm"></div>
+                <div className="w-1 h-3 bg-indigo-100 rounded-sm"></div>
+                <div className="w-1 h-3 bg-indigo-100 rounded-sm"></div>
+            </div>
+        )
+    },
     { value: null, label: 'No priority', shortcut: '0', icon: <Ban size={14} className="text-gray-400" /> },
 ];
 
@@ -155,7 +163,7 @@ export const PrioritySelector = memo(forwardRef<SelectorHandle, PrioritySelector
             </button>
 
             {isOpen && (
-                <div className={`absolute ${align === 'left' ? 'left-0' : 'right-0'} top-full mt-2 w-60 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 text-gray-900 font-sans overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200`}>
+                <div className={`absolute ${align === 'left' ? 'left-[-40px] sm:left-0' : 'right-0'} top-full mt-2 w-60 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 text-gray-900 font-sans overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200`}>
                     <div className="px-3 pb-2 mb-2 border-b border-gray-50 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
                         Change priority...
                     </div>

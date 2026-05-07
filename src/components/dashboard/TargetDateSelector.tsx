@@ -128,16 +128,21 @@ export const TargetDateSelector = memo(forwardRef<SelectorHandle, TargetDateSele
                 }}
                 className={`flex items-center gap-2 py-1 rounded-md hover:bg-gray-100/80 transition-colors text-gray-500 hover:text-gray-900 ${isPending ? 'opacity-50' : ''}`}
             >
-                <CalendarPlus size={14} className={currentTargetDate ? "text-gray-900" : "text-gray-400"} />
-                <span className={`text-xs ${currentTargetDate ? "font-medium text-gray-900" : ""}`}>
+                <CalendarPlus size={14} className={currentTargetDate ? "text-indigo-600" : "text-gray-400"} />
+                <span className={`text-[11px] font-bold transition-colors bg-gray-50 px-2 py-0.5 rounded border border-gray-100/80 group-hover:bg-gray-100/50 ${currentTargetDate ? "text-gray-700 group-hover:text-indigo-600" : "text-gray-400"}`}>
                     {formatDisplayDate(currentTargetDate)}
                 </span>
             </button>
 
             {isOpen && (
-                <div className={`absolute ${align === 'left' ? 'left-0' : 'right-0'} top-full mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 py-3 z-50 text-gray-900 font-sans select-none animate-in fade-in slide-in-from-top-2 duration-200`}>
-                    
-                    <div className="px-3 mb-4">
+                <div className={`
+                    absolute left-1/2 sm:left-auto -translate-x-1/2 sm:translate-x-0
+                    ${align === 'left' ? 'sm:left-0' : 'sm:right-0'}
+                    top-full mt-2
+                    w-72 sm:w-64
+                    bg-white border border-gray-100 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200
+                `}>
+                    <div className="px-3 mb-4 mt-3">
                         <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Target date</div>
                         <div className="relative">
                             <input

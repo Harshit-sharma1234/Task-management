@@ -128,17 +128,16 @@ export const LeadSelector = memo(forwardRef<SelectorHandle, LeadSelectorProps>((
                         name={currentLead ? currentLead.name : (currentLeadId ? '?' : 'Unassigned')}
                         avatarUrl={currentLead?.avatar_url}
                         size="sm"
+                        className="ring-2 ring-white shadow-sm"
                     />
                 )}
-                {(showEmail || showName) && (
-                    <span className="text-[11px] font-medium text-gray-700 truncate max-w-[130px]">
-                        {leadLabel}
-                    </span>
-                )}
+                <span className="text-[11px] font-bold text-gray-700 group-hover:text-indigo-600 transition-colors bg-gray-50 px-2 py-0.5 rounded border border-gray-100/80 group-hover:bg-gray-100/50 truncate max-w-[130px]">
+                    {leadLabel}
+                </span>
             </button>
 
             {isOpen && (
-                <div className={`absolute ${align === 'left' ? 'left-0' : 'right-0'} top-full mt-2 w-64 bg-white border border-gray-100 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200`}>
+                <div className={`absolute ${align === 'left' ? 'left-auto right-0 sm:left-0 sm:right-auto' : 'right-0'} top-full mt-2 w-52 sm:w-64 bg-white border border-gray-100 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200`}>
                     <div className="p-2 border-b border-gray-50 flex items-center gap-2 bg-gray-50/50">
                         <Search size={14} className="text-gray-400 ml-2" />
                         <input

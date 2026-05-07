@@ -71,6 +71,7 @@ export default function InboxClient({
     const [notifications, setNotifications] = useState<any[]>(initialNotifications);
     const [loading, setLoading] = useState(false);
     const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
+    const [mobileView, setMobileView] = useState<'list' | 'detail'>('list');
     const [entityDetail, setEntityDetail] = useState<any>(initialEntityDetail);
     const [entityActivity, setEntityActivity] = useState<any[]>(initialEntityActivity);
     const [detailLoading, setDetailLoading] = useState(false);
@@ -266,8 +267,12 @@ export default function InboxClient({
     const selectedNotification = useMemo(() => notifications.find(n => n.id === selectedId), [notifications, selectedId]);
 
     function handleSelect(notification: any) {
-        if (selectedId === notification.id) return;
+        if (selectedId === notification.id) {
+            setMobileView('detail');
+            return;
+        }
         setSelectedId(notification.id);
+        setMobileView('detail');
         fetchEntityDetail(notification);
         // Auto-mark as read
         if (!notification.is_read) {
@@ -276,6 +281,8 @@ export default function InboxClient({
             decrementGlobalUnreadCount();
         }
     }
+
+    const handleMobileBack = () => setMobileView('list');
 
     const handleMarkAllRead = async () => {
         await markAllAsRead(workspaceId);
@@ -373,9 +380,13 @@ export default function InboxClient({
     const normalizedType = selectedNotification ? getNormalizedType(selectedNotification.entity_type) : null;
 
     return (
-        <div className="flex h-full bg-white">
+        <div className="flex h-full bg-white overflow-hidden">
             {/* ── LEFT PANEL: Notification List ─────────────────── */}
-            <div className="w-[380px] shrink-0 border-r border-gray-200 flex flex-col h-full bg-white">
+            <div className={`
+                flex flex-col h-full bg-white border-r border-gray-200
+                md:w-[380px] md:shrink-0 md:flex
+                ${mobileView === 'list' ? 'flex w-full' : 'hidden md:flex'}
+            `}>
                 {/* List Header */}
                 <header className="h-12 border-b border-gray-100 px-4 flex items-center justify-between bg-white shrink-0">
                     <div className="flex items-center gap-3">
@@ -560,7 +571,11 @@ export default function InboxClient({
             </div>
 
             {/* ── RIGHT PANEL: Detail View ─────────────────── */}
-            <div className="flex-1 flex flex-col h-full overflow-hidden bg-white">
+            <div className={`
+                flex-col h-full overflow-hidden bg-white
+                md:flex md:flex-1
+                ${mobileView === 'detail' ? 'flex w-full' : 'hidden md:flex'}
+            `}>
                 {!selectedNotification ? (
                     <div className="flex-1 flex items-center justify-center text-gray-300">
                         <div className="text-center">
@@ -571,35 +586,48 @@ export default function InboxClient({
                     </div>
                 ) : (
                     <>
-                        <div className="h-12 flex items-center justify-between px-6 border-b border-gray-100 bg-white shrink-0">
-                            <div className="flex items-center gap-2 text-[12px] font-medium text-gray-400">
+                        <div className="h-12 flex items-center gap-2 px-3 sm:px-4 border-b border-gray-100 bg-white shrink-0 overflow-hidden">
+                            {/* Mobile back button */}
+                            <button
+                                onClick={handleMobileBack}
+                                className="md:hidden p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-500 shrink-0"
+                                aria-label="Back to inbox"
+                            >
+                                <ArrowLeft size={18} />
+                            </button>
+
+                            {/* Breadcrumb — secondary info hidden on small screens */}
+                            <div className="flex items-center gap-1.5 text-[12px] font-medium text-gray-400 min-w-0 flex-1 overflow-hidden">
+                                {/* Project name: only on large screens */}
                                 {entityDetail?.type === 'ticket' && entityDetail.data?.projects?.project_name && (
-                                    <>
-                                        <span className="text-gray-500">{entityDetail.data.projects.project_name}</span>
-                                        <ChevronRight size={12} className="text-gray-300" />
-                                    </>
+                                    <span className="hidden lg:inline text-gray-500 shrink-0 truncate max-w-[100px]">
+                                        {entityDetail.data.projects.project_name}
+                                    </span>
                                 )}
-                                <span className="text-gray-500 uppercase">
+                                <ChevronRight size={12} className="hidden lg:inline text-gray-300 shrink-0" />
+                                {/* KAP ID: only on md+ screens */}
+                                <span className="hidden md:inline text-gray-500 uppercase shrink-0">
                                     {normalizedType === 'ticket' ? 'KAP-' : normalizedType === 'project' ? 'PRJ-' : 'WRK-'}
                                     {selectedNotification.entity_id?.slice(0, 4)}
                                 </span>
-                                <ChevronRight size={12} className="text-gray-300" />
-                                <span className="text-gray-700 font-semibold truncate max-w-[300px]">
+                                <ChevronRight size={12} className="hidden md:inline text-gray-300 shrink-0" />
+                                {/* Issue title: always shown, takes all remaining space */}
+                                <span className="text-gray-700 font-semibold truncate min-w-0">
                                     {entityDetail?.data?.title || entityDetail?.data?.project_name || entityDetail?.data?.name || 'Loading...'}
                                 </span>
                             </div>
 
-                            {/* Redirection Button */}
+                            {/* Redirection Button — always visible */}
                             {entityDetail?.data?.id && (
                                 <a
                                     href={normalizedType === 'ticket'
                                         ? `/dashboard/${workspaceSlug}/issues/${entityDetail.data.id}`
                                         : `/dashboard/${workspaceSlug}/projects/${entityDetail.data.id}`
                                     }
-                                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-all text-[11px] font-bold shadow-sm shadow-indigo-100/50"
+                                    className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-all text-[11px] font-bold shadow-sm shadow-indigo-100/50"
                                 >
                                     <ExternalLink size={12} />
-                                    <span>{normalizedType === 'ticket' ? 'Go to ticket' : 'Go to project'}</span>
+                                    <span className="hidden sm:inline">{normalizedType === 'ticket' ? 'Go to ticket' : 'Go to project'}</span>
                                 </a>
                             )}
                         </div>

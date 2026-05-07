@@ -245,16 +245,16 @@ export function AddIssueModal({ isOpen, onClose, projects, users, workspaceId }:
           </div>
 
           {/* Controls Bar */}
-          <div className="px-6 py-4 border-t border-gray-100 flex flex-wrap items-center gap-3 bg-gray-50/30">
+          <div className="px-4 sm:px-6 py-4 border-t border-gray-100 flex flex-wrap items-center gap-2 sm:gap-3 bg-gray-50/30">
             {/* Status Selector */}
-            <div className="relative group">
+            <div className="relative group flex-1 sm:flex-none min-w-[100px]">
               <select
-                className="appearance-none bg-white border border-gray-200 rounded-md px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/20 pr-8 cursor-pointer shadow-sm"
+                className="appearance-none bg-white border border-gray-200 rounded-md px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/20 pr-8 cursor-pointer shadow-sm w-full"
                 value={formData.status}
                 required
                 onChange={(e) => setFormData({ ...formData, status: e.target.value })}
               >
-                <option value="" disabled className="text-gray-400">Select status</option>
+                <option value="" disabled className="text-gray-400">Status *</option>
                 {statusOptions.map((opt) => (
                   <option key={opt.value} value={opt.value} className="text-gray-900">
                     {opt.label}
@@ -270,14 +270,14 @@ export function AddIssueModal({ isOpen, onClose, projects, users, workspaceId }:
             </div>
 
             {/* Priority Selector */}
-            <div className="relative group">
+            <div className="relative group flex-1 sm:flex-none min-w-[100px]">
               <select
-                className="appearance-none bg-white border border-gray-200 rounded-md px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/20 pr-8 cursor-pointer shadow-sm"
+                className="appearance-none bg-white border border-gray-200 rounded-md px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/20 pr-8 cursor-pointer shadow-sm w-full"
                 value={formData.priority}
                 required
                 onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
               >
-                <option value="" disabled className="text-gray-400">Select priority</option>
+                <option value="" disabled className="text-gray-400">Priority *</option>
                 {priorityOptions.map((opt) => (
                   <option key={opt.value} value={opt.value} className="text-gray-900">
                     {opt.label}
@@ -293,14 +293,13 @@ export function AddIssueModal({ isOpen, onClose, projects, users, workspaceId }:
             </div>
 
             {/* Assignee Selector */}
-            <div className="relative group min-w-[120px]">
+            <div className="relative group flex-1 sm:flex-none min-w-[120px]">
               <select
                 className="appearance-none bg-white border border-gray-200 rounded-md px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/20 pr-8 cursor-pointer w-full shadow-sm"
                 value={formData.assignee_id}
                 onChange={(e) => setFormData({ ...formData, assignee_id: e.target.value })}
               >
-                <option value="" disabled className="text-gray-400">Select assignee *</option>
-
+                <option value="" disabled className="text-gray-400">Assignee *</option>
                 {users.map((u) => (
                   <option key={u.id} value={u.id} className="text-gray-900">
                     {u.name}
@@ -313,13 +312,13 @@ export function AddIssueModal({ isOpen, onClose, projects, users, workspaceId }:
             </div>
 
             {/* Reviewer Selector */}
-            <div className="relative group min-w-[120px]">
+            <div className="relative group flex-1 sm:flex-none min-w-[120px]">
               <select
                 className="appearance-none bg-white border border-gray-200 rounded-md px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/20 pr-8 cursor-pointer w-full shadow-sm"
                 value={formData.reviewer_id}
                 onChange={(e) => setFormData({ ...formData, reviewer_id: e.target.value })}
               >
-                <option value="">Select reviewer (optional)</option>
+                <option value="">Reviewer (opt)</option>
                 {users.map((u) => (
                   <option key={u.id} value={u.id} className="text-gray-900" disabled={u.id === formData.assignee_id}>
                     {u.name}
@@ -331,8 +330,8 @@ export function AddIssueModal({ isOpen, onClose, projects, users, workspaceId }:
               </div>
             </div>
 
-            {/* Project Selector (Custom Dropdown with Scrollbar) */}
-            <div className="relative group min-w-[200px]" ref={projectDropdownRef}>
+            {/* Project Selector (Custom Dropdown) */}
+            <div className="relative group w-full sm:w-auto sm:min-w-[180px]" ref={projectDropdownRef}>
               <button
                 type="button"
                 onClick={() => setIsProjectDropdownOpen(!isProjectDropdownOpen)}
@@ -348,6 +347,7 @@ export function AddIssueModal({ isOpen, onClose, projects, users, workspaceId }:
                 </div>
                 <ChevronDown size={14} className={twMerge("text-gray-400 transition-transform duration-200", isProjectDropdownOpen && "rotate-180")} />
               </button>
+
 
               {isProjectDropdownOpen && (
                 <div className="absolute bottom-full mb-2 left-0 w-full bg-white rounded-lg shadow-xl border border-gray-100 py-1 z-[60] animate-in fade-in slide-in-from-bottom-2 duration-200">

@@ -44,37 +44,37 @@ export function ProjectDetailHeader({ projectName, projectId, users, workspaceId
   };
 
   return (
-    <div className="border-b border-gray-100 bg-white pl-8 pr-4 pt-4 pb-0 flex flex-col gap-4">
+    <div className="border-b border-gray-100 bg-white pl-4 sm:pl-8 pr-3 sm:pr-4 pt-3 sm:pt-4 pb-0 flex flex-col gap-3 sm:gap-4">
       {/* Top row: Breadcrumbs & Actions */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm text-gray-500">
-          <Link href={`/dashboard/${workspaceSlug}/projects`} className="hover:text-indigo-600 transition-colors">Projects</Link>
-          <ChevronRight size={14} className="text-gray-300" />
-          <span className="text-gray-900 font-medium">{projectName}</span>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className="flex items-center gap-2 text-sm text-gray-500 min-w-0">
+          <Link href={`/dashboard/${workspaceSlug}/projects`} className="hover:text-indigo-600 transition-colors shrink-0">Projects</Link>
+          <ChevronRight size={14} className="text-gray-300 shrink-0" />
+          <span className="text-gray-900 font-medium truncate">{projectName}</span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <button 
             onClick={() => {
                 window.dispatchEvent(new CustomEvent('trigger-project-edit'));
             }}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-md text-[11px] font-bold uppercase tracking-wider hover:bg-gray-50 transition-all shadow-sm active:scale-95 mr-2"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-md text-[11px] font-bold uppercase tracking-wider hover:bg-gray-50 transition-all shadow-sm active:scale-95"
           >
             <Pencil size={14} className="text-gray-400" />
-            <span>Edit Project</span>
+            <span className="hidden sm:inline">Edit Project</span>
           </button>
 
           <button 
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-md text-[11px] font-bold uppercase tracking-wider hover:bg-indigo-700 transition-all shadow-sm shadow-indigo-600/20 active:scale-95 mr-2"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-600 text-white rounded-md text-[11px] font-bold uppercase tracking-wider hover:bg-indigo-700 transition-all shadow-sm shadow-indigo-600/20 active:scale-95"
           >
             <Plus size={14} />
-            <span>New Issue</span>
+            <span className="hidden sm:inline">New Issue</span>
           </button>
 
           <button 
             onClick={copyLink}
-            className="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-gray-50 text-gray-400 hover:text-gray-600 transition-all group relative"
+            className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-gray-50 text-gray-400 hover:text-gray-600 transition-all group relative"
             title="Copy link"
           >
             {copied ? (

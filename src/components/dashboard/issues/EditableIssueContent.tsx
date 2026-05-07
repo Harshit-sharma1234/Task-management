@@ -179,16 +179,16 @@ export function EditableIssueContent({
     // Read-only mode
     if (!isEditing) {
         return (
-            <div className={`mb-12 group/content transition-opacity duration-300 ${isSaving ? 'opacity-70' : 'opacity-100'}`}>
-                <div className="flex items-start justify-between gap-4">
-                    <h1 className="text-3xl font-bold text-gray-900 mb-6 flex-1">
+            <div className={`mb-8 sm:mb-12 group/content transition-opacity duration-300 ${isSaving ? 'opacity-70' : 'opacity-100'}`}>
+                <div className="flex flex-col sm:flex-row items-start justify-between gap-4 mb-4 sm:mb-6">
+                    <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 flex-1">
                         {title}
                         {isSaving && <Loader2 size={16} className="inline-block ml-3 animate-spin text-indigo-400" />}
                     </h1>
                     {canEdit && !isSaving && (
                         <button
                             onClick={() => setIsEditing(true)}
-                            className="mt-1 flex items-center gap-2 px-3 py-1.5 rounded-lg text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-all duration-200 shrink-0 font-bold text-xs shadow-sm shadow-indigo-100/50"
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-all duration-200 shrink-0 font-bold text-xs shadow-sm shadow-indigo-100/50"
                             title="Edit issue"
                         >
                             <Pencil size={14} />
@@ -205,14 +205,14 @@ export function EditableIssueContent({
 
                 {/* Attachments Section (Integrated for Optimistic UI) */}
                 {attachments.length > 0 && (
-                    <div className="mt-8 pt-6 border-t border-gray-100/60">
+                    <div className="mt-6 sm:mt-8 pt-6 border-t border-gray-100/60">
                         <div className="flex items-center gap-2 mb-4 px-1">
                             <Paperclip size={14} className={isSaving ? "text-indigo-400 animate-pulse" : "text-gray-400"} />
                             <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">
                                 Attachments ({attachments.length})
                             </h3>
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-3">
                             {attachments.map((file, idx) => (
                                 <div key={file.url} className="group/attach-item relative bg-gray-50/50 border border-gray-100 rounded-xl hover:bg-white hover:border-indigo-200 hover:shadow-lg hover:shadow-indigo-500/5 transition-all active:scale-[0.98]">
                                     <a
@@ -282,9 +282,9 @@ export function EditableIssueContent({
 
     // Edit mode
     return (
-        <div className="mb-12" onKeyDown={handleKeyDown}>
+        <div className="mb-8 sm:mb-12" onKeyDown={handleKeyDown}>
             {/* Edit Header */}
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
                 <div className="flex items-center gap-2">
                     <div className="w-1.5 h-5 bg-indigo-500 rounded-full" />
                     <span className="text-xs font-bold text-indigo-600 uppercase tracking-widest">Editing Issue</span>
@@ -322,7 +322,7 @@ export function EditableIssueContent({
             </div>
 
             {/* Title Input */}
-            <div className="mb-4">
+            <div className="mb-6">
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 block pl-0.5">
                     Title
                 </label>
@@ -332,7 +332,7 @@ export function EditableIssueContent({
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="Issue title..."
-                    className="w-full text-2xl font-bold text-gray-900 bg-gray-50/50 border border-gray-200 rounded-xl px-4 py-3 focus:ring-4 focus:ring-indigo-100 focus:border-indigo-400 outline-none transition-all placeholder:text-gray-300"
+                    className="w-full text-xl sm:text-2xl font-bold text-gray-900 bg-gray-50/50 border border-gray-200 rounded-xl px-4 py-3 focus:ring-4 focus:ring-indigo-100 focus:border-indigo-400 outline-none transition-all placeholder:text-gray-300"
                 />
             </div>
 
@@ -386,7 +386,7 @@ export function EditableIssueContent({
                     />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                     {/* Existing Attachments */}
                     {attachments.map((file, idx) => (
                         <div key={file.url} className="flex items-center gap-3 p-2 bg-gray-50 border border-gray-100 rounded-lg group/file">

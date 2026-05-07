@@ -104,13 +104,13 @@ const IssueRow = memo(({
     <div
       onClick={handleRowClick}
       className={twMerge(
-        "flex items-center justify-between px-4 py-3 transition-all group border-b border-gray-50 last:border-0 cursor-pointer h-[48px]",
+        "flex items-center justify-between px-3 sm:px-4 py-3 transition-all group border-b border-gray-50 last:border-0 cursor-pointer min-h-[48px]",
         isSelected ? "bg-indigo-50/40 hover:bg-indigo-50/60" : "hover:bg-indigo-50/20"
       )}
       onMouseEnter={() => setIsInteractive(true)}
       onFocus={() => setIsInteractive(true)}
     >
-      <div className="flex items-center gap-3 min-w-0">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
         {/* Selection Checkbox (Hidden on mobile for more space) */}
         <div
           onClick={(e) => onToggleSelection(e, ticket.id)}
@@ -124,7 +124,7 @@ const IssueRow = memo(({
           {isSelected && <Check size={10} className="text-white stroke-[4px]" />}
         </div>
 
-        {/* Priority Selector */}
+        {/* Priority Selector (Desktop only) */}
         <div
           className="hidden md:flex items-center shrink-0 w-8 justify-center"
           onClick={(e) => e.stopPropagation()}
@@ -148,14 +148,14 @@ const IssueRow = memo(({
           href={issueHref}
           onMouseEnter={prefetchIssue}
           onFocus={prefetchIssue}
-          className="text-[10px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-tighter shrink-0 w-12 sm:w-14 hover:text-indigo-600 transition-colors"
+          className="text-[9px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-tighter shrink-0 w-10 sm:w-14 hover:text-indigo-600 transition-colors"
         >
           {ticket.projects?.project_name?.substring(0, 3).toUpperCase() || 'KAP'}-{ticket.id.substring(0, 2).toUpperCase()}
         </Link>
 
         {/* Status Selector */}
         <div
-          className="w-6 sm:w-8 shrink-0 flex justify-center"
+          className="w-5 sm:w-8 shrink-0 flex justify-center"
           onClick={(e) => e.stopPropagation()}
         >
           {isInteractive ? (
@@ -208,7 +208,7 @@ const IssueRow = memo(({
         </Link>
 
         {/* Assignee Selector */}
-        <div className="flex items-center">
+        <div className="flex items-center shrink-0">
           {isInteractive ? (
             <IssueAssigneeSelector
               issueId={ticket.id}

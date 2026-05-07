@@ -142,12 +142,12 @@ const ProjectRow = memo(({
 
     return (
         <div
-            className="grid grid-cols-[1fr_auto] md:grid-cols-[1fr_100px_140px_140px_140px_48px] items-center py-2 hover:bg-gray-50/50 transition-colors group text-sm relative hover:z-20 focus-within:z-20 border-b border-gray-100"
+            className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_120px_auto] md:grid-cols-[1fr_100px_140px_140px_140px_48px] items-center py-2 hover:bg-gray-50/50 transition-colors group text-sm relative hover:z-20 focus-within:z-20 border-b border-gray-100"
             onMouseEnter={() => setIsInteractive(true)}
             onFocus={() => setIsInteractive(true)}
         >
             {/* Name */}
-            <div className="flex items-center gap-3 pl-5 min-w-0">
+            <div className="flex items-center gap-2 sm:gap-3 pl-4 sm:pl-5 min-w-0">
                 <Folder size={15} className="text-gray-400 group-hover:text-gray-600 shrink-0" />
                 <Link
                     href={`/dashboard/${workspaceSlug}/projects/${project.id}`}
@@ -212,7 +212,7 @@ const ProjectRow = memo(({
             </div>
 
             {/* Status */}
-            <div className="flex items-center justify-end pr-5 text-gray-500 gap-2 relative z-10">
+            <div className="flex items-center justify-end pr-3 sm:pr-5 text-gray-500 gap-2 relative z-10">
                 <div className={`w-2 h-2 rounded-full ${project.status === 'done' ? 'bg-green-500' :
                         project.status === 'in_progress' ? 'bg-indigo-500' :
                             project.status === 'cancelled' ? 'bg-red-500' :
@@ -307,22 +307,20 @@ export function ProjectList({ projects, users, userMap, userRole, workspaceId }:
     return (
         <div className="flex flex-col h-full w-full">
             {/* Header Section (Search & Create) */}
-            <header className="px-8 py-6 border-b border-gray-100 flex items-center justify-between bg-white shrink-0">
-                <div className="flex items-center gap-4">
-                    <div>
-                        <h1 className="text-2xl font-bold text-gray-900">All Projects</h1>
-                        <p className="text-sm text-gray-500 mt-1">Manage and view all active workspaces</p>
-                    </div>
+            <header className="px-4 sm:px-6 md:px-8 py-4 sm:py-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white shrink-0">
+                <div>
+                    <h1 className="text-xl sm:text-2xl font-bold text-gray-900">All Projects</h1>
+                    <p className="text-sm text-gray-500 mt-1">Manage and view all active workspaces</p>
                 </div>
-                <div className="flex items-center gap-3">
-                    <div className="relative">
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                    <div className="relative flex-1 sm:flex-none">
                         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                         <input
                             type="text"
                             placeholder="Search projects..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-9 pr-4 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 w-64 bg-gray-50/50"
+                            className="pl-9 pr-4 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 w-full sm:w-64 bg-gray-50/50"
                         />
                     </div>
                     <CreateProjectButton variant="header" workspaceId={workspaceId} />
@@ -330,7 +328,7 @@ export function ProjectList({ projects, users, userMap, userRole, workspaceId }:
             </header>
 
             {/* Filters Row */}
-            <div className="px-8 py-3 border-b border-gray-100 bg-white flex items-center gap-4 shrink-0 overflow-x-auto no-scrollbar shadow-sm">
+            <div className="px-4 sm:px-6 py-3 border-b border-gray-100 bg-white flex items-center gap-3 shrink-0 overflow-x-auto no-scrollbar shadow-sm">
                 <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest whitespace-nowrap">
                     <Filter size={12} />
                     Filters
@@ -391,7 +389,7 @@ export function ProjectList({ projects, users, userMap, userRole, workspaceId }:
             </div>
 
             {/* Main Content Grid */}
-            <main ref={listScrollRef} className="flex-1 p-8 overflow-y-auto">
+            <main ref={listScrollRef} className="flex-1 p-3 sm:p-5 md:p-8 overflow-y-auto">
                 <div className="max-w-7xl mx-auto">
                     {filteredProjects.length === 0 ? (
                         <div className="bg-white border border-gray-100 rounded-xl p-16 shadow-sm flex flex-col items-center justify-center min-h-[400px]">
@@ -410,12 +408,12 @@ export function ProjectList({ projects, users, userMap, userRole, workspaceId }:
                     ) : (
                         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
                             {/* List Header */}
-                            <div className="grid grid-cols-[1fr_auto] md:grid-cols-[1fr_100px_140px_140px_140px_48px] items-center border-b border-gray-100 bg-gray-50/50 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-                                <div className="pl-5">Name</div>
+                            <div className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_120px_auto] md:grid-cols-[1fr_100px_140px_140px_140px_48px] items-center border-b border-gray-100 bg-gray-50/50 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                                <div className="pl-4 sm:pl-5">Name</div>
                                 <div className="hidden md:block">Priority</div>
                                 <div className="hidden sm:block">Lead</div>
                                 <div className="hidden lg:block text-right pr-5">Start date</div>
-                                <div className="text-right pr-5">Status</div>
+                                <div className="text-right pr-3 sm:pr-5">Status</div>
                             </div>
 
                             {/* List Body */}
