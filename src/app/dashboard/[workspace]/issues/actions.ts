@@ -181,13 +181,11 @@ export async function createIssue(formData: FormData) {
   // Fire and forget side effects
   runSideEffects()
 
-  // Granular revalidation
-  revalidateTag('issues', "max")
-  if (projectId) {
-    revalidatePath(`/dashboard/projects/${projectId}`);
-  }
+  revalidateTag('issues', "default");
+  revalidateTag('dashboard-stats', "default");
+  revalidateTag('tickets', "default");
+  revalidateTag('projects', "default");
   revalidatePath('/dashboard');
-
   return { success: true, data }
 }
 
@@ -340,8 +338,8 @@ export async function updateIssueContent(formData: FormData) {
   if (ticket.project_id) {
     revalidatePath(`/dashboard/projects/${ticket.project_id}`);
   }
-  revalidatePath('/dashboard');
-  revalidateTag('issues', "default")
+  revalidateTag('issues', "default");
+  revalidateTag('dashboard-stats', "default");
   return { success: true, data }
 }
 
@@ -749,8 +747,10 @@ export async function updateIssue(ticketId: string, updates: {
   if (ticket.project_id) {
     revalidatePath(`/dashboard/projects/${ticket.project_id}`);
   }
-  revalidatePath('/dashboard');
-  revalidateTag('issues', "max")
+  revalidateTag('issues', "default");
+  revalidateTag('dashboard-stats', "default");
+  revalidateTag('tickets', "default");
+  revalidateTag('projects', "default");
   return { success: true, data }
 }
 
@@ -858,9 +858,10 @@ export async function bulkUpdateIssues(
   for (const pid of projectIds) {
     revalidatePath(`/dashboard/projects/${pid}`);
   }
-  revalidatePath('/dashboard');
-
-  revalidateTag('issues', "default")
+  revalidateTag('issues', "default");
+  revalidateTag('dashboard-stats', "default");
+  revalidateTag('tickets', "default");
+  revalidateTag('projects', "default");
   return { success: true, updatedCount: data?.length || 0 }
 }
 
@@ -906,7 +907,10 @@ export async function bulkDeleteIssues(ticketIds: string[]) {
   revalidatePath('/dashboard/issues', 'page');
   revalidatePath('/dashboard');
 
-  revalidateTag('issues', "default")
+  revalidateTag('issues', "default");
+  revalidateTag('dashboard-stats', "default");
+  revalidateTag('tickets', "default");
+  revalidateTag('projects', "default");
   revalidateTag('dashboard-stats', "default")
   return { success: true, deletedCount: ticketIds.length }
 }

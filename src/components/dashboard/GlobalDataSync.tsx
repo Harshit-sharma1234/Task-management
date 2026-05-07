@@ -64,8 +64,22 @@ export function GlobalDataSync({ initialData }: GlobalDataSyncProps) {
         }
     }
 
+    const router = typeof window !== 'undefined' ? require('next/navigation').useRouter() : null;
+
     useEffect(() => {
         if (!initialData?.userId) return;
+
+        // Tickets Realtime Sync (Dashboard Stats)
+        const ticketChannel = supabase
+            .channel('global-tickets-sync')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, (payload) => {
+                // When any ticket changes, refresh the server-side data (Router Cache)
+                // This ensures stats cards and lists stay in sync across different pages
+                if (router) {
+                    setTimeout(() => router.refresh(), 100);
+                }
+            })
+            .subscribe();
 
         // Projects Realtime Sync
         const projectChannel = supabase
@@ -77,6 +91,11 @@ export function GlobalDataSync({ initialData }: GlobalDataSyncProps) {
                     useGlobalStore.getState().updateProject(payload.new);
                 } else if (payload.eventType === 'DELETE') {
                     useGlobalStore.getState().removeProject(payload.old.id);
+                }
+                
+                // Also trigger server refresh for projects lists
+                if (router) {
+                    setTimeout(() => router.refresh(), 100);
                 }
             })
             .subscribe();
@@ -171,6 +190,7 @@ export function GlobalDataSync({ initialData }: GlobalDataSyncProps) {
             .subscribe();
 
         return () => {
+            supabase.removeChannel(ticketChannel);
             supabase.removeChannel(projectChannel);
             supabase.removeChannel(teamChannel);
             supabase.removeChannel(notifChannel);
