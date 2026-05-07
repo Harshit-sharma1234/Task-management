@@ -175,13 +175,13 @@ const ProjectRow = memo(({
             {/* Lead */}
             <div className="hidden sm:flex items-center relative z-10 pl-2">
                 {isInteractive ? (
-                    <LeadSelector 
-                        projectId={project.id} 
-                        currentLeadId={project.lead_id} 
-                        users={users} 
-                        showName={true} 
-                        hideAvatar={true} 
-                        align="left" 
+                    <LeadSelector
+                        projectId={project.id}
+                        currentLeadId={project.lead_id}
+                        users={users}
+                        showName={true}
+                        hideAvatar={true}
+                        align="left"
                         fallbackUser={project.lead}
                     />
                 ) : (
@@ -215,9 +215,9 @@ const ProjectRow = memo(({
             {/* Status */}
             <div className="flex items-center justify-end pr-3 sm:pr-5 text-gray-500 gap-2 relative z-10">
                 <div className={`w-2 h-2 rounded-full ${project.status === 'done' ? 'bg-green-500' :
-                        project.status === 'in_progress' ? 'bg-indigo-500' :
-                            project.status === 'cancelled' ? 'bg-red-500' :
-                                'bg-orange-500'
+                    project.status === 'in_progress' ? 'bg-indigo-500' :
+                        project.status === 'cancelled' ? 'bg-red-500' :
+                            'bg-orange-500'
                     }`}></div>
                 <span className="text-[10px] font-bold uppercase text-gray-400 tracking-tight">
                     {project.status ? project.status.replace('_', ' ') : 'backlog'}
@@ -321,10 +321,10 @@ export function ProjectList({ projects, users, userMap, userRole, workspaceId }:
                         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                         <input
                             type="text"
-                            placeholder="Search projects..."
+                            placeholder="Search proj.."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-9 pr-4 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 w-64 bg-gray-50/50 transition-all focus:bg-white focus:shadow-sm"
+                            className="pl-9 pr-4 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 w-[150px] sm:w-64 bg-gray-50/50 transition-all focus:bg-white focus:shadow-sm"
                         />
                     </div>
                     <CreateProjectButton variant="header" workspaceId={workspaceId} />
@@ -444,7 +444,7 @@ export function ProjectList({ projects, users, userMap, userRole, workspaceId }:
                                             <div className="w-5 flex justify-center"><UserIcon size={14} className="text-gray-400" /></div>
                                             <span>All Leads</span>
                                         </button>
-                                        
+
                                         {(users || []).filter(u => u.name.toLowerCase().includes(filterSearch.toLowerCase())).map((u) => (
                                             <button
                                                 key={u.id}
