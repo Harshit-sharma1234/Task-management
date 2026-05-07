@@ -12,7 +12,7 @@ import { sendEmail } from '@/lib/email';
 import { workspaceInviteEmail, workspaceRemovalEmail } from '@/lib/email-templates';
 import { revalidateTag, revalidatePath } from 'next/cache';
 
-export async function fetchTeamData(workspaceId: string) {
+export async function fetchTeamData(workspaceId: string, bypassCache: boolean = false) {
     const supabase = await createClient();
     const { data: authData } = await supabase.auth.getUser();
     
@@ -24,17 +24,37 @@ export async function fetchTeamData(workspaceId: string) {
     const currentUserProfile = await getCachedUserProfile(authData.user.email);
     if (!currentUserProfile) throw new Error('User profile not found');
 
-    const [users, membership] = await Promise.all([
-        getCachedUsers(workspaceId),
-        supabase
+    let users: any[] = [];
+    
+    if (bypassCache) {
+        // Direct fetch from DB to ensure real-time accuracy
+        const adminClient = createAdminClient();
+        const { data, error } = await adminClient
+          .from('workspace_members')
+          .select(`
+            users(id, auth_id, email, name, employee_id, avatar_url),
+            roles(role_name)
+          `)
+          .eq('workspace_id', workspaceId);
+        
+        if (!error && data) {
+            users = data.map((m: any) => ({
+                ...m.users,
+                roles: Array.isArray(m.roles) ? m.roles[0] : m.roles
+            })).filter(u => u.id);
+        }
+    } else {
+        users = await getCachedUsers(workspaceId);
+    }
+
+    const { data: membership } = await supabase
           .from('workspace_members')
           .select('role_id, roles(role_name)')
           .eq('workspace_id', workspaceId)
           .eq('user_id', currentUserProfile.id)
-          .maybeSingle()
-    ]);
+          .maybeSingle();
 
-    if (!membership.data) {
+    if (!membership) {
         return {
             users: [],
             isAdmin: false,
@@ -42,7 +62,7 @@ export async function fetchTeamData(workspaceId: string) {
         };
     }
 
-    const roleName = (membership.data as any)?.roles?.role_name || '';
+    const roleName = (membership as any)?.roles?.role_name || '';
     const isAdmin = roleName === 'Admin';
     
     return {

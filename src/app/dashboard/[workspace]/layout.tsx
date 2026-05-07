@@ -85,7 +85,7 @@ export default async function WorkspaceDashboardLayout({
       avatar_url: userProfile.avatar_url || user.user_metadata?.avatar_url || null,
       roles: { role_name: roleName },
     },
-    userId: user.id,
+    userId: userProfile.id,
     unreadCount: unreadRes.count || 0,
     activeWorkspaceId: workspace.id,
   };

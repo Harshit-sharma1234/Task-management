@@ -55,6 +55,7 @@ export function IssuesView({
   const deletedIdsRef = useRef<Set<string>>(new Set());
   const listScrollRef = useRef<HTMLDivElement>(null);
   const nextOffsetRef = useRef(initialLimit);
+  const [assigneeFilter, setAssigneeFilter] = useState<string>('all');
   const isFetchingMoreRef = useRef(false);
 
   // Sync with server-side prop updates (e.g. after router.refresh())
@@ -135,6 +136,18 @@ export function IssuesView({
     showProperties: ['id', 'status', 'assignee', 'priority']
   });
 
+  // Load saved display settings on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('issue-display-settings');
+    if (saved) {
+      try {
+        setDisplaySettings(JSON.parse(saved));
+      } catch (e) {
+        console.error('Error loading display settings:', e);
+      }
+    }
+  }, []);
+
   // Keep a fast lookup map for realtime row enrichment.
   const usersById = useMemo(() => {
     const map: Record<string, any> = {};
@@ -201,8 +214,14 @@ export function IssuesView({
     } else if (activeFilter === 'in_progress') {
       result = tickets.filter(t => (t.status === 'in_progress' || t.status === 'in_review') && (t.assignee_id === currentUser?.id || t.reviewer_id === currentUser?.id));
     }
+
+    // Apply Assignee filter
+    if (assigneeFilter !== 'all') {
+      result = result.filter(t => t.assignee_id === assigneeFilter);
+    }
+
     return result;
-  }, [tickets, activeFilter, currentUser]);
+  }, [tickets, activeFilter, assigneeFilter, currentUser]);
 
   // Transform data based on display settings
   const groupedData = useMemo(() => {
@@ -215,16 +234,17 @@ export function IssuesView({
         totalIssues={filteredTickets.length}
         activeFilter={activeFilter}
         onFilterChange={setActiveFilter}
+        assigneeFilter={assigneeFilter}
+        onAssigneeFilterChange={setAssigneeFilter}
+        users={users}
         onOpenModal={() => setIsModalOpen(true)}
         displaySettings={displaySettings}
         onDisplaySettingsChange={setDisplaySettings}
       />
 
       <div className="flex-1 overflow-hidden">
-        <div ref={listScrollRef} className="h-full overflow-y-auto px-4 sm:px-8 w-full">
-          {isHydratingMore && (
-            <div className="mb-3 text-[11px] font-medium text-gray-400">Loading more issues...</div>
-          )}
+        <div ref={listScrollRef} className="h-full overflow-y-auto px-8 w-full">
+          {/* Hydration indicator removed as per user request */}
           {displaySettings.viewMode === 'list' ? (
             <IssuesList
               tickets={filteredTickets}

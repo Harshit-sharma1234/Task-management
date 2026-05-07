@@ -20,6 +20,7 @@ interface DisplayOptionsProps {
 
 export function DisplayOptions({ settings, onChange }: DisplayOptionsProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [savedFeedback, setSavedFeedback] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
 
   // Close when clicking outside
@@ -154,15 +155,38 @@ export function DisplayOptions({ settings, onChange }: DisplayOptionsProps) {
 
           {/* Footer */}
           <div className="p-3 bg-gray-50/50 flex items-center justify-between border-t border-gray-50">
-              <button 
-                onClick={() => onChange({ viewMode: 'list', groupBy: 'status', sortBy: 'created_at', showProperties: ['id', 'status', 'assignee', 'priority'] })}
-                className="text-[10px] font-bold text-gray-400 hover:text-indigo-600 uppercase tracking-wider transition-colors"
-              >
-                Reset
-              </button>
-              <button className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 uppercase tracking-wider transition-colors">
-                Save as default
-              </button>
+             <button 
+               onClick={() => {
+                 const defaults: DisplaySettings = { 
+                   viewMode: 'list', 
+                   groupBy: 'status', 
+                   sortBy: 'created_at', 
+                   showProperties: ['id', 'status', 'assignee', 'priority'] 
+                 };
+                 onChange(defaults);
+                 localStorage.removeItem('issue-display-settings');
+               }}
+               className="text-[10px] font-bold text-gray-400 hover:text-gray-600 uppercase tracking-wider"
+             >
+               Reset
+             </button>
+             <button 
+               onClick={() => {
+                 localStorage.setItem('issue-display-settings', JSON.stringify(settings));
+                 setSavedFeedback(true);
+                 setTimeout(() => setSavedFeedback(false), 2000);
+               }}
+               className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 uppercase tracking-wider flex items-center gap-1.5"
+             >
+               {savedFeedback ? (
+                 <>
+                   <Check size={10} strokeWidth={3} />
+                   Saved!
+                 </>
+               ) : (
+                 'Save as default'
+               )}
+             </button>
           </div>
         </div>
       )}
