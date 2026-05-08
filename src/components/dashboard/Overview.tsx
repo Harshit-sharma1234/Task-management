@@ -14,6 +14,7 @@ import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { cn, formatTime, formatTimeLong } from '@/lib/utils'
+import { ContextAwareLink } from './ContextAwareLink'
 import { STATUS_ICONS } from '@/lib/constants'
 import { getCachedStats, getCachedUsers, getCachedRecentTickets, getCachedProjects, getCachedUserTasks, getCachedUpcomingDeadlines, getCachedRecentNotifications, getCachedUserNote } from '@/lib/cache'
 import { Suspense, type ReactNode } from 'react'
@@ -217,9 +218,10 @@ async function ProjectOverviewList({ workspaceId, workspaceSlug }: { workspaceId
                         const lead = userMap.get(project.lead_id);
 
                         return (
-                            <Link
+                            <ContextAwareLink
                                 key={project.id}
                                 href={`/dashboard/${workspaceSlug}/projects/${project.id}`}
+                                project={project}
                                 className="px-6 py-5 hover:bg-slate-50/80 transition-all flex items-center justify-between group/project border-b border-gray-100 last:border-0"
                             >
                                 <div className="flex items-center gap-4 min-w-0 flex-1">
@@ -261,7 +263,7 @@ async function ProjectOverviewList({ workspaceId, workspaceSlug }: { workspaceId
                                         {new Date(project.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                     </span>
                                 </div>
-                            </Link>
+                            </ContextAwareLink>
                         );
                     })}
                 </div>
@@ -329,9 +331,10 @@ async function IssueOverviewList({ workspaceId, workspaceSlug }: { workspaceId: 
                         const statusColor = statusData.color;
 
                         return (
-                            <Link
+                            <ContextAwareLink
                                 key={ticket.id}
                                 href={`/dashboard/${workspaceSlug}/issues/${ticket.id}`}
+                                ticket={ticket}
                                 className="px-5 py-4 hover:bg-gray-50 transition-all flex items-center justify-between group/ticket border-b border-gray-50 last:border-0"
                             >
                                 <div className="flex items-center gap-4 min-w-0 flex-1">
@@ -372,7 +375,7 @@ async function IssueOverviewList({ workspaceId, workspaceSlug }: { workspaceId: 
                                         {new Date(ticket.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                     </span>
                                 </div>
-                            </Link>
+                            </ContextAwareLink>
                         )
                     })}
                 </div>
@@ -393,7 +396,7 @@ async function MyTasksWidget({ userId, workspaceId, workspaceSlug }: { userId: s
                 <div className="max-h-[180px] overflow-y-auto pr-3 custom-scrollbar transition-all duration-200">
                     <div className="flex flex-col gap-4">
                         {tasks.map((task: any) => (
-                            <Link key={task.id} href={`/dashboard/${workspaceSlug}/issues/${task.id}`} className="group/task cursor-pointer">
+                            <ContextAwareLink key={task.id} href={`/dashboard/${workspaceSlug}/issues/${task.id}`} ticket={task} className="group/task cursor-pointer">
                                 <div className="flex items-center justify-between">
                                     <span className="text-xs font-semibold text-gray-700 truncate pr-2 group-hover/task:text-indigo-600 transition-colors">
                                         {task.title}
@@ -402,7 +405,7 @@ async function MyTasksWidget({ userId, workspaceId, workspaceSlug }: { userId: s
                                         {formatTime(task.created_at)}
                                     </span>
                                 </div>
-                            </Link>
+                            </ContextAwareLink>
                         ))}
                     </div>
                 </div>
