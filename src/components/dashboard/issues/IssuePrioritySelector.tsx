@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, memo, useCallback, startTransition } from 'react';
 import { updateIssue } from '@/app/dashboard/[workspace]/issues/actions';
+import { useModalStore } from '@/lib/store/modal';
 import { toast } from 'sonner';
 import { 
     SignalHigh,
@@ -12,6 +13,7 @@ import {
     Loader2
 } from 'lucide-react';
 import { twMerge } from 'tailwind-merge';
+import { generateIssueId } from '@/lib/utils/id';
 
 interface IssuePrioritySelectorProps {
     issueId: string;
@@ -19,6 +21,8 @@ interface IssuePrioritySelectorProps {
     currentUser?: any;
     assigneeId?: string | null;
     reviewerId?: string | null;
+    projectName?: string;
+    issueTitle?: string;
 }
 
 const priorityOptions = [
@@ -34,7 +38,9 @@ export const IssuePrioritySelector = memo(({
     currentPriority,
     currentUser,
     assigneeId,
-    reviewerId
+    reviewerId,
+    projectName,
+    issueTitle
 }: IssuePrioritySelectorProps) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
@@ -49,7 +55,24 @@ export const IssuePrioritySelector = memo(({
     const isReviewer = currentUser?.id === reviewerId;
     const canUpdate = isAdmin || isSrDev || isAssignee || isReviewer;
 
-    useEffect(() => { setOptimisticPriority(currentPriority); }, [currentPriority]);
+    const { activeContextMenu, setActiveContextMenu, activeTicket, optimisticTicketUpdates } = useModalStore();
+    const optimisticUpdate = optimisticTicketUpdates[issueId];
+    // Listen to global shortcut
+    useEffect(() => {
+        if (activeContextMenu === 'priority' && activeTicket?.id === issueId && canUpdate) {
+            setIsOpen(true);
+            setActiveContextMenu(null); // consume the event
+        }
+    }, [activeContextMenu, activeTicket, issueId, setActiveContextMenu, canUpdate]);
+    useEffect(() => { 
+        if (optimisticUpdate?.priority !== undefined) {
+            setOptimisticPriority(optimisticUpdate.priority);
+        } else if (activeTicket && activeTicket.id === issueId && activeTicket.priority) {
+            setOptimisticPriority(activeTicket.priority);
+        } else {
+            setOptimisticPriority(currentPriority); 
+        }
+    }, [currentPriority, activeTicket, optimisticUpdate]);
 
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
@@ -74,6 +97,11 @@ export const IssuePrioritySelector = memo(({
 
         const previousPriority = optimisticPriority;
         setOptimisticPriority(value);
+        
+        // Update global optimistic store
+        const { setOptimisticTicketUpdate } = useModalStore.getState();
+        setOptimisticTicketUpdate(issueId, { priority: value });
+
         setIsOpen(false);
         setIsUpdating(true);
 
@@ -82,10 +110,10 @@ export const IssuePrioritySelector = memo(({
             if (res.error) {
                 // Revert on failure
                 setOptimisticPriority(previousPriority);
+                useModalStore.getState().clearOptimisticTicketUpdate(issueId);
                 toast.error(res.error);
             }
             setIsUpdating(false);
-            // No router.refresh() — revalidatePath in the server action already handles revalidation
         });
     }, [issueId, optimisticPriority]);
 
@@ -155,7 +183,16 @@ export const IssuePrioritySelector = memo(({
             {isOpen && (
                 <>
                     <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
-                    <div className="absolute left-0 top-full mt-1 w-36 bg-white shadow-xl border border-gray-100 rounded-lg py-1.5 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+                    <div className="absolute left-0 top-full mt-1 w-48 bg-white shadow-xl border border-gray-100 rounded-lg py-1.5 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+                        <div className="px-3 pt-1 pb-2 border-b border-gray-50 mb-1">
+                            <div className="text-[9px] font-black text-indigo-600 uppercase tracking-widest mb-0.5">
+                                {generateIssueId(projectName, issueId)}
+                            </div>
+                            <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider truncate">
+                                {issueTitle || 'Set Priority'}
+                            </div>
+                        </div>
+
                         {priorityOptions.map((opt) => (
                             <button
                                 key={opt.value}

@@ -6,6 +6,8 @@ import { toast } from 'sonner';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { Search, Loader2, User } from 'lucide-react';
 import { twMerge } from 'tailwind-merge';
+import { useModalStore } from '@/lib/store/modal';
+import { generateIssueId } from '@/lib/utils/id';
 
 interface IssueReviewerSelectorProps {
     issueId: string;
@@ -14,6 +16,8 @@ interface IssueReviewerSelectorProps {
     currentReviewer: { name: string, avatar_url?: string | null } | null;
     users: { id: string, name: string, email?: string, avatar_url?: string | null, roles?: { role_name: string } }[];
     currentUser?: any;
+    projectName?: string;
+    issueTitle?: string;
 }
 
 export function IssueReviewerSelector({
@@ -22,7 +26,9 @@ export function IssueReviewerSelector({
     assigneeId,
     currentReviewer,
     users,
-    currentUser
+    currentUser,
+    projectName,
+    issueTitle
 }: IssueReviewerSelectorProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
@@ -37,6 +43,16 @@ export function IssueReviewerSelector({
     const isAssignee = currentUser?.id === assigneeId;
     const isReviewer = currentUser?.id === currentReviewerId;
     const canUpdate = isAdmin || isAssignee || isReviewer;
+
+    const { activeContextMenu, setActiveContextMenu, activeTicket } = useModalStore();
+
+    // Listen to global shortcut
+    useEffect(() => {
+        if (activeContextMenu === 'reviewer' && activeTicket?.id === issueId && canUpdate) {
+            setIsOpen(true);
+            setActiveContextMenu(null); // consume the event
+        }
+    }, [activeContextMenu, activeTicket, issueId, setActiveContextMenu, canUpdate]);
 
     useEffect(() => { setOptimisticReviewerId(currentReviewerId); }, [currentReviewerId]);
 
@@ -142,6 +158,15 @@ export function IssueReviewerSelector({
                 <>
                     <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
                     <div className="absolute right-0 top-full mt-1 w-64 bg-white shadow-2xl border border-gray-100 rounded-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+                        <div className="px-3 pt-3 pb-2 border-b border-gray-50 bg-gray-50/30">
+                            <div className="text-[9px] font-black text-indigo-600 uppercase tracking-widest mb-0.5">
+                                {generateIssueId(projectName, issueId)}
+                            </div>
+                            <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider truncate">
+                                {issueTitle || 'Assign Reviewer'}
+                            </div>
+                        </div>
+
                         <div className="p-2 border-b border-gray-50 flex items-center gap-2">
                             <Search size={12} className="text-gray-400" />
                             <input 

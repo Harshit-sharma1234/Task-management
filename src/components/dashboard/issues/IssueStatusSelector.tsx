@@ -12,6 +12,8 @@ import {
     Loader2
 } from 'lucide-react';
 import { twMerge } from 'tailwind-merge';
+import { useModalStore } from '@/lib/store/modal';
+import { generateIssueId } from '@/lib/utils/id';
 
 interface IssueStatusSelectorProps {
     issueId: string;
@@ -20,6 +22,8 @@ interface IssueStatusSelectorProps {
     assigneeId?: string | null;
     reviewerId?: string | null;
     hideLabel?: boolean;
+    projectName?: string;
+    issueTitle?: string;
 }
 
 const statusOptions = [
@@ -38,12 +42,17 @@ export const IssueStatusSelector = memo(({
     currentUser,
     assigneeId,
     reviewerId,
-    hideLabel = false
+    hideLabel = false,
+    projectName,
+    issueTitle
 }: IssueStatusSelectorProps) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
     const [optimisticStatus, setOptimisticStatus] = useState(currentStatus);
     const dropdownRef = useRef<HTMLDivElement>(null);
+    
+    const { activeContextMenu, setActiveContextMenu, activeTicket, optimisticTicketUpdates } = useModalStore();
+    const optimisticUpdate = optimisticTicketUpdates[issueId];
 
     // Safety checks for roles
     const roleData = currentUser?.roles;
@@ -54,6 +63,14 @@ export const IssueStatusSelector = memo(({
     const isReviewer = currentUser?.id === reviewerId;
     const canUpdate = isAdmin || isAssignee || isReviewer;
 
+    // Listen to global shortcut
+    useEffect(() => {
+        if (activeContextMenu === 'status' && activeTicket?.id === issueId && canUpdate) {
+            setIsOpen(true);
+            setActiveContextMenu(null); // consume the event
+        }
+    }, [activeContextMenu, activeTicket, issueId, setActiveContextMenu, canUpdate]);
+
     const isRestrictedUser = !isAdmin && !isReviewer;
     const restrictedStatuses = ['review', 'in_review', 'done'];
 
@@ -62,7 +79,15 @@ export const IssueStatusSelector = memo(({
         return statusOptions.filter(opt => !restrictedStatuses.includes(opt.value));
     }, [isRestrictedUser]);
 
-    useEffect(() => { setOptimisticStatus(currentStatus); }, [currentStatus]);
+    useEffect(() => { 
+        if (optimisticUpdate?.status !== undefined) {
+            setOptimisticStatus(optimisticUpdate.status);
+        } else if (activeTicket && activeTicket.id === issueId && activeTicket.status) {
+            setOptimisticStatus(activeTicket.status);
+        } else {
+            setOptimisticStatus(currentStatus); 
+        }
+    }, [currentStatus, activeTicket, optimisticUpdate, issueId]);
 
     const activeStatus = statusOptions.find(s => s.value === optimisticStatus) || statusOptions[1];
 
@@ -94,6 +119,11 @@ export const IssueStatusSelector = memo(({
 
         const previousStatus = optimisticStatus;
         setOptimisticStatus(value);
+        
+        // Update global optimistic store
+        const { setOptimisticTicketUpdate } = useModalStore.getState();
+        setOptimisticTicketUpdate(issueId, { status: value });
+
         setIsOpen(false);
         setIsUpdating(true);
 
@@ -101,6 +131,7 @@ export const IssueStatusSelector = memo(({
             const res = await updateIssue(issueId, { status: value });
             if (res.error) {
                 setOptimisticStatus(previousStatus);
+                useModalStore.getState().clearOptimisticTicketUpdate(issueId);
                 toast.error(res.error);
             }
             setIsUpdating(false);
@@ -146,7 +177,16 @@ export const IssueStatusSelector = memo(({
             {isOpen && (
                 <>
                     <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
-                    <div className="absolute left-0 top-full mt-1 w-40 bg-white shadow-xl border border-gray-100 rounded-lg py-1.5 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+                    <div className="absolute left-0 top-full mt-1 w-48 bg-white shadow-xl border border-gray-100 rounded-lg py-1.5 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+                        <div className="px-3 pt-1 pb-2 border-b border-gray-50 mb-1">
+                            <div className="text-[9px] font-black text-indigo-600 uppercase tracking-widest mb-0.5">
+                                {generateIssueId(projectName, issueId)}
+                            </div>
+                            <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider truncate">
+                                {issueTitle || 'Set Status'}
+                            </div>
+                        </div>
+
                         {availableOptions.map((opt) => (
                             <button
                                 key={opt.value}
