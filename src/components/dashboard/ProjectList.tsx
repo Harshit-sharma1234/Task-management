@@ -3,7 +3,6 @@
 import { useState, useMemo, memo, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { Folder, Search, Trash2, Loader2, Filter, User as UserIcon, ChevronDown, X } from 'lucide-react';
-import { useSettingsStore } from '@/lib/store/settings';
 import dynamic from 'next/dynamic';
 import { useRouter, useParams, useSearchParams, usePathname } from 'next/navigation';
 import { deleteProject, updateProjectTargetDate } from '@/app/dashboard/actions';
@@ -11,6 +10,9 @@ import { AppRole } from '@/lib/roles';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { toast } from 'sonner';
+import { useModalStore } from '@/lib/store/modal';
+import { useSettingsStore } from '@/lib/store/settings';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 import { twMerge } from 'tailwind-merge';
 
 // Global Shortcut & Modal State Management
@@ -225,6 +227,8 @@ export function ProjectList({ projects, users, userMap, userRole, workspaceId }:
     const [searchTerm, setSearchTerm] = useState('');
     const [priorityFilter, setPriorityFilter] = useState<string>('all');
     const [statusFilter, setStatusFilter] = useState<string>('all');
+    
+    const filterParam = searchParams.get('filter');
     const [leadFilter, setLeadFilter] = useState<string>(filterParam === 'assigned' ? (useSettingsStore.getState().user?.id || 'all') : 'all');
     const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
     const [filterSearch, setFilterSearch] = useState('');
