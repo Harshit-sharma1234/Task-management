@@ -2,16 +2,16 @@ import { Suspense } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { notFound, redirect } from 'next/navigation';
-import { ChevronRight, Paperclip, FileIcon } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { CommentSection } from '@/components/dashboard/issues/CommentSection';
 import { IssuePropertyControls } from '@/components/dashboard/issues/IssuePropertyControls';
 import { IssueHeaderActions } from '@/components/dashboard/issues/IssueHeaderActions';
 import { EditableIssueContent } from '@/components/dashboard/issues/EditableIssueContent';
 import { getCachedUserProfile, getCachedIssueUsers, getCachedWorkspaceBySlug, getCachedWorkspaceMember } from '@/lib/cache';
-// Triggering re-parse to fix ReferenceError
 import { IssueActivitySkeleton } from '@/components/dashboard/issues/IssueActivitySkeleton';
 import { getServerUser } from '@/lib/auth-server';
+import { generateIssueId } from '@/lib/utils/id';
 
 async function IssueActivitySection({
   ticketId,
@@ -22,7 +22,7 @@ async function IssueActivitySection({
   currentUser: { id: string; name: string; email: string; avatar_url: string | null; roles?: any };
   canComment: boolean;
 }) {
-  const supabase = await createClient(); // Still used for RLS-scoped comments/logs fetch if desired, but we'll use admin for profiles
+  const supabase = await createClient();
   const adminClient = createAdminClient();
 
   const [commentsResponse, logsResponse] = await Promise.all([
@@ -41,7 +41,6 @@ async function IssueActivitySection({
   const comments = commentsResponse.data || [];
   const logs = logsResponse.data || [];
 
-  // Optimized user fetching for the activity feed
   const uids = Array.from(new Set([
     ...comments.map(c => c.user_id),
     ...logs.map(l => l.user_id)
@@ -80,7 +79,6 @@ async function IssueActivitySection({
 }
 
 export default async function IssueDetailsPage({ params }: { params: Promise<{ id: string; workspace: string }> }) {
-  // Step 1: Resolve auth + params in parallel (getServerUser is React.cache-deduplicated with layout)
   const [user, resolvedParams] = await Promise.all([
     getServerUser(),
     params
@@ -93,7 +91,6 @@ export default async function IssueDetailsPage({ params }: { params: Promise<{ i
   const { id, workspace: workspaceSlug } = resolvedParams;
   const adminClient = createAdminClient();
 
-  // Step 2: Resolve workspace + profile + supabase client all in parallel
   const [workspace, profileByAuthRes, supabase] = await Promise.all([
     getCachedWorkspaceBySlug(workspaceSlug),
     adminClient
@@ -106,11 +103,8 @@ export default async function IssueDetailsPage({ params }: { params: Promise<{ i
 
   if (!workspace) redirect('/dashboard');
 
-  // Resolve profile: prefer auth_id lookup, fall back to cached email lookup
   const profile = profileByAuthRes.data || await getCachedUserProfile(user.email!);
 
-  // Step 3: Fetch ticket + users + member ALL in parallel
-  // Previously member was a sequential call after this Promise.all
   const [ticketResponse, allUsers, member] = await Promise.all([
     supabase
       .from('tickets')
@@ -144,13 +138,13 @@ export default async function IssueDetailsPage({ params }: { params: Promise<{ i
     ? (ticket as any).projects?.[0]?.project_name
     : (ticket as any).projects?.project_name;
 
-  // RBAC: "admin, pm, reviewer, assign have full access"
+  const issueIdString = generateIssueId(ticketProjectName || 'IND', ticket.id);
+
   const userRole = (member?.roles as any)?.role_name;
   const isAdmin = userRole === 'Admin' || userRole === 'Project Manager';
   const isAssignee = profile?.id === ticket.assignee_id;
   const isReviewer = profile?.id === (ticket as any).reviewer_id;
   
-  // Workspace members can view and comment, but only specific roles can edit/delete
   const canEdit = isAdmin || isAssignee || isReviewer;
   const canComment = true; 
   const canDelete = isAdmin;
@@ -170,8 +164,8 @@ export default async function IssueDetailsPage({ params }: { params: Promise<{ i
         <div className="flex items-center gap-3 text-sm font-medium">
           <Link href={`/dashboard/${workspaceSlug}/issues`} className="text-gray-500 hover:text-gray-900 transition-colors">Issues</Link>
           <ChevronRight size={14} className="text-gray-300" />
-          <span className="text-gray-400 uppercase">
-            {ticketProjectName ? ticketProjectName.substring(0, 3) : 'N/A'}-{ticket.id.substring(0, 4)}
+          <span className="text-gray-400 font-bold uppercase tracking-tighter">
+            {issueIdString}
           </span>
         </div>
         <IssueHeaderActions ticketId={id} canDelete={canDelete} />
@@ -190,7 +184,6 @@ export default async function IssueDetailsPage({ params }: { params: Promise<{ i
             />
           </div>
 
-          {/* Activity Section — fully real-time via CommentSection */}
           <div className="mt-16 pt-8 border-t border-gray-100">
             <div className="flex justify-between items-center mb-8 border-b border-gray-100/60 pb-3">
               <h3 className="text-sm font-bold text-gray-900">Activity</h3>
@@ -212,6 +205,8 @@ export default async function IssueDetailsPage({ params }: { params: Promise<{ i
             currentUserId={profile?.id || ''}
             currentUser={currentUserForActivity}
             projectName={ticketProjectName || 'N/A'}
+            projectId={(ticket as any).projects?.id}
+            issueTitle={ticket.title}
             users={allUsers || []}
           />
         </div>

@@ -3,8 +3,11 @@
 import { useState, useRef, useEffect, useTransition, memo, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { updateProjectPriority } from '@/app/dashboard/actions';
 import { toast } from 'sonner';
-import { AlertCircle, SignalHigh, SignalMedium, SignalLow, Ban } from 'lucide-react';
+import { Ban } from 'lucide-react';
 import { useGlobalStore } from '@/lib/store/global';
+import { useModalStore } from '@/lib/store/modal';
+import { SelectorHandle } from './StatusSelector';
+import { generateShortId } from '@/lib/utils/id';
 
 interface PrioritySelectorProps {
     projectId: string;
@@ -45,8 +48,6 @@ const priorities = [
     { value: null, label: 'No priority', shortcut: '0', icon: <Ban size={14} className="text-gray-400" /> },
 ];
 
-import { SelectorHandle } from './StatusSelector';
-
 export const PrioritySelector = memo(forwardRef<SelectorHandle, PrioritySelectorProps>(({
     projectId,
     currentPriority,
@@ -58,8 +59,21 @@ export const PrioritySelector = memo(forwardRef<SelectorHandle, PrioritySelector
     const [optimisticPriority, setOptimisticPriority] = useState(currentPriority);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
-    // Sync with server props when they arrive
-    useEffect(() => { setOptimisticPriority(currentPriority); }, [currentPriority]);
+    const globalProject = useGlobalStore(state => state.projects.find(p => p.id === projectId));
+
+    const { optimisticProjectUpdates } = useModalStore();
+    const optimisticUpdate = optimisticProjectUpdates[projectId];
+
+    // Sync with global store first, fallback to props
+    useEffect(() => { 
+        if (optimisticUpdate?.priority !== undefined) {
+            setOptimisticPriority(optimisticUpdate.priority);
+        } else if (globalProject && globalProject.priority !== undefined) {
+            setOptimisticPriority(globalProject.priority);
+        } else {
+            setOptimisticPriority(currentPriority); 
+        }
+    }, [currentPriority, globalProject, optimisticUpdate]);
 
     useImperativeHandle(ref, () => ({
         toggle: () => setIsOpen(prev => !prev),
@@ -91,6 +105,11 @@ export const PrioritySelector = memo(forwardRef<SelectorHandle, PrioritySelector
         const previousPriority = optimisticPriority;
         setOptimisticPriority(value);
         useGlobalStore.getState().updateProject({ id: projectId, priority: value });
+        
+        // Update global optimistic store
+        const { setOptimisticProjectUpdate } = useModalStore.getState();
+        setOptimisticProjectUpdate(projectId, { priority: value });
+        
         setIsOpen(false);
 
         startTransition(async () => {
@@ -98,6 +117,7 @@ export const PrioritySelector = memo(forwardRef<SelectorHandle, PrioritySelector
             if (res.error) {
                 // Revert on failure
                 setOptimisticPriority(previousPriority);
+                useModalStore.getState().clearOptimisticProjectUpdate(projectId);
                 useGlobalStore.getState().updateProject({ id: projectId, priority: previousPriority });
                 toast.error(res.error);
             }
@@ -156,8 +176,13 @@ export const PrioritySelector = memo(forwardRef<SelectorHandle, PrioritySelector
 
             {isOpen && (
                 <div className={`absolute ${align === 'left' ? 'left-0' : 'right-0'} top-full mt-2 w-60 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 text-gray-900 font-sans overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200`}>
-                    <div className="px-3 pb-2 mb-2 border-b border-gray-50 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
-                        Change priority...
+                    <div className="px-3 pb-2 mb-2 border-b border-gray-50">
+                        <div className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-0.5">
+                            {generateShortId(globalProject?.project_name || '', projectId)}
+                        </div>
+                        <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider truncate">
+                            {globalProject?.project_name || 'Change priority...'}
+                        </div>
                     </div>
 
                     <div className="flex flex-col">
@@ -166,7 +191,7 @@ export const PrioritySelector = memo(forwardRef<SelectorHandle, PrioritySelector
 
                             return (
                                 <button
-                                    key={p.label}
+                                    key={String(p.label)}
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         handleSelect(p.value);
@@ -195,6 +220,6 @@ export const PrioritySelector = memo(forwardRef<SelectorHandle, PrioritySelector
             )}
         </div>
     );
-}))
+}));
 
 PrioritySelector.displayName = 'PrioritySelector';
