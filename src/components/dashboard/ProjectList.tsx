@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { useModalStore } from '@/lib/store/modal';
 import { useSettingsStore } from '@/lib/store/settings';
 
+// Global Shortcut & Modal State Management
 // Heavy components that contain modals/complex logic should be lazy loaded
 const PrioritySelector = dynamic(() => import('@/components/dashboard/PrioritySelector').then(mod => mod.PrioritySelector), { ssr: false });
 const LeadSelector = dynamic(() => import('@/components/dashboard/LeadSelector').then(mod => mod.LeadSelector), { ssr: false });
