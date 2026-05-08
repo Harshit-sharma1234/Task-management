@@ -37,7 +37,7 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
     const { workspaceId } = get();
     if (!workspaceId) return;
     const { fetchTeamData } = await import('@/app/dashboard/[workspace]/team/actions');
-    const data = await fetchTeamData(workspaceId);
+    const data = await fetchTeamData(workspaceId, true);
     set({ users: data.users, isAdmin: data.isAdmin, currentUserRole: data.currentUserRole });
   },
 }));

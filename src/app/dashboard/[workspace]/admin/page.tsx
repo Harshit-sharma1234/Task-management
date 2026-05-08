@@ -5,9 +5,9 @@ import { StatsSkeleton } from '@/components/dashboard/OverviewSkeletons'
 import { getServerUser } from '@/lib/auth-server'
 import { getCachedWorkspaceBySlug, getCachedUserProfile } from '@/lib/cache'
 import { Metadata } from 'next'
-import dynamic from 'next/dynamic'
+import nextDynamic from 'next/dynamic'
 
-const CreateProjectButton = dynamic(() => import('@/components/dashboard/CreateProjectButton').then(mod => mod.CreateProjectButton), { 
+const CreateProjectButton = nextDynamic(() => import('@/components/dashboard/CreateProjectButton').then(mod => mod.CreateProjectButton), { 
     loading: () => <div className="h-10 w-32 bg-gray-100 animate-pulse rounded-md" />
 })
 
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     title: 'Admin Dashboard',
 }
 
-export const revalidate = 60;
+export const dynamic = 'force-dynamic';
 
 export default async function AdminDashboard({ params }: { params: Promise<{ workspace: string }> }) {
     const { workspace: workspaceSlug } = await params;

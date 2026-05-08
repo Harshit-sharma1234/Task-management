@@ -107,6 +107,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // --- REALTIME SYNC (IMMEDIATE) ---
+    // Fetch the full record for immediate broadcast
+    const { data: memberData } = await adminClient
+      .from('users')
+      .select('id, auth_id, email, name, employee_id, avatar_url')
+      .eq('id', userProfile.id)
+      .single();
+
+    const roleName = (invite as any).roles?.role_name || 'Member';
+
+    // Broadcast change via Supabase Realtime (Server-side broadcast)
+    const broadcastChannel = adminClient.channel('team-sync-global');
+    broadcastChannel.subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+            await broadcastChannel.send({
+                type: 'broadcast',
+                event: 'membership_change',
+                payload: { 
+                    workspace_id: invite.workspace_id,
+                    new_member: {
+                        ...memberData,
+                        roles: { role_name: roleName }
+                    }
+                }
+            });
+            console.log('[AcceptInvite] Immediate broadcast sent.');
+        }
+    });
+
+    // Trigger revalidation for Next.js cache (background)
+    const { revalidateTag } = await import('next/cache');
+    revalidateTag(`team-members-${invite.workspace_id}`, "default");
+    revalidateTag('team-members', "default");
+
     // Mark invite as accepted
     const { error: updateError } = await adminClient
       .from('workspace_invites')
