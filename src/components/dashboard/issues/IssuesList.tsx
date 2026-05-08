@@ -13,6 +13,8 @@ import {
 import { twMerge } from 'tailwind-merge';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { BulkActionToolbar } from './BulkActionToolbar';
+import { useModalStore } from '@/lib/store/modal';
+import { generateIssueId } from '@/lib/utils/id';
 
 import { IssueStatusSelector } from './IssueStatusSelector';
 import { IssueAssigneeSelector } from './IssueAssigneeSelector';
@@ -50,7 +52,11 @@ const IssueRow = memo(({
 }: IssueRowProps) => {
   const router = useRouter();
   const [isInteractive, setIsInteractive] = useState(false);
+  const { setActiveTicket, setActiveProject } = useModalStore();
   const issueHref = `/dashboard/${workspaceSlug}/issues/${ticket.id}`;
+
+  const projectName = ticket.projects?.project_name || ticket.project_name;
+  const issueIdString = generateIssueId(projectName, ticket.id);
 
   const prefetchIssue = useCallback(() => {
     router.prefetch(issueHref);
@@ -60,46 +66,6 @@ const IssueRow = memo(({
     router.push(issueHref);
   };
 
-  // Priority Icon logic matching IssuePrioritySelector
-  const renderPriorityIcon = (priority: string) => {
-    switch (priority) {
-      case 'urgent':
-        return (
-          <div className="flex gap-0.5 items-end h-3">
-            <div className="w-1 h-3 bg-red-500 rounded-sm"></div>
-            <div className="w-1 h-3 bg-red-500 rounded-sm"></div>
-            <div className="w-1 h-3 bg-red-500 rounded-sm"></div>
-          </div>
-        );
-      case 'high':
-        return (
-          <div className="flex gap-0.5 items-end h-3">
-            <div className="w-1 h-2 bg-red-400 rounded-sm"></div>
-            <div className="w-1 h-2.5 bg-red-400 rounded-sm"></div>
-            <div className="w-1 h-3 bg-red-400 rounded-sm"></div>
-          </div>
-        );
-      case 'medium':
-        return (
-          <div className="flex gap-0.5 items-end h-3">
-            <div className="w-1 h-1.5 bg-yellow-400 rounded-sm"></div>
-            <div className="w-1 h-2.5 bg-yellow-400 rounded-sm"></div>
-            <div className="w-1 h-3 bg-yellow-100 rounded-sm"></div>
-          </div>
-        );
-      case 'low':
-        return (
-          <div className="flex gap-0.5 items-end h-3">
-            <div className="w-1 h-1.5 bg-indigo-400 rounded-sm"></div>
-            <div className="w-1 h-3 bg-indigo-100 rounded-sm"></div>
-            <div className="w-1 h-3 bg-indigo-100 rounded-sm"></div>
-          </div>
-        );
-      default:
-        return <div className="w-4 h-0.5 bg-gray-200 rounded-full"></div>;
-    }
-  };
-
   return (
     <div
       onClick={handleRowClick}
@@ -107,8 +73,33 @@ const IssueRow = memo(({
         "flex items-center justify-between px-4 py-3 transition-all group border-b border-gray-50 last:border-0 cursor-pointer h-[48px]",
         isSelected ? "bg-indigo-50/40 hover:bg-indigo-50/60" : "hover:bg-indigo-50/20"
       )}
-      onMouseEnter={() => setIsInteractive(true)}
-      onFocus={() => setIsInteractive(true)}
+      onMouseEnter={() => {
+        setIsInteractive(true);
+        setActiveTicket(ticket);
+        const projectData = Array.isArray(ticket.projects) ? ticket.projects[0] : ticket.projects;
+        setActiveProject(projectData || null);
+      }}
+      onFocus={() => {
+        setIsInteractive(true);
+        setActiveTicket(ticket);
+        const projectData = Array.isArray(ticket.projects) ? ticket.projects[0] : ticket.projects;
+        setActiveProject(projectData || null);
+      }}
+      onMouseLeave={() => { 
+        setIsInteractive(false); 
+        const state = useModalStore.getState();
+        if (state.isCommandPaletteOpen || state.activeContextMenu) return;
+        setActiveTicket(null); 
+        setActiveProject(null); 
+      }}
+      onBlur={() => { 
+        setIsInteractive(false); 
+        const state = useModalStore.getState();
+        if (state.isCommandPaletteOpen || state.activeContextMenu) return;
+        setActiveTicket(null); 
+        setActiveProject(null); 
+      }}
+      tabIndex={0}
     >
       <div className="flex items-center gap-3 min-w-0">
         {/* Selection Checkbox */}
@@ -129,28 +120,24 @@ const IssueRow = memo(({
           className="hidden md:flex items-center shrink-0 w-8 justify-center"
           onClick={(e) => e.stopPropagation()}
         >
-          {isInteractive ? (
-            <IssuePrioritySelector
-              issueId={ticket.id}
-              currentPriority={ticket.priority || 'no_priority'}
-              currentUser={currentUser}
-              assigneeId={ticket.assignee_id}
-              reviewerId={ticket.reviewer_id}
-            />
-          ) : (
-            <div className="py-1">
-              {renderPriorityIcon(ticket.priority || 'no_priority')}
-            </div>
-          )}
+          <IssuePrioritySelector
+            issueId={ticket.id}
+            currentPriority={ticket.priority || 'no_priority'}
+            currentUser={currentUser}
+            assigneeId={ticket.assignee_id}
+            reviewerId={ticket.reviewer_id}
+            projectName={projectName}
+            issueTitle={ticket.title}
+          />
         </div>
 
         <Link
           href={issueHref}
           onMouseEnter={prefetchIssue}
           onFocus={prefetchIssue}
-          className="text-[11px] font-bold text-gray-400 uppercase tracking-tighter shrink-0 w-14 hover:text-indigo-600 transition-colors"
+          className="text-[11px] font-bold text-gray-400 uppercase tracking-tighter shrink-0 w-16 hover:text-indigo-600 transition-colors"
         >
-          {ticket.projects?.project_name?.substring(0, 3).toUpperCase() || 'KAP'}-{ticket.id.substring(0, 2).toUpperCase()}
+          {issueIdString}
         </Link>
 
         {/* Status Selector */}
@@ -158,21 +145,16 @@ const IssueRow = memo(({
           className="w-8 shrink-0 flex justify-center"
           onClick={(e) => e.stopPropagation()}
         >
-          {isInteractive ? (
-            <IssueStatusSelector
-              issueId={ticket.id}
-              currentStatus={ticket.status || 'to_do'}
-              currentUser={currentUser}
-              assigneeId={ticket.assignee_id}
-              reviewerId={ticket.reviewer_id}
-              hideLabel={true}
-            />
-          ) : (
-            <div className={twMerge(
-              "w-2 h-2 rounded-full",
-              statusIcons[ticket.status || 'to_do']?.color || 'bg-gray-400'
-            )}></div>
-          )}
+          <IssueStatusSelector
+            issueId={ticket.id}
+            currentStatus={ticket.status || 'to_do'}
+            currentUser={currentUser}
+            assigneeId={ticket.assignee_id}
+            reviewerId={ticket.reviewer_id}
+            hideLabel={true}
+            projectName={projectName}
+            issueTitle={ticket.title}
+          />
         </div>
 
         <div className="flex items-center gap-2 min-w-0">
@@ -214,21 +196,15 @@ const IssueRow = memo(({
 
         {/* Assignee Selector */}
         <div className="flex items-center">
-          {isInteractive ? (
-            <IssueAssigneeSelector
-              issueId={ticket.id}
-              currentAssigneeId={ticket.assignee_id}
-              currentAssignee={ticket.assignees}
-              users={users}
-              currentUser={currentUser}
-            />
-          ) : (
-            <UserAvatar
-              name={ticket.assignees?.name || 'Assignee'}
-              avatarUrl={ticket.assignees?.avatar_url}
-              size="sm"
-            />
-          )}
+          <IssueAssigneeSelector
+            issueId={ticket.id}
+            currentAssigneeId={ticket.assignee_id}
+            currentAssignee={ticket.assignees}
+            users={users}
+            currentUser={currentUser}
+            projectName={projectName}
+            issueTitle={ticket.title}
+          />
         </div>
 
         <span className="text-[11px] text-gray-400 font-bold uppercase tracking-tighter w-14 text-right">
