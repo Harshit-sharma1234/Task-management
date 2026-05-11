@@ -33,22 +33,24 @@ export default async function PMDashboard({ params }: { params: Promise<{ worksp
     const userName = profile.name || user.user_metadata?.full_name || user.email;
 
     return (
-        <div className="flex flex-col h-full w-full p-10 overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-300">
-            <div className="flex items-center justify-between mb-10">
-                <div>
-                    <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight leading-none">
-                        Welcome back, <span className="text-indigo-600">{userName}</span>
-                    </h1>
-                    <p className="text-[15px] font-medium text-slate-500 mt-2">
+        <div className="flex flex-col h-full w-full p-4 sm:p-8 lg:p-10 overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-300 no-scrollbar">
+            <div className="flex flex-col gap-4 mb-8 sm:mb-10">
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight leading-tight">
+                    Welcome back, <span className="text-indigo-600">{userName}</span>
+                </h1>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <p className="text-sm sm:text-[15px] font-medium text-slate-500">
                         Tracking project progress and team delivery.
                     </p>
-                </div>
-                <div className="flex items-center gap-4">
-                    <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white border border-orange-100 rounded-xl shadow-sm shadow-orange-50/50">
-                        <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
-                        <span className="text-[11px] font-extrabold text-orange-600 uppercase tracking-widest">Project Manager</span>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                        <div className="flex items-center gap-2 px-4 py-2 bg-white border border-orange-100 rounded-xl shadow-sm shadow-orange-50/50 w-fit">
+                            <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
+                            <span className="text-[10px] sm:text-[11px] font-extrabold text-orange-600 uppercase tracking-widest">Project Manager</span>
+                        </div>
+                        <div className="w-full sm:w-auto">
+                            <CreateProjectButton variant="header" workspaceId={workspace.id} />
+                        </div>
                     </div>
-                    <CreateProjectButton variant="header" workspaceId={workspace.id} />
                 </div>
             </div>
 

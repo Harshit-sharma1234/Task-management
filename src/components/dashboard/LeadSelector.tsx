@@ -7,9 +7,6 @@ import { toast } from 'sonner';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { getInitials, getBadgeColor } from '@/lib/avatar';
 import { useGlobalStore } from '@/lib/store/global';
-import { useModalStore } from '@/lib/store/modal';
-import { SelectorHandle } from './StatusSelector';
-import { generateShortId } from '@/lib/utils/id';
 
 interface User {
     id: string;
@@ -36,6 +33,8 @@ interface LeadSelectorProps {
 // Re-export for backward compatibility with any external consumers
 export { getBadgeColor, getInitials };
 
+import { SelectorHandle } from './StatusSelector';
+
 export const LeadSelector = memo(forwardRef<SelectorHandle, LeadSelectorProps>(({
     projectId,
     currentLeadId,
@@ -57,41 +56,20 @@ export const LeadSelector = memo(forwardRef<SelectorHandle, LeadSelectorProps>((
 
     // Filter users based on search
     const filteredUsers = useMemo(() => {
-        return (users || []).filter(user =>
-            user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            user.email?.toLowerCase().includes(searchQuery.toLowerCase())
+        return users.filter(user =>
+            user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            user.email.toLowerCase().includes(searchQuery.toLowerCase())
         );
     }, [users, searchQuery]);
 
-    const [optimisticLeadId, setOptimisticLeadId] = useState(currentLeadId);
-    
-    const globalProject = useGlobalStore(state => state.projects.find(p => p.id === projectId));
-
-    const { optimisticProjectUpdates } = useModalStore();
-    const optimisticUpdate = optimisticProjectUpdates[projectId];
-
-    useEffect(() => { 
-        if (optimisticUpdate?.lead_id !== undefined) {
-            setOptimisticLeadId(optimisticUpdate.lead_id);
-        } else if (globalProject && globalProject.lead_id !== undefined) {
-            setOptimisticLeadId(globalProject.lead_id);
-        } else {
-            setOptimisticLeadId(currentLeadId); 
-        }
-    }, [currentLeadId, globalProject, optimisticUpdate]);
-
     // Current lead processing
     const currentLead = useMemo(() => {
-        const leadIdToUse = globalProject?.lead_id !== undefined ? globalProject.lead_id : optimisticLeadId;
-        const foundUser = (users || []).find(u => u.id === leadIdToUse);
-        if (foundUser) return foundUser;
-        if (fallbackUser?.id === leadIdToUse) return fallbackUser;
-        return null;
-    }, [users, optimisticLeadId, fallbackUser, globalProject]);
+        return users.find(u => u.id === currentLeadId) || (fallbackUser?.id === currentLeadId ? fallbackUser : null);
+    }, [users, currentLeadId, fallbackUser]);
 
     const leadLabel = currentLead 
         ? (showEmail ? (currentLead as any).email || currentLead.name : currentLead.name) 
-        : (optimisticLeadId ? 'Unknown Lead' : 'Unassigned');
+        : (currentLeadId ? 'Unknown Lead' : 'Unassigned');
 
     // Click outside logic
     useEffect(() => {
@@ -108,14 +86,14 @@ export const LeadSelector = memo(forwardRef<SelectorHandle, LeadSelectorProps>((
 
     // Handle lead selection
     const handleSelect = useCallback((leadId: string | null) => {
-        if (leadId === optimisticLeadId || !leadId) {
+        if (leadId === currentLeadId || !leadId) {
             setIsOpen(false);
             return;
         }
 
         setIsOpen(false);
         // Optimistic update: update both lead_id and the lead object for instant name change
-        const selectedUser = (users || []).find(u => u.id === leadId);
+        const selectedUser = users.find(u => u.id === leadId);
         useGlobalStore.getState().updateProject({ 
             id: projectId, 
             lead_id: leadId,
@@ -126,24 +104,15 @@ export const LeadSelector = memo(forwardRef<SelectorHandle, LeadSelectorProps>((
             } : null
         });
 
-        const previousLeadId = optimisticLeadId;
-        setOptimisticLeadId(leadId);
-        
-        // Update global optimistic store
-        const { setOptimisticProjectUpdate } = useModalStore.getState();
-        setOptimisticProjectUpdate(projectId, { lead_id: leadId });
-
         startTransition(async () => {
             const res = await updateProjectLead(projectId, leadId);
             if (res.error) {
                 // Revert on failure
-                setOptimisticLeadId(previousLeadId);
-                useModalStore.getState().clearOptimisticProjectUpdate(projectId);
-                useGlobalStore.getState().updateProject({ id: projectId, lead_id: previousLeadId });
+                useGlobalStore.getState().updateProject({ id: projectId, lead_id: currentLeadId });
                 toast.error(res.error);
             }
         });
-    }, [projectId, optimisticLeadId, users]);
+    }, [projectId, currentLeadId]);
 
     return (
         <div className="relative flex items-center" ref={dropdownRef}>
@@ -156,34 +125,24 @@ export const LeadSelector = memo(forwardRef<SelectorHandle, LeadSelectorProps>((
             >
                 {!hideAvatar && (
                     <UserAvatar
-                        name={currentLead ? currentLead.name : (optimisticLeadId ? '?' : 'Unassigned')}
+                        name={currentLead ? currentLead.name : (currentLeadId ? '?' : 'Unassigned')}
                         avatarUrl={currentLead?.avatar_url}
                         size="sm"
+                        className="ring-2 ring-white shadow-sm"
                     />
                 )}
-                {(showEmail || showName) && (
-                    <span className="text-[11px] font-medium text-gray-700 truncate max-w-[130px]">
-                        {leadLabel}
-                    </span>
-                )}
+                <span className="text-[11px] font-bold text-gray-700 group-hover:text-indigo-600 transition-colors bg-gray-50 px-2 py-0.5 rounded border border-gray-100/80 group-hover:bg-gray-100/50 truncate max-w-[130px]">
+                    {leadLabel}
+                </span>
             </button>
 
             {isOpen && (
-                <div className={`absolute ${align === 'left' ? 'left-0' : 'right-0'} top-full mt-2 w-64 bg-white border border-gray-100 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200`}>
-                    <div className="px-3 pt-3 pb-2 border-b border-gray-50 bg-gray-50/30">
-                        <div className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-0.5">
-                            {generateShortId(globalProject?.project_name || '', projectId)}
-                        </div>
-                        <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider truncate">
-                            {globalProject?.project_name || 'Assign Lead'}
-                        </div>
-                    </div>
-                    
+                <div className={`absolute ${align === 'left' ? 'left-auto right-0 sm:left-0 sm:right-auto' : 'right-0'} top-full mt-2 w-52 sm:w-64 bg-white border border-gray-100 rounded-xl shadow-xl z-[80] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200`}>
                     <div className="p-2 border-b border-gray-50 flex items-center gap-2 bg-gray-50/50">
                         <Search size={14} className="text-gray-400 ml-2" />
                         <input
                             type="text"
-                            placeholder="Search members..."
+                            placeholder="Assign lead..."
                             className="w-full bg-transparent border-none outline-none text-xs py-1"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
@@ -191,14 +150,14 @@ export const LeadSelector = memo(forwardRef<SelectorHandle, LeadSelectorProps>((
                         />
                     </div>
 
-                    <div className="flex flex-col max-h-64 overflow-y-auto p-1 custom-scrollbar">
+                    <div className="flex flex-col max-h-64 overflow-y-auto p-1">
 
                         {filteredUsers.length === 0 && searchQuery && (
                             <div className="p-3 text-center text-xs text-gray-400">No users found</div>
                         )}
 
                         {filteredUsers.map((u) => {
-                            const isSelected = optimisticLeadId === u.id;
+                            const isSelected = currentLeadId === u.id;
 
                             return (
                                 <button
@@ -233,6 +192,6 @@ export const LeadSelector = memo(forwardRef<SelectorHandle, LeadSelectorProps>((
             )}
         </div>
     );
-}));
+}))
 
 LeadSelector.displayName = 'LeadSelector';

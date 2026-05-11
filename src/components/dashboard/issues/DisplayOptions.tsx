@@ -68,7 +68,7 @@ export function DisplayOptions({ settings, onChange }: DisplayOptionsProps) {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 animate-in fade-in slide-in-from-top-2 duration-200 overflow-hidden">
+        <div className="absolute left-0 sm:left-auto sm:right-0 mt-2 w-72 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 animate-in fade-in slide-in-from-top-2 duration-200 overflow-hidden">
           {/* View Toggles */}
           <div className="p-1 px-3 mt-3 border-b border-gray-50 pb-3">
              <div className="flex bg-gray-50 p-1 rounded-lg">

@@ -32,7 +32,7 @@ export function UserAvatar({ name, avatarUrl, size = 'md', className = '', prior
     const initials = getInitials(name)
     const badgeColor = getBadgeColor(name)
 
-    const baseClasses = `rounded-full flex items-center justify-center shrink-0 font-bold shadow-sm ring-1 ring-black/5 ${className}`
+    const baseClasses = `rounded-full flex items-center justify-center shrink-0 font-bold shadow-[0_8px_30px_rgba(0,0,0,0.08)] ring-2 ring-white ${className}`
 
     if (avatarUrl && !imageError) {
         return (

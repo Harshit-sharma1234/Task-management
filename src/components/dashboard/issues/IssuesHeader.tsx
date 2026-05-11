@@ -222,7 +222,7 @@ export function IssuesHeader({
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3">
             <DisplayOptions 
               settings={displaySettings} 
               onChange={onDisplaySettingsChange} 
@@ -230,10 +230,11 @@ export function IssuesHeader({
             {!hideCreateButton && (
               <button 
                 onClick={onOpenModal}
-                className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm"
+                className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white rounded-md text-xs sm:text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm"
               >
                 <Plus size={16} />
-                <span>New Issue</span>
+                <span className="hidden sm:inline">New Issue</span>
+                <span className="sm:hidden">New</span>
               </button>
             )}
           </div>

@@ -3,10 +3,6 @@
 import { useState, useRef, useEffect, useTransition, memo, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { toast } from 'sonner';
 import { CalendarPlus, ChevronLeft, ChevronRight, CornerDownLeft } from 'lucide-react';
-import { useGlobalStore } from '@/lib/store/global';
-import { useModalStore } from '@/lib/store/modal';
-import { SelectorHandle } from './StatusSelector';
-import { generateShortId } from '@/lib/utils/id';
 
 interface TargetDateSelectorProps {
     projectId: string;
@@ -21,6 +17,8 @@ const MONTHS = [
 ];
 
 const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+
+import { SelectorHandle } from './StatusSelector';
 
 export const TargetDateSelector = memo(forwardRef<SelectorHandle, TargetDateSelectorProps>(({
     projectId, 
@@ -39,33 +37,17 @@ export const TargetDateSelector = memo(forwardRef<SelectorHandle, TargetDateSele
     }));
 
     // Calendar state
-    const [optimisticTargetDate, setOptimisticTargetDate] = useState(currentTargetDate);
     const [viewDate, setViewDate] = useState(() => {
-        return optimisticTargetDate ? new Date(optimisticTargetDate) : new Date();
+        return currentTargetDate ? new Date(currentTargetDate) : new Date();
     });
-
-    const globalProject = useGlobalStore(state => state.projects.find(p => p.id === projectId));
-
-    const { optimisticProjectUpdates } = useModalStore();
-    const optimisticUpdate = optimisticProjectUpdates[projectId];
-
-    useEffect(() => { 
-        if (optimisticUpdate?.start_date !== undefined) {
-            setOptimisticTargetDate(optimisticUpdate.start_date);
-        } else if (globalProject && globalProject.start_date !== undefined) {
-            setOptimisticTargetDate(globalProject.start_date);
-        } else {
-            setOptimisticTargetDate(currentTargetDate); 
-        }
-    }, [currentTargetDate, globalProject, optimisticUpdate]);
 
     // Reset view date whenever opened
     useEffect(() => {
         if (isOpen) {
-            setViewDate(optimisticTargetDate ? new Date(optimisticTargetDate) : new Date());
+            setViewDate(currentTargetDate ? new Date(currentTargetDate) : new Date());
             setTimeout(() => inputRef.current?.focus(), 50);
         }
-    }, [isOpen, optimisticTargetDate]);
+    }, [isOpen, currentTargetDate]);
 
     // Click outside logic
     useEffect(() => {
@@ -82,17 +64,10 @@ export const TargetDateSelector = memo(forwardRef<SelectorHandle, TargetDateSele
 
     // Handle selection
     const handleSelect = useCallback((dateStr: string | null) => {
-        if (dateStr === optimisticTargetDate) {
+        if (dateStr === currentTargetDate) {
             setIsOpen(false);
             return;
         }
-
-        const previousDate = optimisticTargetDate;
-        setOptimisticTargetDate(dateStr);
-        
-        // Update global optimistic store
-        const { setOptimisticProjectUpdate } = useModalStore.getState();
-        setOptimisticProjectUpdate(projectId, { start_date: dateStr });
 
         setIsOpen(false);
         if (!onUpdate) {
@@ -102,12 +77,10 @@ export const TargetDateSelector = memo(forwardRef<SelectorHandle, TargetDateSele
         startTransition(async () => {
             const res = await onUpdate(projectId, dateStr);
             if (res && res.error) {
-                setOptimisticTargetDate(previousDate);
-                useModalStore.getState().clearOptimisticProjectUpdate(projectId);
                 toast.error(res.error);
             }
         });
-    }, [projectId, optimisticTargetDate, onUpdate]);
+    }, [projectId, currentTargetDate, onUpdate]);
 
     // Calendar grid calculations
     const year = viewDate.getFullYear();
@@ -137,8 +110,8 @@ export const TargetDateSelector = memo(forwardRef<SelectorHandle, TargetDateSele
     };
 
     const isSelected = (day: number) => {
-        if (!optimisticTargetDate) return false;
-        const target = new Date(optimisticTargetDate);
+        if (!currentTargetDate) return false;
+        const target = new Date(currentTargetDate);
         return target.getFullYear() === year && target.getMonth() === month && target.getDate() === day;
     };
 
@@ -155,25 +128,21 @@ export const TargetDateSelector = memo(forwardRef<SelectorHandle, TargetDateSele
                 }}
                 className={`flex items-center gap-2 py-1 rounded-md hover:bg-gray-100/80 transition-colors text-gray-500 hover:text-gray-900 ${isPending ? 'opacity-50' : ''}`}
             >
-                <CalendarPlus size={14} className={optimisticTargetDate ? "text-gray-900" : "text-gray-400"} />
-                <span className={`text-xs ${optimisticTargetDate ? "font-medium text-gray-900" : ""}`}>
-                    {formatDisplayDate(optimisticTargetDate)}
+                <CalendarPlus size={14} className={currentTargetDate ? "text-indigo-600" : "text-gray-400"} />
+                <span className={`text-[11px] font-bold transition-colors bg-gray-50 px-2 py-0.5 rounded border border-gray-100/80 group-hover:bg-gray-100/50 ${currentTargetDate ? "text-gray-700 group-hover:text-indigo-600" : "text-gray-400"}`}>
+                    {formatDisplayDate(currentTargetDate)}
                 </span>
             </button>
 
             {isOpen && (
-                <div className={`absolute ${align === 'left' ? 'left-0' : 'right-0'} top-full mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 py-3 z-50 text-gray-900 font-sans select-none animate-in fade-in slide-in-from-top-2 duration-200`}>
-                    
-                    <div className="px-3 mb-4">
-                        <div className="mb-3 pb-2 border-b border-gray-50">
-                            <div className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-0.5">
-                                {generateShortId(globalProject?.project_name || '', projectId)}
-                            </div>
-                            <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider truncate">
-                                {globalProject?.project_name || 'Set Target Date'}
-                            </div>
-                        </div>
-
+                <div className={`
+                    absolute left-1/2 sm:left-auto -translate-x-1/2 sm:translate-x-0
+                    ${align === 'left' ? 'sm:left-0' : 'sm:right-0'}
+                    top-full mt-2
+                    w-72 sm:w-64
+                    bg-white border border-gray-100 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200
+                `}>
+                    <div className="px-3 mb-4 mt-3">
                         <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Target date</div>
                         <div className="relative">
                             <input
@@ -266,6 +235,6 @@ export const TargetDateSelector = memo(forwardRef<SelectorHandle, TargetDateSele
             )}
         </div>
     );
-}));
+}))
 
 TargetDateSelector.displayName = 'TargetDateSelector';

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useNotificationStore } from '@/lib/store/notifications';
+import { twMerge } from 'tailwind-merge';
 import {
   Building2,
   LayoutDashboard,
@@ -97,9 +98,7 @@ export function Sidebar({
   }, []);
 
   // Hydrate notification count
-  // Hydrate notification count
   useEffect(() => {
-    // If we have an initial count from props (passed by layout), use it and mark as hydrated for this workspace
     if (initialUnreadCount !== undefined) {
       setUnreadCount(initialUnreadCount);
       didHydrate.current = true;
@@ -117,7 +116,6 @@ export function Sidebar({
       fetchInitialCount();
     }
     
-    // When workspaceId changes, we want to allow re-hydration
     return () => {
       didHydrate.current = false;
     };
@@ -142,7 +140,7 @@ export function Sidebar({
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [userId, supabase, setUnreadCount]);
+  }, [userId, supabase, setUnreadCount, activeWorkspaceId]);
 
   const isDashboard = pathname === basePath || pathname.startsWith('/dashboard') && (
     pathname.endsWith('/admin') || pathname.endsWith('/project-manager') ||
@@ -150,32 +148,29 @@ export function Sidebar({
   );
 
   return (
-    <aside className="w-64 shrink-0 border-r border-slate-100 bg-slate-50/30 flex flex-col h-full backdrop-blur-sm">
+    <aside className="shrink-0 border-r border-gray-200 bg-white flex flex-col h-full transition-all duration-300 w-64 md:w-20 lg:w-64">
       {/* Workspace Switcher */}
       <div className="relative" ref={switcherRef}>
         <button
           onClick={() => setShowSwitcher(!showSwitcher)}
-          className="w-full h-16 flex items-center px-6 border-b border-gray-100/50 justify-between cursor-pointer hover:bg-slate-50/80 transition-all group"
+          className="w-full h-16 flex items-center border-b border-gray-100/50 justify-between cursor-pointer hover:bg-slate-50/80 transition-all group px-6 md:px-4 md:justify-center lg:px-6 lg:justify-between"
         >
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-600 text-white shadow-lg shadow-indigo-100 group-hover:scale-105 transition-transform">
+            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-600 text-white shadow-lg shadow-indigo-100 group-hover:scale-105 transition-transform shrink-0">
               <Building2 size={16} strokeWidth={2.5} />
             </div>
-            <div className="flex flex-col text-left overflow-hidden">
-              <span className="text-[13px] font-black text-slate-900 leading-none tracking-tight truncate w-full">
+            <div className="flex flex-col text-left overflow-hidden md:hidden lg:flex">
+              <span className="text-sm font-bold text-slate-800 leading-tight tracking-tight truncate max-w-[140px]">
                 {workspaceName || 'Tectome'}
-              </span>
-              <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase mt-1">
-                {userRole || 'Member'}
               </span>
             </div>
           </div>
-          <ChevronDown size={14} className={`text-slate-400 transition-transform ${showSwitcher ? 'rotate-180' : ''}`} />
+          <ChevronDown size={14} className={`text-slate-400 transition-transform md:hidden lg:block ${showSwitcher ? 'rotate-180' : ''}`} />
         </button>
 
         {/* Dropdown */}
         {showSwitcher && (
-          <div className="absolute top-full left-0 right-0 z-[100] bg-white border border-gray-200 rounded-b-xl shadow-xl animate-in fade-in slide-in-from-top-1 duration-200">
+          <div className="absolute top-full left-0 right-0 z-[100] bg-white border border-gray-200 rounded-b-xl shadow-xl animate-in fade-in slide-in-from-top-1 duration-200 md:hidden lg:block">
             <div className="p-2 max-h-64 overflow-y-auto">
               {availableWorkspaces.length === 0 ? (
                  <div className="px-3 py-4 text-center text-xs text-slate-400 italic">
@@ -220,109 +215,133 @@ export function Sidebar({
       </div>
 
       {/* Main Navigation */}
-      <nav className="flex-1 py-6 px-4 flex flex-col gap-1.5">
+      <nav className="flex-1 py-6 flex flex-col gap-1.5 overflow-x-hidden px-4 md:px-3 md:items-center lg:px-4 lg:items-stretch">
         <Link
           href={basePath}
           prefetch={false}
           onMouseEnter={() => handlePrefetch(basePath)}
-          className={`flex items-center gap-3 px-3 py-2 rounded-xl group transition-all duration-300 ${isDashboard
-            ? 'bg-white text-indigo-600 shadow-sm border border-slate-100'
-              : 'text-slate-500 hover:bg-white/60 hover:text-slate-900'
-            }`}
+          className={twMerge(
+            "flex items-center gap-3 py-2 rounded-lg group transition-all duration-300 px-3 md:justify-center lg:justify-start",
+            isDashboard
+              ? 'bg-indigo-50/80 text-indigo-600 shadow-sm'
+              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+          )}
+          title="Dashboard"
         >
           <LayoutDashboard size={18} strokeWidth={2} className={isDashboard ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'} />
-          <span className="text-[13px] font-bold tracking-tight">Dashboard</span>
+          <span className="text-sm font-semibold tracking-tight md:hidden lg:inline">Dashboard</span>
         </Link>
+
         <Link
           href={`/dashboard/${workspaceSlug}/inbox`}
           prefetch={false}
           onMouseEnter={() => handlePrefetch(`/dashboard/${workspaceSlug}/inbox`)}
-          className={`flex items-center justify-between px-3 py-2 rounded-xl group transition-all duration-300 ${pathname === `/dashboard/${workspaceSlug}/inbox`
-              ? 'bg-white text-indigo-600 shadow-sm border border-slate-100'
-              : 'text-slate-500 hover:bg-white/60 hover:text-slate-900'
-            }`}
+          className={twMerge(
+            "flex items-center justify-between py-2 rounded-lg group transition-all duration-300 px-3 md:justify-center lg:justify-between",
+            pathname === `/dashboard/${workspaceSlug}/inbox`
+              ? 'bg-indigo-50/80 text-indigo-600 shadow-sm'
+              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+          )}
+          title="Inbox"
         >
           <div className="flex items-center gap-3">
             <Bell size={18} strokeWidth={2} className={pathname === `/dashboard/${workspaceSlug}/inbox` ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'} />
-            <span className="text-[13px] font-bold tracking-tight">Inbox</span>
+            <span className="text-sm font-semibold tracking-tight md:hidden lg:inline">Inbox</span>
           </div>
           {unreadCount > 0 && (
-            <span className="bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center shadow-lg shadow-indigo-100 animate-in zoom-in duration-500">
+            <span className="bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center shadow-lg shadow-indigo-100 animate-in zoom-in duration-500 md:hidden lg:inline">
               {unreadCount > 99 ? '99+' : unreadCount}
             </span>
           )}
         </Link>
+
         <Link
           href={`/dashboard/${workspaceSlug}/projects`}
           prefetch={false}
           onMouseEnter={() => handlePrefetch(`/dashboard/${workspaceSlug}/projects`)}
-          className={`flex items-center gap-3 px-3 py-2 rounded-xl group transition-all duration-300 ${pathname.startsWith(`/dashboard/${workspaceSlug}/projects`)
-              ? 'bg-white text-indigo-600 shadow-sm border border-slate-100'
-              : 'text-slate-500 hover:bg-white/60 hover:text-slate-900'
-            }`}
+          className={twMerge(
+            "flex items-center gap-3 py-2 rounded-lg group transition-all duration-300 px-3 md:justify-center lg:justify-start",
+            pathname.startsWith(`/dashboard/${workspaceSlug}/projects`)
+              ? 'bg-indigo-50/80 text-indigo-600 shadow-sm'
+              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+          )}
+          title="Projects"
         >
           <FolderKanban size={18} strokeWidth={2} className={pathname.startsWith(`/dashboard/${workspaceSlug}/projects`) ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'} />
-          <span className="text-[13px] font-bold tracking-tight">Projects</span>
+          <span className="text-sm font-semibold tracking-tight md:hidden lg:inline">Projects</span>
         </Link>
+
         <Link
           href={`/dashboard/${workspaceSlug}/issues`}
           prefetch={false}
           onMouseEnter={() => handlePrefetch(`/dashboard/${workspaceSlug}/issues`)}
-          className={`flex items-center gap-3 px-3 py-2 rounded-xl group transition-all duration-300 ${pathname.startsWith(`/dashboard/${workspaceSlug}/issues`)
-              ? 'bg-white text-indigo-600 shadow-sm border border-slate-100'
-              : 'text-slate-500 hover:bg-white/60 hover:text-slate-900'
-            }`}
+          className={twMerge(
+            "flex items-center gap-3 py-2 rounded-lg group transition-all duration-300 px-3 md:justify-center lg:justify-start",
+            pathname.startsWith(`/dashboard/${workspaceSlug}/issues`)
+              ? 'bg-indigo-50/80 text-indigo-600 shadow-sm'
+              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+          )}
+          title="Issues"
         >
           <CircleDot size={18} strokeWidth={2} className={pathname.startsWith(`/dashboard/${workspaceSlug}/issues`) ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'} />
-          <span className="text-[13px] font-bold tracking-tight">Issues</span>
+          <span className="text-sm font-semibold tracking-tight md:hidden lg:inline">Issues</span>
         </Link>
+
         <Link
           href={`/dashboard/${workspaceSlug}/team`}
           prefetch={false}
           onMouseEnter={() => handlePrefetch(`/dashboard/${workspaceSlug}/team`)}
-          className={`flex items-center gap-3 px-3 py-2 rounded-xl group transition-all duration-300 ${pathname.startsWith(`/dashboard/${workspaceSlug}/team`)
-              ? 'bg-white text-indigo-600 shadow-sm border border-slate-100'
-              : 'text-slate-500 hover:bg-white/60 hover:text-slate-900'
-            }`}
+          className={twMerge(
+            "flex items-center gap-3 py-2 rounded-lg group transition-all duration-300 px-3 md:justify-center lg:justify-start",
+            pathname.startsWith(`/dashboard/${workspaceSlug}/team`)
+              ? 'bg-indigo-50/80 text-indigo-600 shadow-sm'
+              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+          )}
+          title="Team"
         >
           <Users size={18} strokeWidth={2} className={pathname.startsWith(`/dashboard/${workspaceSlug}/team`) ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'} />
-          <span className="text-[13px] font-bold tracking-tight">Team</span>
+          <span className="text-sm font-semibold tracking-tight md:hidden lg:inline">Team</span>
         </Link>
+
         <Link
           href={`/dashboard/${workspaceSlug}/settings`}
           prefetch={false}
           onMouseEnter={() => handlePrefetch(`/dashboard/${workspaceSlug}/settings`)}
-          className={`flex items-center gap-3 px-3 py-2 rounded-xl group transition-all duration-300 ${pathname.startsWith(`/dashboard/${workspaceSlug}/settings`)
-              ? 'bg-white text-indigo-600 shadow-sm border border-slate-100'
-              : 'text-slate-500 hover:bg-white/60 hover:text-slate-900'
-            }`}
+          className={twMerge(
+            "flex items-center gap-3 py-2 rounded-lg group transition-all duration-300 px-3 md:justify-center lg:justify-start",
+            pathname.startsWith(`/dashboard/${workspaceSlug}/settings`)
+              ? 'bg-indigo-50/80 text-indigo-600 shadow-sm'
+              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+          )}
+          title="Settings"
         >
           <Settings size={18} strokeWidth={2} className={pathname.startsWith(`/dashboard/${workspaceSlug}/settings`) ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'} />
-          <span className="text-[13px] font-bold tracking-tight">Settings</span>
+          <span className="text-sm font-semibold tracking-tight md:hidden lg:inline">Settings</span>
         </Link>
 
         {/* My Tasks Section */}
-        <div className="mt-8 flex flex-col gap-1.5 pt-6 border-t border-slate-50">
-          <p className="px-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-loose mb-2">Private</p>
+        <div className="mt-8 flex flex-col gap-1.5 pt-6 border-t border-slate-50 md:items-center lg:items-stretch">
+          <p className="px-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-loose mb-2 md:hidden lg:block">Private</p>
           <Link
             href={`/dashboard/${workspaceSlug}/my-tasks`}
             prefetch={false}
             onMouseEnter={() => handlePrefetch(`/dashboard/${workspaceSlug}/my-tasks`)}
-            className={`flex items-center justify-between px-3 py-2 rounded-xl group transition-all duration-300 ${pathname === `/dashboard/${workspaceSlug}/my-tasks`
-                ? 'bg-white text-indigo-600 shadow-sm border border-slate-100'
-                : 'text-slate-500 hover:bg-white/60 hover:text-slate-900'
-              }`}
+            className={twMerge(
+              "flex items-center justify-between py-2 rounded-lg group transition-all duration-300 px-3 md:justify-center lg:justify-between",
+              pathname === `/dashboard/${workspaceSlug}/my-tasks`
+                ? 'bg-indigo-50/80 text-indigo-600 shadow-sm'
+                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+            )}
+            title="My Tasks"
           >
             <div className="flex items-center gap-3">
               <CircleDot size={18} strokeWidth={2} className={pathname === `/dashboard/${workspaceSlug}/my-tasks` ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'} />
-              <span className="text-[13px] font-bold tracking-tight">My Tasks</span>
+              <span className="text-sm font-semibold tracking-tight md:hidden lg:inline">My Tasks</span>
             </div>
-            <ChevronRight size={14} className="text-slate-300 group-hover:text-slate-500 transition-colors" />
+            <ChevronRight size={14} className="text-slate-300 group-hover:text-slate-500 transition-colors md:hidden lg:block" />
           </Link>
         </div>
-
       </nav>
-
     </aside>
   );
 }

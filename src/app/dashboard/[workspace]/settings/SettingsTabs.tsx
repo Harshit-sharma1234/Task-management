@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { UserCircle, Shield, Lock, Mail, Building, AlertTriangle, Eye, EyeOff } from 'lucide-react'
+import { UserCircle, Shield, Lock, Mail, Building, AlertTriangle, Eye, EyeOff, Camera } from 'lucide-react'
 import { updateUserPassword, updateUserAvatar, updateUserEmail } from '@/app/dashboard/actions'
 import { deleteWorkspaceAction, updateWorkspaceAction } from './actions'
 import { createClient } from '@/lib/supabase/client'
@@ -193,54 +193,54 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
 
 
     return (
-        <div className="bg-white rounded-[24px] shadow-[0_20px_50px_rgba(0,0,0,0.05)] w-full max-w-5xl flex overflow-hidden min-h-[640px] border border-gray-100/50">
-            {/* Sidebar Left */}
-            <div className="w-[260px] bg-[#f9fafb]/50 border-r border-gray-100 p-6 flex flex-col justify-between shrink-0">
+        <div className="bg-white rounded-[24px] shadow-[0_20px_50px_rgba(0,0,0,0.05)] w-full flex flex-col xl:flex-row overflow-hidden min-h-0 xl:min-h-[700px] border border-gray-100/50">
+            {/* Sidebar Left / Top Navigation on Mobile */}
+            <div className="w-full xl:w-[260px] bg-[#f9fafb]/50 border-b xl:border-b-0 xl:border-r border-gray-100 p-4 sm:p-6 flex flex-col xl:justify-between shrink-0">
                 <div>
-                    <div className="mb-10">
-                        <h2 className="text-xl font-bold text-gray-900 tracking-tight">Settings</h2>
-                        <p className="text-xs font-medium text-gray-400 mt-1 uppercase tracking-widest">Personal Account</p>
+                    <div className="mb-6 xl:mb-10">
+                        <h2 className="text-lg xl:text-xl font-bold text-gray-900 tracking-tight">Settings</h2>
+                        <p className="hidden xl:block text-xs font-medium text-gray-400 mt-1 uppercase tracking-widest">Personal Account</p>
                     </div>
 
-                    <nav className="space-y-1.5">
+                    <nav className="flex xl:flex-col gap-1.5 overflow-x-auto xl:overflow-x-visible no-scrollbar pb-2 xl:pb-0">
                         <button
                             onClick={() => setActiveTab('profile')}
-                            className={`w-full flex items-center gap-2.5 px-3 py-3 rounded-xl text-[12px] font-bold transition-all duration-200 whitespace-nowrap overflow-hidden ${activeTab === 'profile'
-                                    ? 'bg-white shadow-[0_2px_15px_rgba(0,0,0,0.06)] text-indigo-600 border border-gray-100/50 translate-x-1'
+                            className={`flex xl:w-full items-center gap-2.5 px-3 py-2.5 xl:py-3 rounded-xl text-[12px] font-bold transition-all duration-200 whitespace-nowrap ${activeTab === 'profile'
+                                    ? 'bg-white shadow-[0_2px_15px_rgba(0,0,0,0.06)] text-indigo-600 border border-gray-100/50 xl:translate-x-1'
                                     : 'text-gray-400 hover:text-gray-900 hover:bg-gray-100/50'
                                 }`}
                         >
                             <UserCircle size={18} className="shrink-0" />
-                            <span className="truncate">Profile Details</span>
+                            <span className="truncate">Profile</span>
                         </button>
                         <button
                             onClick={() => setActiveTab('security')}
-                            className={`w-full flex items-center gap-2.5 px-3 py-3 rounded-xl text-[12px] font-bold transition-all duration-200 whitespace-nowrap overflow-hidden ${activeTab === 'security'
-                                    ? 'bg-white shadow-[0_2px_15px_rgba(0,0,0,0.06)] text-indigo-600 border border-gray-100/50 translate-x-1'
+                            className={`flex xl:w-full items-center gap-2.5 px-3 py-2.5 xl:py-3 rounded-xl text-[12px] font-bold transition-all duration-200 whitespace-nowrap ${activeTab === 'security'
+                                    ? 'bg-white shadow-[0_2px_15px_rgba(0,0,0,0.06)] text-indigo-600 border border-gray-100/50 xl:translate-x-1'
                                     : 'text-gray-400 hover:text-gray-900 hover:bg-gray-100/50'
                                 }`}
                         >
                             <Shield size={18} className="shrink-0" />
-                            <span className="truncate">Security & Access</span>
+                            <span className="truncate">Security</span>
                         </button>
 
                         {isAdmin && (
                             <button
                                 onClick={() => setActiveTab('workspace')}
-                                className={`w-full flex items-center gap-2.5 px-3 py-3 rounded-xl text-[12px] font-bold transition-all duration-200 whitespace-nowrap overflow-hidden ${activeTab === 'workspace'
-                                        ? 'bg-white shadow-[0_2px_15px_rgba(0,0,0,0.06)] text-indigo-600 border border-gray-100/50 translate-x-1'
+                                className={`flex xl:w-full items-center gap-2.5 px-3 py-2.5 xl:py-3 rounded-xl text-[12px] font-bold transition-all duration-200 whitespace-nowrap ${activeTab === 'workspace'
+                                        ? 'bg-white shadow-[0_2px_15px_rgba(0,0,0,0.06)] text-indigo-600 border border-gray-100/50 xl:translate-x-1'
                                         : 'text-gray-400 hover:text-gray-900 hover:bg-gray-100/50'
                                     }`}
                             >
                                 <Building size={18} className="shrink-0" />
-                                <span className="truncate">Workspace Settings</span>
+                                <span className="truncate">Workspace</span>
                             </button>
                         )}
                     </nav>
                 </div>
 
-                {/* Footer Brand */}
-                <div className="pt-6 border-t border-gray-100/80">
+                {/* Footer Brand - Only on Desktop */}
+                <div className="hidden xl:block pt-6 border-t border-gray-100/80">
                     <div className="flex items-center gap-2 opacity-40 hover:opacity-100 transition-opacity duration-300">
                         <div className="w-5 h-5 bg-gray-900 rounded-sm flex items-center justify-center">
                             <Shield size={10} className="text-white" />
@@ -251,26 +251,28 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
             </div>
 
             {/* Content Right */}
-            <div className="flex-1 bg-white relative">
+            <div className="flex-1 bg-white relative overflow-hidden">
                 {activeTab === 'profile' ? (
-                    <div className="p-10 animate-in fade-in slide-in-from-right-4 duration-500">
-                        <div className="mb-10">
-                            <h3 className="text-2xl font-bold text-gray-900 leading-tight">Profile Details</h3>
+                    <div className="p-5 sm:p-10 animate-in fade-in slide-in-from-right-4 duration-500">
+                        <div className="mb-6 xl:mb-10">
+                            <h3 className="text-xl xl:text-2xl font-bold text-gray-900 leading-tight">Profile Details</h3>
                             <p className="text-sm text-gray-500 mt-1">Manage how you appear to your team.</p>
                         </div>
 
-                        <div className="space-y-10">
+                        <div className="space-y-6 xl:space-y-10">
                             {/* Profile Row */}
                             <div className="group">
-                                <div className="flex items-center justify-between pb-8 border-b border-gray-50">
-                                    <div className="w-[110px] shrink-0">
+                                <div className="flex flex-col xl:flex-row xl:items-center justify-between pb-6 xl:pb-8 border-b border-gray-50 gap-4 xl:gap-10">
+                                    <div className="xl:w-[140px] shrink-0">
                                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-2 border-l-2 border-gray-100">Photo</p>
                                     </div>
-                                    <div className="flex-1 flex items-center justify-between bg-white p-6 rounded-[24px] border border-gray-100 shadow-[0_2px_20px_rgba(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] transition-all duration-500 gap-6 overflow-hidden">
-                                        <div className="flex items-center gap-5 min-w-0">
-                                            <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-white shadow-[0_4px_12px_rgba(0,0,0,0.1)] relative shrink-0 aspect-square flex-none">
+                                    <div className="flex-1 flex flex-col sm:flex-row sm:items-center justify-between bg-white p-6 sm:p-8 rounded-[32px] border border-gray-100 shadow-[0_2px_25px_rgba(0,0,0,0.03)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.06)] transition-all duration-500 gap-8">
+                                        <div className="flex items-center gap-6 min-w-0">
+                                            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full border-2 border-white shadow-[0_8px_30px_rgba(0,0,0,0.08)] relative shrink-0 flex-none group/avatar">
                                                 {selectedFile && previewUrl ? (
-                                                    <Image src={previewUrl} alt="Profile" fill className="object-cover" />
+                                                    <div className="w-full h-full rounded-full overflow-hidden relative">
+                                                        <Image src={previewUrl} alt="Profile" fill className="object-cover" />
+                                                    </div>
                                                 ) : (
                                                     <UserAvatar
                                                         name={user.name}
@@ -279,14 +281,17 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
                                                         className="w-full h-full"
                                                     />
                                                 )}
+                                                <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover/avatar:opacity-100 flex items-center justify-center transition-all cursor-pointer">
+                                                    <Camera size={18} className="text-white" />
+                                                </div>
                                             </div>
-                                            <div className="min-w-0 flex flex-col justify-center">
-                                                <p className="text-[17px] font-bold text-gray-900 leading-tight truncate">{user.name}</p>
-                                                <p className="text-[13px] text-gray-400 font-medium truncate">{user.email}</p>
+                                            <div className="min-w-0 flex flex-col justify-center space-y-1">
+                                                <p className="text-[16px] sm:text-[18px] font-extrabold text-gray-900 leading-tight truncate capitalize">{user.name}</p>
+                                                <p className="text-[12px] sm:text-[13px] text-gray-400 font-medium truncate">{user.email}</p>
                                             </div>
                                         </div>
 
-                                        <div className="flex gap-2">
+                                        <div className="flex gap-2 w-full sm:w-auto">
                                             <input
                                                 type="file"
                                                 id="avatar-upload"
@@ -296,21 +301,21 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
                                                 onChange={handleImageSelect}
                                             />
                                             {selectedFile ? (
-                                                <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+                                                <div className="flex items-center gap-1.5 shrink-0 w-full sm:w-auto sm:ml-auto">
                                                     <button
                                                         onClick={() => {
                                                             setSelectedFile(null)
                                                             setPreviewUrl(user.avatar_url)
                                                         }}
                                                         disabled={isUploading}
-                                                        className="px-4 py-2.5 text-[11px] font-bold text-gray-400 hover:text-gray-900 transition-all whitespace-nowrap rounded-lg"
+                                                        className="flex-1 sm:flex-none px-4 py-2.5 text-[11px] font-bold text-gray-400 hover:text-gray-900 transition-all whitespace-nowrap rounded-lg"
                                                     >
                                                         Cancel
                                                     </button>
                                                     <button
                                                         onClick={confirmImageUpload}
                                                         disabled={isUploading}
-                                                        className="px-6 py-2.5 text-[11px] font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-600/20 transition-all active:scale-95 disabled:opacity-50 whitespace-nowrap"
+                                                        className="flex-1 sm:flex-none px-6 py-2.5 text-[11px] font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-600/20 transition-all active:scale-95 disabled:opacity-50 whitespace-nowrap"
                                                     >
                                                         {isUploading ? 'Uploading...' : 'Confirm'}
                                                     </button>
@@ -318,7 +323,7 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
                                             ) : (
                                                 <label
                                                     htmlFor="avatar-upload"
-                                                    className="px-6 py-2.5 text-[11px] font-bold text-indigo-600 bg-indigo-50/50 hover:bg-indigo-600 hover:text-white rounded-xl transition-all cursor-pointer border border-indigo-100/50 active:scale-95 shrink-0 whitespace-nowrap ml-auto"
+                                                    className="w-full sm:w-auto text-center px-6 py-2.5 text-[11px] font-bold text-indigo-600 bg-indigo-50/50 hover:bg-indigo-600 hover:text-white rounded-xl transition-all cursor-pointer border border-indigo-100/50 active:scale-95 shrink-0 whitespace-nowrap sm:ml-auto"
                                                 >
                                                     Change Photo
                                                 </label>
@@ -328,27 +333,27 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
                                 </div>
                             </div>
 
-                            {/* Email Row */}
+                             {/* Email Row */}
                             <div className="group">
-                                <div className="flex flex-col pb-8 border-b border-gray-50">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <div className="w-[110px] shrink-0">
+                                <div className="flex flex-col pb-6 xl:pb-8 border-b border-gray-50 gap-4 xl:gap-10">
+                                    <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 xl:gap-10">
+                                        <div className="xl:w-[140px] shrink-0">
                                             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-2 border-l-2 border-gray-100">Email</p>
                                         </div>
-                                        <div className="flex-1 flex items-center justify-between bg-white p-5 rounded-[20px] border border-gray-100 shadow-[0_2px_15px_rgba(0,0,0,0.02)]">
+                                        <div className="flex-1 flex flex-col sm:flex-row sm:items-center justify-between bg-white p-4 sm:p-5 rounded-[20px] border border-gray-100 shadow-[0_2px_15px_rgba(0,0,0,0.02)] gap-4">
                                             <div className="flex items-center gap-4">
-                                                <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-gray-50 text-gray-400 group-hover:bg-indigo-50 group-hover:text-indigo-500 transition-colors duration-300">
+                                                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center bg-gray-50 text-gray-400 group-hover:bg-indigo-50 group-hover:text-indigo-500 transition-colors duration-300">
                                                     <Mail size={18} />
                                                 </div>
-                                                <div>
-                                                    <p className="text-sm font-bold text-gray-900">{isChangingEmail ? 'Update Email' : user.email}</p>
-                                                    {!isChangingEmail && <p className="text-[11px] text-gray-400 font-medium">Primary email for notifications</p>}
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="text-sm sm:text-base font-bold text-gray-900 truncate">{isChangingEmail ? 'Update Email' : user.email}</p>
+                                                    {!isChangingEmail && <p className="text-[11px] text-gray-400 font-medium">Primary contact email</p>}
                                                 </div>
                                             </div>
                                             {!isChangingEmail && (
                                                 <button
                                                     onClick={() => setIsChangingEmail(true)}
-                                                    className="px-5 py-2 text-xs font-bold text-gray-900 bg-gray-50 hover:bg-gray-100 rounded-lg transition-all border border-gray-200/60"
+                                                    className="w-full sm:w-auto px-5 py-2 text-xs font-bold text-gray-900 bg-gray-50 hover:bg-gray-100 rounded-lg transition-all border border-gray-200/60"
                                                 >
                                                     Change
                                                 </button>
@@ -357,7 +362,7 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
                                     </div>
 
                                     {isChangingEmail && (
-                                        <div className="ml-[110px] pt-4 mt-2 border-t border-gray-50 space-y-4">
+                                        <div className="xl:ml-[140px] xl:pl-10 pt-4 mt-2 border-t border-gray-50 space-y-4">
                                             {emailError && (
                                                 <div className="p-3 bg-red-50 text-red-600 text-xs font-bold rounded-lg border border-red-100">
                                                     {emailError}
@@ -369,7 +374,7 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
                                                 </div>
                                             )}
 
-                                            <div className="space-y-1.5 w-max min-w-[320px]">
+                                            <div className="space-y-1.5 w-full sm:max-w-[320px]">
                                                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">New Email</label>
                                                 <input
                                                     type="email"
@@ -380,7 +385,7 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
                                                 />
                                             </div>
 
-                                            <div className="flex gap-3 pt-2">
+                                            <div className="flex flex-col sm:flex-row gap-3 pt-2">
                                                 <button
                                                     onClick={() => {
                                                         setIsChangingEmail(false)
@@ -388,14 +393,14 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
                                                         setEmailSuccess(false)
                                                         setNewEmail(user.email)
                                                     }}
-                                                    className="px-5 py-2.5 text-xs font-bold text-gray-500 hover:text-gray-900 transition-colors"
+                                                    className="order-2 sm:order-1 px-5 py-2.5 text-xs font-bold text-gray-500 hover:text-gray-900 transition-colors text-center"
                                                 >
                                                     Cancel
                                                 </button>
                                                 <button
                                                     onClick={handleEmailSubmit}
                                                     disabled={isSavingEmail || !newEmail}
-                                                    className="px-6 py-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-600/30 transition-all active:scale-95 disabled:bg-gray-400 disabled:shadow-none disabled:cursor-not-allowed"
+                                                    className="order-1 sm:order-2 px-6 py-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-600/30 transition-all active:scale-95 disabled:bg-gray-400 disabled:shadow-none disabled:cursor-not-allowed"
                                                 >
                                                     {isSavingEmail ? 'Saving...' : 'Save Email'}
                                                 </button>
@@ -407,19 +412,19 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
                         </div>
                     </div>
                 ) : activeTab === 'workspace' ? (
-                    <div className="p-10 animate-in fade-in slide-in-from-right-4 duration-500">
-                        <div className="mb-10">
-                            <h3 className="text-2xl font-bold text-gray-900 leading-tight">Workspace Settings</h3>
+                    <div className="p-5 sm:p-10 animate-in fade-in slide-in-from-right-4 duration-500">
+                        <div className="mb-6 xl:mb-10">
+                            <h3 className="text-xl xl:text-2xl font-bold text-gray-900 leading-tight">Workspace Settings</h3>
                             <p className="text-sm text-gray-500 mt-1">Manage workspace-wide configuration.</p>
                         </div>
 
-                        <div className="space-y-12">
+                        <div className="space-y-10 xl:space-y-12">
                             {/* General Settings */}
                             <div className="space-y-6">
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Workspace Name</label>
                                     <div className="flex flex-col gap-3">
-                                        <div className="flex items-center gap-3">
+                                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                                             <div className="relative flex-1 group">
                                                 <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
                                                     <Building size={16} className="text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
@@ -428,14 +433,14 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
                                                     type="text"
                                                     value={workspaceName}
                                                     onChange={(e) => setWorkspaceName(e.target.value)}
-                                                    className="w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-[15px] font-medium text-gray-900 focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 outline-none transition-all shadow-inner"
+                                                    className="w-full pl-11 pr-4 py-3 sm:py-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-[14px] sm:text-[15px] font-medium text-gray-900 focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 outline-none transition-all shadow-inner max-w-lg"
                                                     placeholder="Enter workspace name"
                                                 />
                                             </div>
                                             <button
                                                 onClick={handleWorkspaceNameSubmit}
                                                 disabled={isSavingWorkspaceName || workspaceName === user.activeWorkspace.name}
-                                                className="px-6 py-3.5 bg-indigo-600 text-white text-[13px] font-bold rounded-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/20 active:scale-95 disabled:bg-gray-200 disabled:shadow-none disabled:text-gray-400 disabled:cursor-not-allowed"
+                                                className="px-6 py-3 sm:py-3.5 bg-indigo-600 text-white text-[13px] font-bold rounded-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/20 active:scale-95 disabled:bg-gray-200 disabled:shadow-none disabled:text-gray-400 disabled:cursor-not-allowed"
                                             >
                                                 {isSavingWorkspaceName ? 'Saving...' : 'Update'}
                                             </button>
@@ -453,15 +458,15 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
                                 </div>
                             </div>
 
-                            {/* Danger Zone */}
+                             {/* Danger Zone */}
                             <div className="pt-10 border-t border-red-50">
                                 <div className="flex items-center gap-2 mb-6">
                                     <AlertTriangle size={18} className="text-red-500" />
                                     <h4 className="text-sm font-bold text-red-600 uppercase tracking-widest">Danger Zone</h4>
                                 </div>
 
-                                <div className="bg-red-50/30 border border-red-100 rounded-[24px] p-8">
-                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                                <div className="bg-red-50/30 border border-red-100 rounded-[24px] p-5 sm:p-8">
+                                    <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
                                         <div className="max-w-md">
                                             <h5 className="text-base font-bold text-gray-900 mb-1">Delete this workspace</h5>
                                             <p className="text-sm text-gray-500 leading-relaxed">
@@ -471,7 +476,7 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
                                         </div>
                                         <button
                                             onClick={() => setIsDeleteModalOpen(true)}
-                                            className="px-6 py-3.5 bg-white border border-red-200 text-red-600 text-[13px] font-bold rounded-2xl hover:bg-red-600 hover:text-white hover:border-red-600 transition-all shadow-sm active:scale-95 shrink-0"
+                                            className="w-full xl:w-auto px-6 py-3.5 bg-white border border-red-200 text-red-600 text-[13px] font-bold rounded-2xl hover:bg-red-600 hover:text-white hover:border-red-600 transition-all shadow-sm active:scale-95 shrink-0"
                                         >
                                             Delete Workspace
                                         </button>
@@ -493,9 +498,9 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
                         />
                     </div>
                 ) : (
-                    <div className="p-10 animate-in fade-in slide-in-from-right-4 duration-500">
-                        <div className="mb-10">
-                            <h3 className="text-2xl font-bold text-gray-900 leading-tight">Security & Privacy</h3>
+                    <div className="p-5 sm:p-10 animate-in fade-in slide-in-from-right-4 duration-500">
+                        <div className="mb-6 xl:mb-10">
+                            <h3 className="text-xl xl:text-2xl font-bold text-gray-900 leading-tight">Security & Privacy</h3>
                             <p className="text-sm text-gray-500 mt-1">Keep your account safe and manage logins.</p>
                         </div>
 
@@ -553,7 +558,7 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
                                                     </div>
                                                 </div>
                                             )}
-                                            <div className="grid grid-cols-2 gap-4">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                 <div className="space-y-1.5">
                                                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">New Password</label>
                                                     <div className="relative">
@@ -588,7 +593,7 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
                                         </div>
 
 
-                                        <div className="flex justify-end gap-3 pt-2">
+                                        <div className="flex flex-col sm:flex-row justify-end gap-3 pt-2">
                                             <button
                                                 onClick={() => {
                                                     setIsChangingPassword(false)
@@ -598,14 +603,14 @@ export function SettingsTabs({ user }: { user: { id: string, name: string, email
                                                     setNewPassword('')
                                                     setConfirmPassword('')
                                                 }}
-                                                className="px-5 py-2.5 text-xs font-bold text-gray-500 hover:text-gray-900 transition-colors"
+                                                className="order-2 sm:order-1 px-5 py-2.5 text-xs font-bold text-gray-500 hover:text-gray-900 transition-colors text-center"
                                             >
                                                 Cancel
                                             </button>
                                             <button
                                                 onClick={handlePasswordSubmit}
                                                 disabled={isSavingPassword || (user.hasPassword && !oldPassword) || !newPassword || newPassword !== confirmPassword}
-                                                className="px-6 py-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-600/30 transition-all active:scale-95 disabled:bg-gray-400 disabled:shadow-none disabled:cursor-not-allowed"
+                                                className="order-1 sm:order-2 px-6 py-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-600/30 transition-all active:scale-95 disabled:bg-gray-400 disabled:shadow-none disabled:cursor-not-allowed"
                                             >
                                                 {isSavingPassword ? 'Saving Changes...' : (user.hasPassword ? 'Update Password' : 'Set Password')}
                                             </button>

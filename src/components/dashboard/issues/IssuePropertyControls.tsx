@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useModalStore } from '@/lib/store/modal';
 import {
   ChevronDown,
   FolderKanban
@@ -11,6 +10,8 @@ import { IssuePrioritySelector } from './IssuePrioritySelector';
 import { IssueAssigneeSelector } from './IssueAssigneeSelector';
 import { IssueReviewerSelector } from './IssueReviewerSelector';
 
+
+
 interface IssuePropertyControlsProps {
   ticketId: string;
   initialStatus: string;
@@ -19,8 +20,6 @@ interface IssuePropertyControlsProps {
   initialReviewerId: string | null;
   currentUserId: string;
   projectName: string;
-  projectId?: string;
-  issueTitle?: string;
   users: { id: string, name: string, avatar_url?: string | null }[];
   currentUser?: any;
 }
@@ -33,8 +32,6 @@ export function IssuePropertyControls({
   initialReviewerId,
   currentUserId,
   projectName,
-  projectId,
-  issueTitle,
   users,
   currentUser
 }: IssuePropertyControlsProps) {
@@ -49,22 +46,6 @@ export function IssuePropertyControls({
     setAssigneeId(initialAssigneeId || '');
     setReviewerId(initialReviewerId || '');
   }, [initialStatus, initialPriority, initialAssigneeId, initialReviewerId]);
-
-  const { setActiveTicket, setActiveProject } = useModalStore();
-
-  // Set active context for shortcuts on this page
-  useEffect(() => {
-    setActiveTicket({ 
-      id: ticketId, 
-      title: issueTitle, 
-      status, 
-      priority, 
-      assignee_id: assigneeId, 
-      reviewer_id: reviewerId,
-      projects: { id: projectId || '', project_name: projectName } // Full project context
-    });
-    setActiveProject({ id: projectId || '', project_name: projectName });
-  }, [ticketId, issueTitle, status, priority, assigneeId, reviewerId, projectName, projectId, setActiveTicket, setActiveProject]);
 
   const [isPropertiesOpen, setIsPropertiesOpen] = useState(true);
   const [isProjectOpen, setIsProjectOpen] = useState(true);
@@ -97,8 +78,6 @@ export function IssuePropertyControls({
                     currentUser={currentUser}
                     assigneeId={assigneeId}
                     reviewerId={reviewerId}
-                    projectName={projectName}
-                    issueTitle={issueTitle}
                   />
                 </div>
               </div>
@@ -115,8 +94,6 @@ export function IssuePropertyControls({
                     currentUser={currentUser}
                     assigneeId={assigneeId}
                     reviewerId={reviewerId}
-                    projectName={projectName}
-                    issueTitle={issueTitle}
                   />
                 </div>
               </div>
@@ -134,8 +111,6 @@ export function IssuePropertyControls({
                     users={users as any}
                     currentUser={currentUser}
                     reviewerId={reviewerId}
-                    projectName={projectName}
-                    issueTitle={issueTitle}
                   />
                 </div>
               </div>
@@ -153,8 +128,6 @@ export function IssuePropertyControls({
                     currentReviewer={users.find(u => u.id === reviewerId) || null}
                     users={users as any}
                     currentUser={currentUser}
-                    projectName={projectName}
-                    issueTitle={issueTitle}
                   />
                 </div>
               </div>

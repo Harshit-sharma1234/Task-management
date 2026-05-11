@@ -1,6 +1,6 @@
 'use client';
 
-import { LogOut } from 'lucide-react';
+import { LogOut, Menu } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useState, useMemo, useCallback } from 'react';
@@ -17,9 +17,10 @@ interface HeaderProps {
     role: string;
   } | null;
   workspaceSlug?: string;
+  onMenuClick?: () => void;
 }
 
-export function Header({ userId, email, profileData, workspaceSlug }: HeaderProps) {
+export function Header({ userId, email, profileData, workspaceSlug, onMenuClick }: HeaderProps) {
   const router = useRouter();
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
@@ -66,25 +67,39 @@ export function Header({ userId, email, profileData, workspaceSlug }: HeaderProp
         </div>
       )}
 
-      <header className="h-16 sticky top-0 z-50 glass-panel border-b border-gray-100/50 flex items-center justify-end px-8 shrink-0">
-        <div className="flex items-center gap-6">
-          {userProfile ? (
-            <div className="flex items-center gap-3">
-              <UserDropdown
-                profile={userProfile}
-                onSignOut={() => setShowSignOutConfirm(true)}
-                workspaceSlug={workspaceSlug}
-              />
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <div className="flex flex-col items-end gap-1">
-                <div className="h-3 w-20 bg-gray-100 rounded animate-pulse" />
-                <div className="h-2 w-12 bg-gray-50 rounded animate-pulse" />
+      <header className="h-16 sticky top-0 z-50 glass-panel border-b border-gray-100/50 shrink-0">
+        <div className="max-w-7xl mx-auto h-full flex items-center justify-between px-4 sm:px-8">
+          <div className="flex items-center gap-4">
+            {onMenuClick && (
+              <button
+                onClick={onMenuClick}
+                className="md:hidden p-2 bg-white border border-gray-200 rounded-lg shadow-sm text-gray-600 hover:bg-gray-50 transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              >
+                <Menu size={20} />
+              </button>
+            )}
+            <div className="hidden md:block flex-1" />
+          </div>
+          
+          <div className="flex items-center gap-6">
+            {userProfile ? (
+              <div className="flex items-center gap-3">
+                <UserDropdown
+                  profile={userProfile}
+                  onSignOut={() => setShowSignOutConfirm(true)}
+                  workspaceSlug={workspaceSlug}
+                />
               </div>
-              <div className="h-8 w-8 bg-gray-100 rounded-lg animate-pulse" />
-            </div>
-          )}
+            ) : (
+              <div className="flex items-center gap-2">
+                <div className="flex flex-col items-end gap-1">
+                  <div className="h-3 w-20 bg-gray-100 rounded animate-pulse" />
+                  <div className="h-2 w-12 bg-gray-50 rounded animate-pulse" />
+                </div>
+                <div className="h-8 w-8 bg-gray-100 rounded-lg animate-pulse" />
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
