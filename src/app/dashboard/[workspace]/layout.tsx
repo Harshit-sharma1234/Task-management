@@ -8,6 +8,7 @@ export const revalidate = 0;
 import { LoadingProgress } from '@/components/dashboard/LoadingProgress';
 import { DashboardToaster } from '@/components/dashboard/DashboardToaster';
 import { GlobalDataSync } from '@/components/dashboard/GlobalDataSync';
+import { GlobalShortcutManager } from '@/components/dashboard/GlobalShortcutManager';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 export default async function WorkspaceDashboardLayout({
@@ -33,7 +34,7 @@ export default async function WorkspaceDashboardLayout({
   const [userProfileRes, allWorkspacesRes, projectsRes, teamRes, unreadRes] = await Promise.all([
     adminClient.from('users').select('id, name, avatar_url').eq('auth_id', user.id).single(),
     adminClient.from('workspace_members').select('workspace_id, workspaces(id, name, slug), roles(role_name)').eq('user_id', user.id), 
-    adminClient.from('projects').select('id, project_name, description, status, priority, lead_id, start_date, created_at, lead:users!lead_id(id, name, avatar_url)').eq('workspace_id', workspace.id).order('created_at', { ascending: false }),
+    adminClient.from('projects').select('id, project_name, description, status, priority, lead_id, start_date, workspace_id, created_at, lead:users!lead_id(id, name, avatar_url)').eq('workspace_id', workspace.id).order('created_at', { ascending: false }),
     adminClient.from('workspace_members').select('user_id, users(id, name, email, avatar_url), roles(role_name)').eq('workspace_id', workspace.id),
     adminClient.from('notifications').select('id', { count: 'estimated', head: true }).eq('user_id', user.id).eq('workspace_id', workspace.id).eq('is_read', false),
   ]);
@@ -93,6 +94,11 @@ export default async function WorkspaceDashboardLayout({
     <div className="flex h-screen bg-white text-gray-900 font-sans overflow-hidden">
       <DashboardToaster />
       <GlobalDataSync key={workspace.id} initialData={snapshot} />
+      <GlobalShortcutManager 
+        workspaceSlug={workspace.slug} 
+        workspaceId={workspace.id}
+        userRole={roleName}
+      />
       <LoadingProgress />
       <Sidebar 
         userId={user.id} 
