@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import { useSearchParams, useRouter, useParams } from 'next/navigation';
+import { useModalStore } from '@/lib/store/modal';
 import { ChevronRight, Layout, Info, Link as LinkIcon, Check, Plus, Pencil } from 'lucide-react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
@@ -32,6 +33,14 @@ export function ProjectDetailHeader({ projectName, projectId, users, workspaceId
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  const { setActiveProject, setActiveTicket } = useModalStore();
+
+  // Set active project for context-aware shortcuts
+  useEffect(() => {
+    setActiveProject({ id: projectId, project_name: projectName });
+    setActiveTicket(null); // Clear ticket when on project page
+  }, [projectId, projectName, setActiveProject, setActiveTicket]);
 
   const tabs = [
     { name: 'Overview', icon: Layout, id: 'overview' },

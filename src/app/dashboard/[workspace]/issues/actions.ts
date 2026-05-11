@@ -574,7 +574,8 @@ export async function updateIssue(ticketId: string, updates: {
   status?: string,
   assignee_id?: string | null,
   priority?: string,
-  reviewer_id?: string | null
+  reviewer_id?: string | null,
+  title?: string
 }) {
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()

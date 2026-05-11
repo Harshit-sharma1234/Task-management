@@ -3,6 +3,10 @@
 import { useState, useRef, useEffect, useTransition, memo, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { toast } from 'sonner';
 import { CalendarPlus, ChevronLeft, ChevronRight, CornerDownLeft } from 'lucide-react';
+import { useGlobalStore } from '@/lib/store/global';
+import { useModalStore } from '@/lib/store/modal';
+import { SelectorHandle } from './StatusSelector';
+import { generateShortId } from '@/lib/utils/id';
 
 interface TargetDateSelectorProps {
     projectId: string;
@@ -17,8 +21,6 @@ const MONTHS = [
 ];
 
 const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
-
-import { SelectorHandle } from './StatusSelector';
 
 export const TargetDateSelector = memo(forwardRef<SelectorHandle, TargetDateSelectorProps>(({
     projectId, 
@@ -37,17 +39,33 @@ export const TargetDateSelector = memo(forwardRef<SelectorHandle, TargetDateSele
     }));
 
     // Calendar state
+    const [optimisticTargetDate, setOptimisticTargetDate] = useState(currentTargetDate);
     const [viewDate, setViewDate] = useState(() => {
-        return currentTargetDate ? new Date(currentTargetDate) : new Date();
+        return optimisticTargetDate ? new Date(optimisticTargetDate) : new Date();
     });
+
+    const globalProject = useGlobalStore(state => state.projects.find(p => p.id === projectId));
+
+    const { optimisticProjectUpdates } = useModalStore();
+    const optimisticUpdate = optimisticProjectUpdates[projectId];
+
+    useEffect(() => { 
+        if (optimisticUpdate?.start_date !== undefined) {
+            setOptimisticTargetDate(optimisticUpdate.start_date);
+        } else if (globalProject && globalProject.start_date !== undefined) {
+            setOptimisticTargetDate(globalProject.start_date);
+        } else {
+            setOptimisticTargetDate(currentTargetDate); 
+        }
+    }, [currentTargetDate, globalProject, optimisticUpdate]);
 
     // Reset view date whenever opened
     useEffect(() => {
         if (isOpen) {
-            setViewDate(currentTargetDate ? new Date(currentTargetDate) : new Date());
+            setViewDate(optimisticTargetDate ? new Date(optimisticTargetDate) : new Date());
             setTimeout(() => inputRef.current?.focus(), 50);
         }
-    }, [isOpen, currentTargetDate]);
+    }, [isOpen, optimisticTargetDate]);
 
     // Click outside logic
     useEffect(() => {
@@ -64,10 +82,17 @@ export const TargetDateSelector = memo(forwardRef<SelectorHandle, TargetDateSele
 
     // Handle selection
     const handleSelect = useCallback((dateStr: string | null) => {
-        if (dateStr === currentTargetDate) {
+        if (dateStr === optimisticTargetDate) {
             setIsOpen(false);
             return;
         }
+
+        const previousDate = optimisticTargetDate;
+        setOptimisticTargetDate(dateStr);
+        
+        // Update global optimistic store
+        const { setOptimisticProjectUpdate } = useModalStore.getState();
+        setOptimisticProjectUpdate(projectId, { start_date: dateStr });
 
         setIsOpen(false);
         if (!onUpdate) {
@@ -77,10 +102,12 @@ export const TargetDateSelector = memo(forwardRef<SelectorHandle, TargetDateSele
         startTransition(async () => {
             const res = await onUpdate(projectId, dateStr);
             if (res && res.error) {
+                setOptimisticTargetDate(previousDate);
+                useModalStore.getState().clearOptimisticProjectUpdate(projectId);
                 toast.error(res.error);
             }
         });
-    }, [projectId, currentTargetDate, onUpdate]);
+    }, [projectId, optimisticTargetDate, onUpdate]);
 
     // Calendar grid calculations
     const year = viewDate.getFullYear();
@@ -110,8 +137,8 @@ export const TargetDateSelector = memo(forwardRef<SelectorHandle, TargetDateSele
     };
 
     const isSelected = (day: number) => {
-        if (!currentTargetDate) return false;
-        const target = new Date(currentTargetDate);
+        if (!optimisticTargetDate) return false;
+        const target = new Date(optimisticTargetDate);
         return target.getFullYear() === year && target.getMonth() === month && target.getDate() === day;
     };
 
@@ -235,6 +262,6 @@ export const TargetDateSelector = memo(forwardRef<SelectorHandle, TargetDateSele
             )}
         </div>
     );
-}))
+}));
 
 TargetDateSelector.displayName = 'TargetDateSelector';
