@@ -241,9 +241,12 @@ async function ProjectOverviewList({ workspaceId, workspaceSlug }: { workspaceId
                                                 <div className={cn("w-1.5 h-1.5 rounded-full",
                                                     project.status === 'done' ? 'bg-green-500' :
                                                     project.status === 'in_progress' ? 'bg-indigo-500' :
+                                                    project.status === 'in_review' ? 'bg-purple-500' :
+                                                    project.status === 'review' ? 'bg-fuchsia-400' :
+                                                    project.status === 'to_do' ? 'bg-orange-400' :
                                                     project.status === 'cancelled' ? 'bg-red-500' :
-                                                    'bg-orange-500'
-                                                )} />
+                                                    'bg-gray-400'
+                                                 )} />
                                                 <span className="text-[10px] font-bold text-slate-400 uppercase">
                                                     {project.status ? project.status.replace('_', ' ') : 'backlog'}
                                                 </span>

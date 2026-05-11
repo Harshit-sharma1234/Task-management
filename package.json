@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "node tests/e2e/shortcuts.test.js"
+    "test:e2e": "node tests/e2e/shortcuts.test.js",
+    "test:palette": "node tests/e2e/command-palette-full.test.js"
   },
   "dependencies": {
     "@supabase/ssr": "^0.9.0",

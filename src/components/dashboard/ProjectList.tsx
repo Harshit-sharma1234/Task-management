@@ -175,8 +175,11 @@ const ProjectRow = memo(({
             <div className="flex items-center justify-end pr-5 text-gray-500 gap-2 relative z-10">
                 <div className={`w-2 h-2 rounded-full ${project.status === 'done' ? 'bg-green-500' :
                         project.status === 'in_progress' ? 'bg-indigo-500' :
-                            project.status === 'cancelled' ? 'bg-red-500' :
-                                'bg-orange-500'
+                        project.status === 'in_review' ? 'bg-purple-500' :
+                        project.status === 'review' ? 'bg-fuchsia-400' :
+                        project.status === 'to_do' ? 'bg-orange-400' :
+                        project.status === 'cancelled' ? 'bg-red-500' :
+                        'bg-gray-400'
                     }`}></div>
                 <span className="text-[10px] font-bold uppercase text-gray-400 tracking-tight">
                     {project.status ? project.status.replace('_', ' ') : 'backlog'}
@@ -264,7 +267,10 @@ export function ProjectList({ projects, users, userMap, userRole, workspaceId }:
         }
 
         if (statusFilter !== 'all') {
-            list = list.filter(p => p.status === (statusFilter === 'backlog' ? null : statusFilter));
+            list = list.filter(p => {
+                if (statusFilter === 'backlog') return p.status === null || p.status === 'backlog';
+                return p.status === statusFilter;
+            });
         }
 
         if (leadFilter !== 'all') {
@@ -356,8 +362,11 @@ export function ProjectList({ projects, users, userMap, userRole, workspaceId }:
                                         )}
                                         {[
                                             { id: 'all', label: 'All Statuses', icon: <Filter size={14} /> },
-                                            { id: 'backlog', label: 'Backlog', icon: <div className="w-2 h-2 rounded-full bg-orange-500" /> },
+                                            { id: 'backlog', label: 'Backlog', icon: <div className="w-2 h-2 rounded-full bg-gray-400" /> },
+                                            { id: 'to_do', label: 'To Do', icon: <div className="w-2 h-2 rounded-full bg-orange-400" /> },
                                             { id: 'in_progress', label: 'In Progress', icon: <div className="w-2 h-2 rounded-full bg-indigo-500" /> },
+                                            { id: 'review', label: 'Review', icon: <div className="w-2 h-2 rounded-full bg-fuchsia-400" /> },
+                                            { id: 'in_review', label: 'In Review', icon: <div className="w-2 h-2 rounded-full bg-purple-500" /> },
                                             { id: 'done', label: 'Done', icon: <div className="w-2 h-2 rounded-full bg-green-500" /> },
                                             { id: 'cancelled', label: 'Cancelled', icon: <div className="w-2 h-2 rounded-full bg-red-500" /> },
                                         ].filter(f => f.label.toLowerCase().includes(filterSearch.toLowerCase())).map((f) => (

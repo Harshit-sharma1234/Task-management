@@ -168,8 +168,8 @@ const IssueRow = memo(({
             onMouseEnter={prefetchIssue}
             onFocus={prefetchIssue}
             className={twMerge(
-              "text-sm font-semibold truncate transition-colors",
-              isSelected ? "text-indigo-900" : "text-gray-700 group-hover:text-indigo-600"
+              "text-sm font-medium tracking-tight truncate transition-colors",
+              isSelected ? "text-indigo-900" : "text-slate-700 group-hover:text-indigo-600"
             )}>
             {ticket.title}
           </Link>
@@ -184,12 +184,10 @@ const IssueRow = memo(({
         <Link
           href={ticket.projects?.id ? `/dashboard/${workspaceSlug}/projects/${ticket.projects.id}` : '#'}
           onClick={(e) => !ticket.projects?.id && e.preventDefault()}
-          className="flex items-center gap-2 px-2 py-1 bg-gray-50 rounded-md border border-gray-100 hover:bg-gray-100 hover:border-gray-200 transition-all cursor-pointer group/project"
+          className="flex items-center gap-1.5 px-2 py-0.5 bg-slate-50/50 rounded-full border border-slate-100 hover:bg-slate-100/80 hover:border-slate-200 transition-all cursor-pointer group/project"
         >
-          <div className="w-3.5 h-3.5 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden group-hover/project:bg-indigo-100 transition-colors">
-            <LayoutGrid size={10} className="text-gray-500 group-hover/project:text-indigo-600" />
-          </div>
-          <span className="text-[10px] font-bold text-gray-500 truncate max-w-[120px] group-hover/project:text-indigo-600">
+          <LayoutGrid size={10} className="text-slate-400 group-hover/project:text-indigo-500" />
+          <span className="text-[10px] font-bold text-slate-400 truncate max-w-[120px] group-hover/project:text-indigo-600 uppercase tracking-tight">
             {ticket.projects?.project_name || 'Individual Task'}
           </span>
         </Link>
@@ -348,7 +346,7 @@ export function IssuesList({
               key={`header-${sectionId}`}
               onClick={() => toggleSection(sectionId)}
               className={twMerge(
-                "absolute top-0 left-0 w-full flex items-center gap-2 cursor-pointer group select-none transition-colors hover:bg-gray-50/50 px-2 rounded-md",
+                "absolute top-0 left-0 w-full flex items-center gap-2.5 cursor-pointer group select-none transition-all hover:bg-slate-50/80 px-2 rounded-lg border border-transparent hover:border-slate-100",
                 virtualRow.index !== 0 && "mt-2"
               )}
               style={{
@@ -359,17 +357,17 @@ export function IssuesList({
               <ChevronDown
                 size={14}
                 className={twMerge(
-                  "text-gray-400 group-hover:text-gray-600 transition-transform duration-200",
+                  "text-slate-300 group-hover:text-slate-500 transition-transform duration-300",
                   isCollapsed && "-rotate-90"
                 )}
               />
               {displaySettings.groupBy !== 'none' && (
-                <div className={twMerge("w-2 h-2 rounded-full", statusColor)}></div>
+                <div className={twMerge("w-2 h-2 rounded-full ring-2 ring-white", statusColor)}></div>
               )}
-              <h2 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+              <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em]">
                 {groupName}
               </h2>
-              <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-bold">
+              <span className="text-[9px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-black tracking-tighter">
                 {sectionCount}
               </span>
             </div>

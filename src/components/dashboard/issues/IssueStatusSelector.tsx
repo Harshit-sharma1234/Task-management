@@ -177,12 +177,12 @@ export const IssueStatusSelector = memo(({
             {isOpen && (
                 <>
                     <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
-                    <div className="absolute left-0 top-full mt-1 w-48 bg-white shadow-xl border border-gray-100 rounded-lg py-1.5 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
-                        <div className="px-3 pt-1 pb-2 border-b border-gray-50 mb-1">
-                            <div className="text-[9px] font-black text-indigo-600 uppercase tracking-widest mb-0.5">
+                    <div className="absolute left-0 top-full mt-2 w-52 bg-white/90 backdrop-blur-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] border border-slate-200/50 rounded-xl py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="px-3.5 pt-1 pb-2.5 border-b border-slate-100/50 mb-1.5">
+                            <div className="text-[9px] font-black text-indigo-600 uppercase tracking-[0.15em] mb-1">
                                 {generateIssueId(projectName, issueId)}
                             </div>
-                            <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider truncate">
+                            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-tight truncate leading-none">
                                 {issueTitle || 'Set Status'}
                             </div>
                         </div>
@@ -192,12 +192,22 @@ export const IssueStatusSelector = memo(({
                                 key={opt.value}
                                 onClick={(e) => handleSelect(e, opt.value)}
                                 className={twMerge(
-                                    "w-full flex items-center gap-2.5 px-3 py-2 text-[11px] font-bold uppercase tracking-wider transition-colors",
-                                    optimisticStatus === opt.value ? "bg-gray-50 text-indigo-600" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                                    "w-full flex items-center justify-between px-3.5 py-1.5 transition-all group/opt",
+                                    optimisticStatus === opt.value ? "bg-indigo-50/50" : "hover:bg-slate-50/80"
                                 )}
                             >
-                                <div className={twMerge("w-1.5 h-1.5 rounded-full shrink-0", opt.dot)}></div>
-                                {opt.label}
+                                <div className="flex items-center gap-3">
+                                    <div className={twMerge("w-2 h-2 rounded-full shrink-0 ring-2 ring-white shadow-sm", opt.dot)}></div>
+                                    <span className={twMerge(
+                                        "text-xs tracking-tight transition-colors",
+                                        optimisticStatus === opt.value ? "text-indigo-600 font-bold" : "text-slate-600 group-hover/opt:text-slate-900 font-medium"
+                                    )}>
+                                        {opt.label}
+                                    </span>
+                                </div>
+                                {optimisticStatus === opt.value && (
+                                    <div className="w-1 h-1 rounded-full bg-indigo-500" />
+                                )}
                             </button>
                         ))}
                     </div>

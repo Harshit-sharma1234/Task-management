@@ -98,297 +98,255 @@ export function ContextCommandPalette() {
       case 'project-date-start':
         return 'Enter date (YYYY-MM-DD)...';
       case 'rename-issue':
-        return 'Enter new issue title...';
       case 'rename-project':
-        return 'Enter new project name...';
+        return 'Enter new name...';
       case 'delete-issue':
-        return 'Type "delete" to confirm...';
-      case 'project-members':
-        return 'Toggle member...';
+        return 'Confirm deletion? (Type "delete")';
       default:
-        return 'Select option...';
+        return 'Search...';
     }
   }, [activeContextMenu]);
 
-  // Determine list items based on active context menu
-  const optionsList = useMemo(() => {
-    if (activeContextMenu === 'status') return STATUS_OPTIONS;
-    if (activeContextMenu === 'priority') return PRIORITY_OPTIONS;
-    if (activeContextMenu === 'project-status') return STATUS_OPTIONS;
-    if (activeContextMenu === 'project-priority') return PRIORITY_OPTIONS;
-    if (activeContextMenu === 'assignee' || activeContextMenu === 'reviewer' || activeContextMenu === 'project-lead' || activeContextMenu === 'project-members') {
-       const userOptions = team.map((u, idx) => ({
-         value: u.id,
-         label: u.name,
-         shortcut: idx < 9 ? String(idx + 1) : undefined
-       }));
-       if (activeContextMenu === 'project-members') return userOptions;
-       return [{ value: 'unassigned', label: 'Unassigned', shortcut: '0' }, ...userOptions];
-    }
-    if (activeContextMenu === 'rename-issue' || activeContextMenu === 'rename-project') {
-       const type = activeContextMenu === 'rename-issue' ? 'issue' : 'project';
-       const currentTitle = activeContextMenu === 'rename-issue' ? activeTicket?.title : activeProject?.project_name;
-       return [
-         { value: 'confirm', label: `Rename ${type} to "${query || currentTitle}"`, isRenameConfirm: true },
-         { value: 'cancel', label: 'Cancel', isCancel: true }
-       ];
-    }
-    // Delete / Date don't have static options, they use the text input directly
-    return [];
-  }, [activeContextMenu, team, query, activeTicket, activeProject]);
-
+  // Options filtering
   const filteredOptions = useMemo(() => {
-    if (activeContextMenu?.startsWith('rename-')) return optionsList; // Don't filter rename options
-    if (!query) return optionsList;
     const q = query.toLowerCase();
-    return optionsList.filter(o => o.label.toLowerCase().includes(q));
-  }, [query, optionsList, activeContextMenu]);
-
-  const handleSelect = (value: string) => {
-    if (!activeContextMenu) return;
-
-    if (value === 'cancel') {
-        setActiveContextMenu(null);
-        return;
-    }
-
-    const finalValue = value === 'confirm' ? query : value;
-    let projectUpdates: any = {};
-    let ticketUpdates: any = {};
     
-    if (activeContextMenu.startsWith('project-') && activeProject) {
-        if (activeContextMenu === 'project-priority') projectUpdates.priority = value;
-        else if (activeContextMenu === 'project-status') projectUpdates.status = value;
-        else if (activeContextMenu === 'project-lead') projectUpdates.lead_id = value === 'unassigned' ? null : value;
-        else if (activeContextMenu === 'project-date') projectUpdates.start_date = value || null;
-        else if (activeContextMenu === 'project-date-start') projectUpdates.start_date = value || null;
-        else if (activeContextMenu === 'rename-project') projectUpdates.project_name = finalValue;
-    } else if (activeTicket) {
-        if (activeContextMenu === 'priority') ticketUpdates.priority = finalValue;
-        else if (activeContextMenu === 'status') ticketUpdates.status = finalValue;
-        else if (activeContextMenu === 'assignee') ticketUpdates.assignee_id = finalValue === 'unassigned' ? null : finalValue;
-        else if (activeContextMenu === 'reviewer') ticketUpdates.reviewer_id = finalValue === 'unassigned' ? null : finalValue;
-        else if (activeContextMenu === 'rename-issue') ticketUpdates.title = finalValue;
+    if (activeContextMenu === 'status' || activeContextMenu === 'project-status') {
+      return STATUS_OPTIONS.filter(s => s.label.toLowerCase().includes(q));
     }
-
-    // 2. Perform optimistic updates
-    const previousProjectState = activeProject ? { ...activeProject } : null;
-    const previousTicketState = activeTicket ? { ...activeTicket } : null;
-
-    if (Object.keys(projectUpdates).length > 0 && activeProject) {
-        setOptimisticProjectUpdate(activeProject.id, projectUpdates);
-        updateProject({ id: activeProject.id, ...projectUpdates });
-        setActiveProject({ ...activeProject, ...projectUpdates });
+    if (activeContextMenu === 'priority' || activeContextMenu === 'project-priority') {
+      return PRIORITY_OPTIONS.filter(p => p.label.toLowerCase().includes(q));
+    }
+    if (activeContextMenu === 'assignee' || activeContextMenu === 'reviewer' || activeContextMenu === 'project-lead' || activeContextMenu === 'project-members') {
+      return team.filter(m => m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q));
     }
     
-    if (Object.keys(ticketUpdates).length > 0 && activeTicket) {
-        setOptimisticTicketUpdate(activeTicket.id, ticketUpdates);
-        setActiveTicket({ ...activeTicket, ...ticketUpdates });
-    }
+    return [];
+  }, [activeContextMenu, query, team]);
 
-    // Capture the context we need before closing
-    const currentActiveProject = activeProject;
-    const currentActiveTicket = activeTicket;
-    const currentMenu = activeContextMenu;
-    
-    // Close palette instantly for snappy feel
-    setActiveContextMenu(null);
+  const handleAction = async (value: any) => {
+    if (isPending) return;
 
-    // 3. Execute backend update
     startTransition(async () => {
-      let res;
-      if (currentMenu.startsWith('project-') && currentActiveProject) {
-         if (currentMenu === 'project-priority') res = await updateProjectPriority(currentActiveProject.id, value);
-         else if (currentMenu === 'project-status') res = await updateProjectStatus(currentActiveProject.id, value);
-         else if (currentMenu === 'project-lead') res = await updateProjectLead(currentActiveProject.id, projectUpdates.lead_id);
-         else if (currentMenu === 'project-members') res = await toggleProjectMember(currentActiveProject.id, value);
-         else if (currentMenu === 'project-date') res = await updateProjectDueDate(currentActiveProject.id, projectUpdates.start_date);
-         else if (currentMenu === 'project-date-start') res = await updateProjectTargetDate(currentActiveProject.id, projectUpdates.start_date);
-         else if (currentMenu === 'rename-project') res = await updateProjectName(currentActiveProject.id, finalValue);
-      } else if (currentActiveTicket) {
-         if (currentMenu === 'priority') res = await updateIssue(currentActiveTicket.id, ticketUpdates);
-         else if (currentMenu === 'status') res = await updateIssue(currentActiveTicket.id, ticketUpdates);
-         else if (currentMenu === 'assignee') res = await updateIssue(currentActiveTicket.id, ticketUpdates);
-         else if (currentMenu === 'reviewer') res = await updateIssue(currentActiveTicket.id, ticketUpdates);
-         else if (currentMenu === 'rename-issue') res = await updateIssue(currentActiveTicket.id, ticketUpdates);
-         else if (currentMenu === 'delete-issue') {
-           if (value.toLowerCase() === 'delete') {
-              res = await deleteIssue(currentActiveTicket.id);
-              if (!res?.error) {
-                toast.success("Issue deleted");
-                router.refresh();
-                return;
-              }
-           } else {
-             toast.error("Type 'delete' to confirm");
-             setActiveContextMenu('delete-issue'); // Re-open since they typed wrong
-             return; 
-           }
-         }
-      }
-      
-      // 4. Handle result
-      if (res?.error) {
-        // Rollback optimistic update
-        if (currentMenu.startsWith('project-') && previousProjectState) {
-            clearOptimisticProjectUpdate(previousProjectState.id);
-            updateProject(previousProjectState);
-            setActiveProject(previousProjectState);
-        } else if (previousTicketState) {
-            clearOptimisticTicketUpdate(previousTicketState.id);
-            setActiveTicket(previousTicketState);
+      try {
+        let res: any;
+        const type = activeContextMenu;
+
+        // TICKET ACTIONS
+        if (activeTicket) {
+          if (type === 'status') {
+            setOptimisticTicketUpdate(activeTicket.id, { status: value });
+            res = await updateIssue(activeTicket.id, { status: value });
+          } else if (type === 'priority') {
+            setOptimisticTicketUpdate(activeTicket.id, { priority: value });
+            res = await updateIssue(activeTicket.id, { priority: value });
+          } else if (type === 'assignee') {
+            setOptimisticTicketUpdate(activeTicket.id, { assignee_id: value });
+            res = await updateIssue(activeTicket.id, { assignee_id: value });
+          } else if (type === 'reviewer') {
+            setOptimisticTicketUpdate(activeTicket.id, { reviewer_id: value });
+            res = await updateIssue(activeTicket.id, { reviewer_id: value });
+          } else if (type === 'rename-issue') {
+            setOptimisticTicketUpdate(activeTicket.id, { title: query });
+            res = await updateIssue(activeTicket.id, { title: query });
+          } else if (type === 'delete-issue') {
+            if (query.toLowerCase() === 'delete') {
+               res = await deleteIssue(activeTicket.id);
+            } else {
+               toast.error('Please type "delete" to confirm');
+               return;
+            }
+          }
         }
-        toast.error(res.error);
-      } else {
-        toast.success('Updated successfully');
-        router.refresh();
+
+        // PROJECT ACTIONS
+        if (activeProject) {
+          if (type === 'project-status') {
+            setOptimisticProjectUpdate(activeProject.id, { status: value });
+            res = await updateProjectStatus(activeProject.id, value);
+          } else if (type === 'project-priority') {
+            setOptimisticProjectUpdate(activeProject.id, { priority: value });
+            res = await updateProjectPriority(activeProject.id, value);
+          } else if (type === 'project-lead') {
+            setOptimisticProjectUpdate(activeProject.id, { lead_id: value });
+            res = await updateProjectLead(activeProject.id, value);
+          } else if (type === 'project-members') {
+            res = await toggleProjectMember(activeProject.id, value);
+          } else if (type === 'rename-project') {
+            setOptimisticProjectUpdate(activeProject.id, { project_name: query });
+            res = await updateProjectName(activeProject.id, query);
+          } else if (type === 'project-date' || type === 'project-date-start') {
+            // Validate date format YYYY-MM-DD
+            const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+            if (!dateRegex.test(query)) {
+              toast.error('Invalid date format. Use YYYY-MM-DD');
+              return;
+            }
+            if (type === 'project-date') {
+              setOptimisticProjectUpdate(activeProject.id, { target_date: query });
+              res = await updateProjectTargetDate(activeProject.id, query);
+            } else {
+              setOptimisticProjectUpdate(activeProject.id, { start_date: query });
+              res = await updateProjectDueDate(activeProject.id, query);
+            }
+          }
+        }
+
+        if (res?.error) {
+           toast.error(res.error);
+           // Rollback
+           if (activeTicket) clearOptimisticTicketUpdate(activeTicket.id);
+           if (activeProject) clearOptimisticProjectUpdate(activeProject.id);
+        } else {
+           toast.success('Action applied');
+           setActiveContextMenu(null);
+        }
+      } catch (err) {
+        console.error('Command Palette Error:', err);
+        toast.error('Something went wrong');
       }
     });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (!activeContextMenu) return;
-
-    // Direct number shortcut (1-4, 0)
-    if (/^[0-9]$/.test(e.key) && !query) {
-      const shortcutMatch = filteredOptions.find(o => (o as any).shortcut === e.key);
-      if (shortcutMatch) {
-        e.preventDefault();
-        handleSelect(shortcutMatch.value);
-        return;
+    if (e.key === 'Escape') {
+      setActiveContextMenu(null);
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedIndex(prev => (prev + 1) % (filteredOptions.length || 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedIndex(prev => (prev - 1 + (filteredOptions.length || 1)) % (filteredOptions.length || 1));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (activeContextMenu?.startsWith('rename-') || activeContextMenu?.startsWith('project-date') || activeContextMenu === 'delete-issue') {
+        handleAction(query);
+      } else if (filteredOptions[selectedIndex]) {
+        const opt = filteredOptions[selectedIndex];
+        handleAction(opt.id || opt.value);
       }
-    }
-
-    switch (e.key) {
-      case 'ArrowDown':
-        e.preventDefault();
-        setSelectedIndex(i => (i + 1) % filteredOptions.length);
-        break;
-      case 'ArrowUp':
-        e.preventDefault();
-        setSelectedIndex(i => (i - 1 + filteredOptions.length) % filteredOptions.length);
-        break;
-      case 'Enter':
-        e.preventDefault();
-        if (optionsList.length > 0 && filteredOptions[selectedIndex]) {
-          handleSelect(filteredOptions[selectedIndex].value);
-        } else if (optionsList.length === 0) {
-          // It's a text input mode
-          if (query.trim()) handleSelect(query.trim());
-        }
-        break;
-      case 'Escape':
-        e.preventDefault();
-        setActiveContextMenu(null);
-        break;
     }
   };
 
   if (!activeContextMenu) return null;
 
-  // Determine currently selected value to show checkmark
-  let currentValue = '';
-  if (activeContextMenu === 'priority' && activeTicket) currentValue = activeTicket.priority;
-  if (activeContextMenu === 'status' && activeTicket) currentValue = activeTicket.status;
-  if (activeContextMenu === 'assignee' && activeTicket) currentValue = activeTicket.assignee_id || 'unassigned';
-  if (activeContextMenu === 'reviewer' && activeTicket) currentValue = activeTicket.reviewer_id || 'unassigned';
-  
-  if (activeContextMenu === 'project-priority' && activeProject) currentValue = activeProject.priority;
-  if (activeContextMenu === 'project-status' && activeProject) currentValue = activeProject.status;
-  if (activeContextMenu === 'project-lead' && activeProject) currentValue = activeProject.lead_id || 'unassigned';
-
   return (
-    <div className="fixed inset-0 z-[6000] flex items-start justify-center pt-[20vh] px-4">
-      <div
-        className="absolute inset-0 bg-slate-900/40 backdrop-blur-md"
-        onClick={() => setActiveContextMenu(null)}
-        style={{ animation: 'fade-in 0.15s ease-out' }}
-      />
-      <div
-        className="relative w-full max-w-[560px] bg-white rounded-2xl shadow-[0_32px_64px_-16px_rgba(0,0,0,0.2)] border border-slate-100 overflow-hidden"
-        style={{ animation: 'scale-in 0.15s cubic-bezier(0.16, 1, 0.3, 1)' }}
+    <div className="fixed inset-0 z-[200] flex items-start justify-center pt-32 bg-slate-900/10 backdrop-blur-[2px] animate-in fade-in duration-200">
+      <div 
+        className="w-full max-w-xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200"
+        onKeyDown={handleKeyDown}
       >
-        {/* Top Badge */}
-        {titleBadge && (
-          <div className="px-5 pt-5 pb-2">
-            <span className={`inline-flex items-center text-slate-900 ${activeContextMenu?.startsWith('rename-') ? 'text-sm font-semibold' : 'px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-[10px] font-black uppercase tracking-wider shadow-sm border border-indigo-100/50'} truncate max-w-full`}>
-              {titleBadge}
-            </span>
+        {/* Header / Context Badge */}
+        <div className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 border-b border-slate-100">
+          <div className="px-2 py-0.5 rounded bg-indigo-50 text-[10px] font-bold text-indigo-600 uppercase tracking-wider">
+            {activeContextMenu.replace('-', ' ')}
           </div>
-        )}
+          {titleBadge && (
+            <div className="text-[11px] font-medium text-slate-500 truncate">
+              {titleBadge}
+            </div>
+          )}
+        </div>
 
         {/* Input */}
-        <div className="px-5 py-3 border-b border-slate-50">
+        <div className="relative flex items-center px-4 py-4">
+          <Search className="absolute left-5 text-slate-400" size={18} />
           <input
             ref={inputRef}
             type="text"
-            className="w-full bg-transparent border-none text-slate-900 text-base font-medium focus:outline-none focus:ring-0 placeholder-slate-300"
-            placeholder={placeholder}
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
               setSelectedIndex(0);
             }}
-            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            className="w-full pl-10 pr-4 py-1 text-base font-medium text-slate-800 placeholder:text-slate-400 border-none focus:ring-0 focus:outline-none"
           />
+          {isPending && (
+            <div className="flex items-center gap-2 text-indigo-600">
+              <span className="text-[10px] font-bold uppercase tracking-widest animate-pulse">Syncing</span>
+            </div>
+          )}
         </div>
 
-        {/* List (Only if options exist) */}
-        {optionsList.length > 0 && (
-          <div className="py-2 max-h-[350px] overflow-y-auto custom-scrollbar">
-            {filteredOptions.length === 0 ? (
-              <div className="px-5 py-4 text-slate-400 text-sm font-medium">No options found.</div>
-            ) : (
-              <div className="px-2">
-                {filteredOptions.map((opt, idx) => {
-                  const isSelected = idx === selectedIndex;
-                  const isCurrent = opt.value === currentValue || (opt.value === 'to_do' && !currentValue); // fallback for undefined status
-                  return (
-                    <button
-                      key={opt.value}
-                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left transition-all duration-150 ${
-                        isSelected ? 'bg-indigo-50/80 translate-x-1' : 'hover:bg-slate-50'
-                      }`}
-                      onClick={() => handleSelect(opt.value)}
-                      onMouseEnter={() => setSelectedIndex(idx)}
-                    >
-                      <div className="flex items-center gap-3">
-                        {/* Icon mapping */}
-                        {(opt as any).isRenameConfirm || (opt as any).isCancel ? (
-                          <ArrowRight size={14} className={`${isSelected ? 'text-indigo-600' : 'text-slate-300'} shrink-0`} />
-                        ) : (opt as any).iconClass ? (
-                          <div className="w-4 h-4 flex items-center justify-center shrink-0">
-                            <div className={(opt as any).iconClass} />
-                          </div>
-                        ) : (opt as any).dot ? (
-                          <div className="w-4 h-4 flex items-center justify-center shrink-0">
-                            <div className={`w-2.5 h-2.5 rounded-full ${(opt as any).dot} shadow-sm`} />
-                          </div>
-                        ) : (
-                          <div className="w-4 h-4 flex items-center justify-center">
-                             <div className="w-1.5 h-1.5 rounded-full bg-slate-200" />
-                          </div> 
-                        )}
-                        <span className={`text-[13px] font-semibold ${isCurrent ? 'text-indigo-700' : isSelected ? 'text-indigo-900' : 'text-slate-600'}`}>
-                          {opt.label}
-                        </span>
-                      </div>
-                      
-                      <div className="flex items-center gap-3">
-                        {isCurrent && <Check size={14} className="text-indigo-600" />}
-                        {(opt as any).shortcut && (
-                          <kbd className="font-mono text-[10px] px-1.5 py-0.5 rounded-md bg-white border border-slate-200 text-slate-400 shadow-sm">
-                            {(opt as any).shortcut}
-                          </kbd>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
+        {/* Results */}
+        <div className="max-h-[350px] overflow-y-auto border-t border-slate-50 p-2">
+          {filteredOptions.length > 0 ? (
+            <div className="flex flex-col gap-0.5">
+              {filteredOptions.map((opt, idx) => {
+                const isSelected = idx === selectedIndex;
+                const value = opt.id || opt.value;
+                
+                return (
+                  <button
+                    key={value}
+                    onClick={() => handleAction(value)}
+                    onMouseEnter={() => setSelectedIndex(idx)}
+                    className={twMerge(
+                      "flex items-center justify-between px-3 py-2.5 rounded-xl transition-all group",
+                      isSelected ? "bg-indigo-600 text-white shadow-lg shadow-indigo-100" : "hover:bg-slate-50 text-slate-600"
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      {opt.dot && <div className={twMerge("w-2 h-2 rounded-full", opt.dot, isSelected && "ring-2 ring-white/50")} />}
+                      {opt.avatar_url !== undefined && (
+                        <div className={twMerge("w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden border border-slate-200", isSelected && "border-white/30")}>
+                          {opt.avatar_url ? (
+                            <img src={opt.avatar_url} alt={opt.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <span className={twMerge("text-[10px] font-bold", isSelected ? "text-white" : "text-slate-500")}>
+                              {opt.name.substring(0, 1).toUpperCase()}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      <span className="text-sm font-semibold tracking-tight">{opt.name || opt.label}</span>
+                      {opt.email && <span className={twMerge("text-[10px] font-medium opacity-60", isSelected ? "text-white" : "text-slate-400")}>{opt.email}</span>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {isSelected && <ArrowRight size={14} className="animate-in slide-in-from-left-2 duration-300" />}
+                      {opt.shortcut && (
+                        <kbd className={twMerge(
+                          "px-1.5 py-0.5 rounded text-[10px] font-black tracking-widest uppercase",
+                          isSelected ? "bg-white/20 text-white" : "bg-slate-100 text-slate-400"
+                        )}>
+                          {opt.shortcut}
+                        </kbd>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            !activeContextMenu?.startsWith('rename-') && !activeContextMenu?.startsWith('project-date') && activeContextMenu !== 'delete-issue' && (
+              <div className="py-12 flex flex-col items-center justify-center text-slate-400">
+                <Search size={32} strokeWidth={1} className="mb-2 opacity-20" />
+                <p className="text-sm font-medium">No matches found</p>
               </div>
-            )}
+            )
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-4 py-2.5 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
+          <div className="flex items-center gap-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+            <div className="flex items-center gap-1.5">
+              <kbd className="px-1.5 py-0.5 bg-white border border-slate-200 rounded shadow-sm text-slate-500">↵</kbd>
+              <span>Select</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <kbd className="px-1.5 py-0.5 bg-white border border-slate-200 rounded shadow-sm text-slate-500">↑↓</kbd>
+              <span>Navigate</span>
+            </div>
           </div>
-        )}
+          <button 
+            onClick={() => setActiveContextMenu(null)}
+            className="text-[10px] font-bold text-slate-400 hover:text-slate-600 transition-colors uppercase tracking-widest"
+          >
+            Cancel [esc]
+          </button>
+        </div>
       </div>
     </div>
   );

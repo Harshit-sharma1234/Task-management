@@ -150,7 +150,7 @@ export function Sidebar({
   );
 
   return (
-    <aside className="w-64 shrink-0 border-r border-gray-200 bg-white flex flex-col h-full">
+    <aside className="w-64 shrink-0 border-r border-slate-100 bg-slate-50/30 flex flex-col h-full backdrop-blur-sm">
       {/* Workspace Switcher */}
       <div className="relative" ref={switcherRef}>
         <button
@@ -161,9 +161,12 @@ export function Sidebar({
             <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-600 text-white shadow-lg shadow-indigo-100 group-hover:scale-105 transition-transform">
               <Building2 size={16} strokeWidth={2.5} />
             </div>
-            <div className="flex flex-col text-left">
-              <span className="text-sm font-bold text-slate-800 leading-tight tracking-tight truncate max-w-[140px]">
+            <div className="flex flex-col text-left overflow-hidden">
+              <span className="text-[13px] font-black text-slate-900 leading-none tracking-tight truncate w-full">
                 {workspaceName || 'Tectome'}
+              </span>
+              <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase mt-1">
+                {userRole || 'Member'}
               </span>
             </div>
           </div>
@@ -222,26 +225,26 @@ export function Sidebar({
           href={basePath}
           prefetch={false}
           onMouseEnter={() => handlePrefetch(basePath)}
-          className={`flex items-center gap-3 px-3 py-2 rounded-lg group transition-all duration-300 ${isDashboard
-            ? 'bg-indigo-50/80 text-indigo-600 shadow-sm'
-              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+          className={`flex items-center gap-3 px-3 py-2 rounded-xl group transition-all duration-300 ${isDashboard
+            ? 'bg-white text-indigo-600 shadow-sm border border-slate-100'
+              : 'text-slate-500 hover:bg-white/60 hover:text-slate-900'
             }`}
         >
           <LayoutDashboard size={18} strokeWidth={2} className={isDashboard ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'} />
-          <span className="text-sm font-semibold tracking-tight">Dashboard</span>
+          <span className="text-[13px] font-bold tracking-tight">Dashboard</span>
         </Link>
         <Link
           href={`/dashboard/${workspaceSlug}/inbox`}
           prefetch={false}
           onMouseEnter={() => handlePrefetch(`/dashboard/${workspaceSlug}/inbox`)}
-          className={`flex items-center justify-between px-3 py-2 rounded-lg group transition-all duration-300 ${pathname === `/dashboard/${workspaceSlug}/inbox`
-              ? 'bg-indigo-50/80 text-indigo-600 shadow-sm'
-              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+          className={`flex items-center justify-between px-3 py-2 rounded-xl group transition-all duration-300 ${pathname === `/dashboard/${workspaceSlug}/inbox`
+              ? 'bg-white text-indigo-600 shadow-sm border border-slate-100'
+              : 'text-slate-500 hover:bg-white/60 hover:text-slate-900'
             }`}
         >
           <div className="flex items-center gap-3">
             <Bell size={18} strokeWidth={2} className={pathname === `/dashboard/${workspaceSlug}/inbox` ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'} />
-            <span className="text-sm font-semibold tracking-tight">Inbox</span>
+            <span className="text-[13px] font-bold tracking-tight">Inbox</span>
           </div>
           {unreadCount > 0 && (
             <span className="bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center shadow-lg shadow-indigo-100 animate-in zoom-in duration-500">
@@ -253,49 +256,49 @@ export function Sidebar({
           href={`/dashboard/${workspaceSlug}/projects`}
           prefetch={false}
           onMouseEnter={() => handlePrefetch(`/dashboard/${workspaceSlug}/projects`)}
-          className={`flex items-center gap-3 px-3 py-2 rounded-lg group transition-all duration-300 ${pathname.startsWith(`/dashboard/${workspaceSlug}/projects`)
-              ? 'bg-indigo-50/80 text-indigo-600 shadow-sm'
-              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+          className={`flex items-center gap-3 px-3 py-2 rounded-xl group transition-all duration-300 ${pathname.startsWith(`/dashboard/${workspaceSlug}/projects`)
+              ? 'bg-white text-indigo-600 shadow-sm border border-slate-100'
+              : 'text-slate-500 hover:bg-white/60 hover:text-slate-900'
             }`}
         >
           <FolderKanban size={18} strokeWidth={2} className={pathname.startsWith(`/dashboard/${workspaceSlug}/projects`) ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'} />
-          <span className="text-sm font-semibold tracking-tight">Projects</span>
+          <span className="text-[13px] font-bold tracking-tight">Projects</span>
         </Link>
         <Link
           href={`/dashboard/${workspaceSlug}/issues`}
           prefetch={false}
           onMouseEnter={() => handlePrefetch(`/dashboard/${workspaceSlug}/issues`)}
-          className={`flex items-center gap-3 px-3 py-2 rounded-lg group transition-all duration-300 ${pathname.startsWith(`/dashboard/${workspaceSlug}/issues`)
-              ? 'bg-indigo-50/80 text-indigo-600 shadow-sm'
-              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+          className={`flex items-center gap-3 px-3 py-2 rounded-xl group transition-all duration-300 ${pathname.startsWith(`/dashboard/${workspaceSlug}/issues`)
+              ? 'bg-white text-indigo-600 shadow-sm border border-slate-100'
+              : 'text-slate-500 hover:bg-white/60 hover:text-slate-900'
             }`}
         >
           <CircleDot size={18} strokeWidth={2} className={pathname.startsWith(`/dashboard/${workspaceSlug}/issues`) ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'} />
-          <span className="text-sm font-semibold tracking-tight">Issues</span>
+          <span className="text-[13px] font-bold tracking-tight">Issues</span>
         </Link>
         <Link
           href={`/dashboard/${workspaceSlug}/team`}
           prefetch={false}
           onMouseEnter={() => handlePrefetch(`/dashboard/${workspaceSlug}/team`)}
-          className={`flex items-center gap-3 px-3 py-2 rounded-lg group transition-all duration-300 ${pathname.startsWith(`/dashboard/${workspaceSlug}/team`)
-              ? 'bg-indigo-50/80 text-indigo-600 shadow-sm'
-              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+          className={`flex items-center gap-3 px-3 py-2 rounded-xl group transition-all duration-300 ${pathname.startsWith(`/dashboard/${workspaceSlug}/team`)
+              ? 'bg-white text-indigo-600 shadow-sm border border-slate-100'
+              : 'text-slate-500 hover:bg-white/60 hover:text-slate-900'
             }`}
         >
           <Users size={18} strokeWidth={2} className={pathname.startsWith(`/dashboard/${workspaceSlug}/team`) ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'} />
-          <span className="text-sm font-semibold tracking-tight">Team</span>
+          <span className="text-[13px] font-bold tracking-tight">Team</span>
         </Link>
         <Link
           href={`/dashboard/${workspaceSlug}/settings`}
           prefetch={false}
           onMouseEnter={() => handlePrefetch(`/dashboard/${workspaceSlug}/settings`)}
-          className={`flex items-center gap-3 px-3 py-2 rounded-lg group transition-all duration-300 ${pathname.startsWith(`/dashboard/${workspaceSlug}/settings`)
-              ? 'bg-indigo-50/80 text-indigo-600 shadow-sm'
-              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+          className={`flex items-center gap-3 px-3 py-2 rounded-xl group transition-all duration-300 ${pathname.startsWith(`/dashboard/${workspaceSlug}/settings`)
+              ? 'bg-white text-indigo-600 shadow-sm border border-slate-100'
+              : 'text-slate-500 hover:bg-white/60 hover:text-slate-900'
             }`}
         >
           <Settings size={18} strokeWidth={2} className={pathname.startsWith(`/dashboard/${workspaceSlug}/settings`) ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'} />
-          <span className="text-sm font-semibold tracking-tight">Settings</span>
+          <span className="text-[13px] font-bold tracking-tight">Settings</span>
         </Link>
 
         {/* My Tasks Section */}
@@ -305,14 +308,14 @@ export function Sidebar({
             href={`/dashboard/${workspaceSlug}/my-tasks`}
             prefetch={false}
             onMouseEnter={() => handlePrefetch(`/dashboard/${workspaceSlug}/my-tasks`)}
-            className={`flex items-center justify-between px-3 py-2 rounded-lg group transition-all duration-300 ${pathname === `/dashboard/${workspaceSlug}/my-tasks`
-                ? 'bg-indigo-50/80 text-indigo-600 shadow-sm'
-                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+            className={`flex items-center justify-between px-3 py-2 rounded-xl group transition-all duration-300 ${pathname === `/dashboard/${workspaceSlug}/my-tasks`
+                ? 'bg-white text-indigo-600 shadow-sm border border-slate-100'
+                : 'text-slate-500 hover:bg-white/60 hover:text-slate-900'
               }`}
           >
             <div className="flex items-center gap-3">
               <CircleDot size={18} strokeWidth={2} className={pathname === `/dashboard/${workspaceSlug}/my-tasks` ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'} />
-              <span className="text-sm font-semibold tracking-tight">My Tasks</span>
+              <span className="text-[13px] font-bold tracking-tight">My Tasks</span>
             </div>
             <ChevronRight size={14} className="text-slate-300 group-hover:text-slate-500 transition-colors" />
           </Link>
