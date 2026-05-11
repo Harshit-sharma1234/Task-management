@@ -171,22 +171,24 @@ export function AddIssueModal({ isOpen, onClose, projects, users, workspaceId }:
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-[2px] animate-in fade-in duration-200">
-      <div className="w-full max-w-xl max-h-[90vh] bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md animate-in fade-in duration-300">
+      <div className="w-full max-w-2xl bg-white rounded-[32px] shadow-[0_32px_120px_-20px_rgba(0,0,0,0.3)] border border-slate-100 overflow-hidden flex flex-col animate-in zoom-in-95 duration-300">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50/50">
-          <div className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase tracking-widest">
-            <FolderKanban size={14} className="text-indigo-600" />
-            <span>New Issue</span>
+        <div className="flex items-center justify-between px-8 py-5 border-b border-slate-50 bg-white">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 shadow-sm">
+              <FolderKanban size={16} strokeWidth={2.5} />
+            </div>
+            <span className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">
+              New Issue
+            </span>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onClose}
-              className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              <X size={18} />
-            </button>
-          </div>
+          <button
+            onClick={onClose}
+            className="p-2 text-slate-300 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all"
+          >
+            <X size={20} />
+          </button>
         </div>
 
         {/* Form Body */}
@@ -204,7 +206,7 @@ export function AddIssueModal({ isOpen, onClose, projects, users, workspaceId }:
             <textarea
               placeholder="Add description... *"
               required
-              className="bg-transparent border-none text-sm text-gray-600 placeholder-gray-300 focus:outline-none w-full min-h-[100px] sm:min-h-[120px] resize-none leading-relaxed flex-1"
+              className="bg-transparent border-none text-sm text-gray-600 placeholder-gray-300 focus:outline-none w-full min-h-[120px] resize-none leading-relaxed flex-1"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             />
@@ -245,16 +247,16 @@ export function AddIssueModal({ isOpen, onClose, projects, users, workspaceId }:
           </div>
 
           {/* Controls Bar */}
-          <div className="px-4 sm:px-6 py-4 border-t border-gray-100 flex flex-wrap items-center gap-2 sm:gap-3 bg-gray-50/30 overflow-x-hidden">
+          <div className="px-6 py-4 border-t border-gray-100 flex flex-wrap items-center gap-3 bg-gray-50/30">
             {/* Status Selector */}
-            <div className="relative group flex-1 sm:flex-none min-w-[90px] sm:min-w-[100px]">
+            <div className="relative group">
               <select
-                className="appearance-none bg-white border border-gray-200 rounded-md px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/20 pr-8 cursor-pointer shadow-sm w-full"
+                className="appearance-none bg-white border border-gray-200 rounded-md px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/20 pr-8 cursor-pointer shadow-sm"
                 value={formData.status}
                 required
                 onChange={(e) => setFormData({ ...formData, status: e.target.value })}
               >
-                <option value="" disabled className="text-gray-400">Status *</option>
+                <option value="" disabled className="text-gray-400">Select status</option>
                 {statusOptions.map((opt) => (
                   <option key={opt.value} value={opt.value} className="text-gray-900">
                     {opt.label}
@@ -270,14 +272,14 @@ export function AddIssueModal({ isOpen, onClose, projects, users, workspaceId }:
             </div>
 
             {/* Priority Selector */}
-            <div className="relative group flex-1 sm:flex-none min-w-[90px] sm:min-w-[100px]">
+            <div className="relative group">
               <select
-                className="appearance-none bg-white border border-gray-200 rounded-md px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/20 pr-8 cursor-pointer shadow-sm w-full"
+                className="appearance-none bg-white border border-gray-200 rounded-md px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/20 pr-8 cursor-pointer shadow-sm"
                 value={formData.priority}
                 required
                 onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
               >
-                <option value="" disabled className="text-gray-400">Priority *</option>
+                <option value="" disabled className="text-gray-400">Select priority</option>
                 {priorityOptions.map((opt) => (
                   <option key={opt.value} value={opt.value} className="text-gray-900">
                     {opt.label}
@@ -293,13 +295,14 @@ export function AddIssueModal({ isOpen, onClose, projects, users, workspaceId }:
             </div>
 
             {/* Assignee Selector */}
-            <div className="relative group flex-1 sm:flex-none min-w-[110px] sm:min-w-[120px]">
+            <div className="relative group min-w-[120px]">
               <select
                 className="appearance-none bg-white border border-gray-200 rounded-md px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/20 pr-8 cursor-pointer w-full shadow-sm"
                 value={formData.assignee_id}
                 onChange={(e) => setFormData({ ...formData, assignee_id: e.target.value })}
               >
-                <option value="" disabled className="text-gray-400">Assignee *</option>
+                <option value="" disabled className="text-gray-400">Select assignee *</option>
+
                 {users.map((u) => (
                   <option key={u.id} value={u.id} className="text-gray-900">
                     {u.name}
@@ -312,13 +315,13 @@ export function AddIssueModal({ isOpen, onClose, projects, users, workspaceId }:
             </div>
 
             {/* Reviewer Selector */}
-            <div className="relative group flex-1 sm:flex-none min-w-[110px] sm:min-w-[120px]">
+            <div className="relative group min-w-[120px]">
               <select
                 className="appearance-none bg-white border border-gray-200 rounded-md px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/20 pr-8 cursor-pointer w-full shadow-sm"
                 value={formData.reviewer_id}
                 onChange={(e) => setFormData({ ...formData, reviewer_id: e.target.value })}
               >
-                <option value="">Reviewer (opt)</option>
+                <option value="">Select reviewer (optional)</option>
                 {users.map((u) => (
                   <option key={u.id} value={u.id} className="text-gray-900" disabled={u.id === formData.assignee_id}>
                     {u.name}
@@ -330,8 +333,8 @@ export function AddIssueModal({ isOpen, onClose, projects, users, workspaceId }:
               </div>
             </div>
 
-            {/* Project Selector (Custom Dropdown) */}
-            <div className="relative group w-full sm:w-auto sm:min-w-[180px]" ref={projectDropdownRef}>
+            {/* Project Selector (Custom Dropdown with Scrollbar) */}
+            <div className="relative group min-w-[200px]" ref={projectDropdownRef}>
               <button
                 type="button"
                 onClick={() => setIsProjectDropdownOpen(!isProjectDropdownOpen)}
@@ -347,7 +350,6 @@ export function AddIssueModal({ isOpen, onClose, projects, users, workspaceId }:
                 </div>
                 <ChevronDown size={14} className={twMerge("text-gray-400 transition-transform duration-200", isProjectDropdownOpen && "rotate-180")} />
               </button>
-
 
               {isProjectDropdownOpen && (
                 <div className="absolute bottom-full mb-2 left-0 w-full bg-white rounded-lg shadow-xl border border-gray-100 py-1 z-[60] animate-in fade-in slide-in-from-bottom-2 duration-200">

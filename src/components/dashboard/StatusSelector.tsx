@@ -5,6 +5,7 @@ import { updateProjectStatus } from '@/app/dashboard/actions';
 import { toast } from 'sonner';
 import { Circle, CircleDashed, CircleDot, Clock, Search, CheckCircle2, XCircle } from 'lucide-react';
 import { useGlobalStore } from '@/lib/store/global';
+import { generateShortId } from '@/lib/utils/id';
 
 export interface SelectorHandle {
     toggle: () => void;
@@ -33,6 +34,8 @@ export const StatusSelector = memo(forwardRef<SelectorHandle, StatusSelectorProp
     const [isPending, startTransition] = useTransition();
     const [optimisticStatus, setOptimisticStatus] = useState(currentStatus);
     const dropdownRef = useRef<HTMLDivElement>(null);
+
+    const globalProject = useGlobalStore(state => state.projects.find(p => p.id === projectId));
 
     // Sync with server props when they arrive
     useEffect(() => { setOptimisticStatus(currentStatus); }, [currentStatus]);
@@ -93,9 +96,14 @@ export const StatusSelector = memo(forwardRef<SelectorHandle, StatusSelectorProp
             </button>
 
             {isOpen && (
-                <div className={`absolute ${align === 'left' ? 'left-0' : 'right-0'} top-full mt-2 w-52 bg-white rounded-xl shadow-xl border border-gray-100 py-1.5 z-[80] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200`}>
-                    <div className="px-3 py-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider border-b border-gray-50 mb-1">
-                        Change Status
+                <div className={`absolute ${align === 'left' ? 'left-0' : 'right-0'} top-full mt-2 w-52 bg-white rounded-xl shadow-xl border border-gray-100 py-1.5 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200`}>
+                    <div className="px-3 pt-2 pb-2 text-[10px] border-b border-gray-50 mb-1">
+                        <div className="font-black text-indigo-600 uppercase tracking-widest mb-0.5">
+                            {generateShortId(globalProject?.project_name || '', projectId)}
+                        </div>
+                        <div className="font-semibold text-gray-400 uppercase tracking-wider truncate">
+                            {globalProject?.project_name || 'Change Status'}
+                        </div>
                     </div>
 
                     <div className="flex flex-col">
@@ -133,6 +141,6 @@ export const StatusSelector = memo(forwardRef<SelectorHandle, StatusSelectorProp
             )}
         </div>
     );
-}))
+}));
 
 StatusSelector.displayName = 'StatusSelector';

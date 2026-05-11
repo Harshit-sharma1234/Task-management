@@ -16,6 +16,7 @@ interface IssuesViewProps {
 }
 
 import { useState, useMemo, useEffect, useRef } from 'react';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { createClient } from '@/lib/supabase/client';
 import { loadIssuesChunk } from '@/app/dashboard/[workspace]/issues/list-actions';
@@ -55,11 +56,24 @@ export function IssuesView({
   const deletedIdsRef = useRef<Set<string>>(new Set());
   const listScrollRef = useRef<HTMLDivElement>(null);
   const nextOffsetRef = useRef(initialLimit);
-  const [assigneeFilter, setAssigneeFilter] = useState<string>('all');
   const isFetchingMoreRef = useRef(false);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
-  // Sync with server-side prop updates (e.g. after router.refresh())
+  const handleFilterChange = (filter: string) => {
+    setActiveFilter(filter);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('filter', filter);
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
+  // Sync with server-side prop updates (e.g. after router.refresh() or navigation)
   // but never restore items that were already deleted
+  useEffect(() => {
+    if (initialFilter) setActiveFilter(initialFilter);
+  }, [initialFilter]);
+
   useEffect(() => {
     if (!initialTickets) return;
     const validTickets = initialTickets.filter(t => !deletedIdsRef.current.has(t.id));
@@ -136,17 +150,7 @@ export function IssuesView({
     showProperties: ['id', 'status', 'assignee', 'priority']
   });
 
-  // Load saved display settings on mount
-  useEffect(() => {
-    const saved = localStorage.getItem('issue-display-settings');
-    if (saved) {
-      try {
-        setDisplaySettings(JSON.parse(saved));
-      } catch (e) {
-        console.error('Error loading display settings:', e);
-      }
-    }
-  }, []);
+  const [assigneeFilter, setAssigneeFilter] = useState('all');
 
   // Keep a fast lookup map for realtime row enrichment.
   const usersById = useMemo(() => {
@@ -203,6 +207,8 @@ export function IssuesView({
 
   const filteredTickets = useMemo(() => {
     let result = tickets;
+
+    // Apply main filter
     if (activeFilter === 'active') {
       result = tickets.filter(t => t.status === 'in_progress' || t.status === 'to_do');
     } else if (activeFilter === 'backlog') {
@@ -215,9 +221,9 @@ export function IssuesView({
       result = tickets.filter(t => (t.status === 'in_progress' || t.status === 'in_review') && (t.assignee_id === currentUser?.id || t.reviewer_id === currentUser?.id));
     }
 
-    // Apply Assignee filter
+    // Apply assignee filter
     if (assigneeFilter !== 'all') {
-      result = result.filter(t => t.assignee_id === assigneeFilter);
+      result = result.filter(t => t.assignee_id === assigneeFilter || t.reviewer_id === assigneeFilter);
     }
 
     return result;
@@ -233,7 +239,7 @@ export function IssuesView({
       <IssuesHeader
         totalIssues={filteredTickets.length}
         activeFilter={activeFilter}
-        onFilterChange={setActiveFilter}
+        onFilterChange={handleFilterChange}
         assigneeFilter={assigneeFilter}
         onAssigneeFilterChange={setAssigneeFilter}
         users={users}
@@ -244,7 +250,9 @@ export function IssuesView({
 
       <div className="flex-1 overflow-hidden">
         <div ref={listScrollRef} className="h-full overflow-y-auto px-8 w-full">
-          {/* Hydration indicator removed as per user request */}
+          {isHydratingMore && (
+            <div className="mb-3 text-[11px] font-medium text-gray-400">Loading more issues...</div>
+          )}
           {displaySettings.viewMode === 'list' ? (
             <IssuesList
               tickets={filteredTickets}

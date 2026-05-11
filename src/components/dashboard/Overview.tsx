@@ -14,6 +14,7 @@ import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { cn, formatTime, formatTimeLong } from '@/lib/utils'
+import { ContextAwareLink } from './ContextAwareLink'
 import { STATUS_ICONS } from '@/lib/constants'
 import { getCachedStats, getCachedUsers, getCachedRecentTickets, getCachedProjects, getCachedUserTasks, getCachedUpcomingDeadlines, getCachedRecentNotifications, getCachedUserNote } from '@/lib/cache'
 import { Suspense, type ReactNode } from 'react'
@@ -217,39 +218,40 @@ async function ProjectOverviewList({ workspaceId, workspaceSlug }: { workspaceId
                         const lead = userMap.get(project.lead_id);
 
                         return (
-                            <Link
+                            <ContextAwareLink
                                 key={project.id}
                                 href={`/dashboard/${workspaceSlug}/projects/${project.id}`}
-                                className="px-3 sm:px-6 py-4 sm:py-5 hover:bg-slate-50/80 transition-all flex items-start sm:items-center justify-between gap-2 sm:gap-4 group/project border-b border-gray-100 last:border-0"
+                                project={project}
+                                className="px-6 py-5 hover:bg-slate-50/80 transition-all flex items-center justify-between group/project border-b border-gray-100 last:border-0"
                             >
-                                <div className="flex items-start sm:items-center gap-3 sm:gap-4 min-w-0 flex-1">
-                                    <div className="w-7 h-7 sm:w-8 sm:h-8 bg-indigo-50 flex items-center justify-center rounded-lg border border-indigo-100 group-hover/project:bg-indigo-100 group-hover/project:scale-105 transition-all shrink-0 mt-0.5 sm:mt-0">
-                                        <Folder size={14} className="text-indigo-600 w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                                <div className="flex items-center gap-4 min-w-0 flex-1">
+                                    <div className="w-8 h-8 bg-indigo-50 flex items-center justify-center rounded-lg border border-indigo-100 group-hover/project:bg-indigo-100 group-hover/project:scale-105 transition-all shrink-0">
+                                        <Folder size={14} className="text-indigo-600" />
                                     </div>
-                                    <div className="flex flex-col min-w-0 flex-1">
-                                        <h3 className="text-[12px] sm:text-[13px] font-bold text-slate-800 group-hover/project:text-indigo-600 transition-colors tracking-tight leading-tight">
+                                    <div className="flex flex-col min-w-0">
+                                        <h3 className="text-[13px] font-bold text-slate-800 group-hover/project:text-indigo-600 transition-colors tracking-tight truncate">
                                             {project.project_name}
                                         </h3>
-                                        <div className="flex items-center gap-1.5 sm:gap-2 mt-1 sm:mt-0.5 overflow-hidden max-w-full">
-                                            <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-tight shrink-0">
+                                        <div className="flex items-center gap-2 mt-0.5">
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                                                 {pStat.done}/{pStat.total} tasks
                                             </span>
-                                            <span className="w-1 h-1 rounded-full bg-slate-200 shrink-0" />
-                                            <div className="flex items-center gap-1 sm:gap-1.5 shrink min-w-0 overflow-hidden">
-                                                <div className={cn("w-1.5 h-1.5 rounded-full shrink-0",
+                                            <span className="w-1 h-1 rounded-full bg-slate-200" />
+                                            <div className="flex items-center gap-1.5">
+                                                <div className={cn("w-1.5 h-1.5 rounded-full",
                                                     project.status === 'done' ? 'bg-green-500' :
                                                     project.status === 'in_progress' ? 'bg-indigo-500' :
                                                     project.status === 'cancelled' ? 'bg-red-500' :
                                                     'bg-orange-500'
                                                 )} />
-                                                <span className="text-[8px] sm:text-[9px] font-bold text-slate-400 uppercase truncate">
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase">
                                                     {project.status ? project.status.replace('_', ' ') : 'backlog'}
                                                 </span>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-3 shrink-0 sm:ml-4 pt-1 sm:pt-0">
+                                <div className="flex items-center gap-3 shrink-0">
                                     {lead && (
                                         <UserAvatar 
                                             name={lead.name} 
@@ -257,11 +259,11 @@ async function ProjectOverviewList({ workspaceId, workspaceSlug }: { workspaceId
                                             size="xs" 
                                         />
                                     )}
-                                    <span className="text-[10px] font-bold text-slate-300 uppercase w-12 text-right hidden sm:block">
+                                    <span className="text-[10px] font-bold text-slate-300 uppercase w-12 text-right">
                                         {new Date(project.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                     </span>
                                 </div>
-                            </Link>
+                            </ContextAwareLink>
                         );
                     })}
                 </div>
@@ -329,50 +331,51 @@ async function IssueOverviewList({ workspaceId, workspaceSlug }: { workspaceId: 
                         const statusColor = statusData.color;
 
                         return (
-                            <Link
+                            <ContextAwareLink
                                 key={ticket.id}
                                 href={`/dashboard/${workspaceSlug}/issues/${ticket.id}`}
-                                className="px-3 sm:px-5 py-3 sm:py-4 hover:bg-gray-50 transition-all flex items-start sm:items-center justify-between gap-2 sm:gap-4 group/ticket border-b border-gray-50 last:border-0"
+                                ticket={ticket}
+                                className="px-5 py-4 hover:bg-gray-50 transition-all flex items-center justify-between group/ticket border-b border-gray-50 last:border-0"
                             >
-                                <div className="flex items-start sm:items-center gap-2 sm:gap-4 min-w-0 flex-1">
-                                    <div className="w-6 sm:w-8 shrink-0 flex justify-center opacity-60 group-hover/ticket:opacity-100 transition-opacity mt-1 sm:mt-0">
+                                <div className="flex items-center gap-4 min-w-0 flex-1">
+                                    <div className="w-8 shrink-0 flex justify-center opacity-60 group-hover/ticket:opacity-100 transition-opacity">
                                         {renderPriorityIcon(ticket.priority)}
                                     </div>
-                                    <div className="flex flex-col min-w-0 flex-1">
-                                        <div className="flex items-start sm:items-center gap-1.5 sm:gap-2">
-                                            <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-tighter shrink-0 mt-[3px] sm:mt-0">
+                                    <div className="flex flex-col min-w-0">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter shrink-0">
                                                 {ticket.projects?.project_name?.substring(0, 3).toUpperCase() || 'KAP'}-{ticket.id.substring(0, 2).toUpperCase()}
                                             </span>
-                                            <h3 className="text-xs sm:text-sm font-bold text-slate-800 group-hover/ticket:text-indigo-600 transition-colors tracking-tight leading-tight">
+                                            <h3 className="text-sm font-bold text-slate-800 group-hover/ticket:text-indigo-600 transition-colors truncate tracking-tight">
                                                 {ticket.title}
                                             </h3>
                                         </div>
-                                        <div className="flex items-center gap-1.5 sm:gap-2 mt-1 sm:mt-0.5 overflow-hidden max-w-full">
+                                        <div className="flex items-center gap-2 mt-0.5">
                                             <div className={cn("w-1.5 h-1.5 rounded-full shrink-0", statusColor.replace('text-', 'bg-'))} />
-                                            <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-tight shrink-0">
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase">
                                                 {ticket.status.replace('_', ' ')}
                                             </span>
-                                            <span className="w-1 h-1 rounded-full bg-slate-200 shrink-0" />
-                                            <div className="flex items-center gap-1 bg-slate-50 px-1 sm:px-1.5 py-0.5 rounded border border-slate-100/50 shrink min-w-0 overflow-hidden">
-                                                <LayoutGrid size={10} className="text-slate-400 shrink-0 hidden sm:block" />
-                                                <span className="text-[8px] sm:text-[9px] font-bold text-slate-500 uppercase truncate">
+                                            <span className="w-1 h-1 rounded-full bg-slate-200" />
+                                            <div className="flex items-center gap-1.5 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100/50">
+                                                <LayoutGrid size={10} className="text-slate-400" />
+                                                <span className="text-[9px] font-bold text-slate-500 uppercase truncate max-w-[120px]">
                                                     {ticket.projects?.project_name || 'No Project'}
                                                 </span>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-3 shrink-0 sm:ml-4 pt-1 sm:pt-0">
+                                <div className="flex items-center gap-3 shrink-0 ml-4">
                                     <UserAvatar 
                                         name={ticket.assignees?.name || 'Unassigned'} 
                                         avatarUrl={ticket.assignees?.avatar_url} 
                                         size="xs" 
                                     />
-                                    <span className="text-[10px] font-bold text-slate-300 uppercase w-12 text-right hidden sm:block">
+                                    <span className="text-[10px] font-bold text-slate-300 uppercase w-12 text-right">
                                         {new Date(ticket.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                     </span>
                                 </div>
-                            </Link>
+                            </ContextAwareLink>
                         )
                     })}
                 </div>
@@ -393,7 +396,7 @@ async function MyTasksWidget({ userId, workspaceId, workspaceSlug }: { userId: s
                 <div className="max-h-[180px] overflow-y-auto pr-3 custom-scrollbar transition-all duration-200">
                     <div className="flex flex-col gap-4">
                         {tasks.map((task: any) => (
-                            <Link key={task.id} href={`/dashboard/${workspaceSlug}/issues/${task.id}`} className="group/task cursor-pointer">
+                            <ContextAwareLink key={task.id} href={`/dashboard/${workspaceSlug}/issues/${task.id}`} ticket={task} className="group/task cursor-pointer">
                                 <div className="flex items-center justify-between">
                                     <span className="text-xs font-semibold text-gray-700 truncate pr-2 group-hover/task:text-indigo-600 transition-colors">
                                         {task.title}
@@ -402,7 +405,7 @@ async function MyTasksWidget({ userId, workspaceId, workspaceSlug }: { userId: s
                                         {formatTime(task.created_at)}
                                     </span>
                                 </div>
-                            </Link>
+                            </ContextAwareLink>
                         ))}
                     </div>
                 </div>
