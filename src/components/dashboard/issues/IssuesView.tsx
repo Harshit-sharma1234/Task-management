@@ -16,7 +16,6 @@ interface IssuesViewProps {
 }
 
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { createClient } from '@/lib/supabase/client';
 import { loadIssuesChunk } from '@/app/dashboard/[workspace]/issues/list-actions';
@@ -58,23 +57,9 @@ export function IssuesView({
   const nextOffsetRef = useRef(initialLimit);
   const [assigneeFilter, setAssigneeFilter] = useState<string>('all');
   const isFetchingMoreRef = useRef(false);
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
 
-  const handleFilterChange = (filter: string) => {
-    setActiveFilter(filter);
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('filter', filter);
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
-  };
-
-  // Sync with server-side prop updates (e.g. after router.refresh() or navigation)
+  // Sync with server-side prop updates (e.g. after router.refresh())
   // but never restore items that were already deleted
-  useEffect(() => {
-    if (initialFilter) setActiveFilter(initialFilter);
-  }, [initialFilter]);
-
   useEffect(() => {
     if (!initialTickets) return;
     const validTickets = initialTickets.filter(t => !deletedIdsRef.current.has(t.id));

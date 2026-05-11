@@ -6,8 +6,6 @@ import { toast } from 'sonner';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { Search, Loader2, User } from 'lucide-react';
 import { twMerge } from 'tailwind-merge';
-import { useModalStore } from '@/lib/store/modal';
-import { generateIssueId } from '@/lib/utils/id';
 
 interface IssueAssigneeSelectorProps {
     issueId: string;
@@ -16,8 +14,6 @@ interface IssueAssigneeSelectorProps {
     users: { id: string, name: string, email?: string, avatar_url?: string | null }[];
     currentUser?: any;
     reviewerId?: string | null;
-    projectName?: string;
-    issueTitle?: string;
 }
 
 export const IssueAssigneeSelector = memo(({
@@ -26,9 +22,7 @@ export const IssueAssigneeSelector = memo(({
     currentAssignee,
     users,
     currentUser,
-    reviewerId,
-    projectName,
-    issueTitle
+    reviewerId
 }: IssueAssigneeSelectorProps) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
@@ -36,9 +30,7 @@ export const IssueAssigneeSelector = memo(({
     const [optimisticAssigneeId, setOptimisticAssigneeId] = useState(currentAssigneeId);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
-    
-    const { activeContextMenu, setActiveContextMenu, activeTicket, optimisticTicketUpdates } = useModalStore();
-    const optimisticUpdate = optimisticTicketUpdates[issueId];
+
 
     const role = currentUser?.roles?.role_name;
     const isAdmin = role === 'Admin' || role === 'Project Manager';
@@ -46,24 +38,6 @@ export const IssueAssigneeSelector = memo(({
     const isAssignee = currentUser?.id === currentAssigneeId;
     const isReviewer = currentUser?.id === reviewerId;
     const canUpdate = isAdmin || isSrDev || isAssignee || isReviewer;
-
-    // Listen to global shortcut
-    useEffect(() => {
-        if (activeContextMenu === 'assignee' && activeTicket?.id === issueId && canUpdate) {
-            setIsOpen(true);
-            setActiveContextMenu(null); // consume the event
-        }
-    }, [activeContextMenu, activeTicket, issueId, setActiveContextMenu, canUpdate]);
-
-    useEffect(() => { 
-        if (optimisticUpdate?.assignee_id !== undefined) {
-            setOptimisticAssigneeId(optimisticUpdate.assignee_id);
-        } else if (activeTicket && activeTicket.id === issueId && activeTicket.assignee_id !== undefined) {
-            setOptimisticAssigneeId(activeTicket.assignee_id);
-        } else {
-            setOptimisticAssigneeId(currentAssigneeId); 
-        }
-    }, [currentAssigneeId, activeTicket, optimisticUpdate, issueId]);
 
     const optimisticAssignee = useMemo(() => 
         users.find(u => u.id === optimisticAssigneeId) || null
@@ -99,11 +73,6 @@ export const IssueAssigneeSelector = memo(({
 
         const previousAssigneeId = optimisticAssigneeId;
         setOptimisticAssigneeId(userId);
-        
-        // Update global optimistic store
-        const { setOptimisticTicketUpdate } = useModalStore.getState();
-        setOptimisticTicketUpdate(issueId, { assignee_id: userId });
-
         setIsOpen(false);
         setIsUpdating(true);
         
@@ -112,7 +81,6 @@ export const IssueAssigneeSelector = memo(({
             if (res.error) {
                 // Revert on failure
                 setOptimisticAssigneeId(previousAssigneeId);
-                useModalStore.getState().clearOptimisticTicketUpdate(issueId);
                 toast.error(res.error);
             }
             setIsUpdating(false);
@@ -153,15 +121,6 @@ export const IssueAssigneeSelector = memo(({
                 <>
                     <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
                     <div className="absolute right-0 top-full mt-1 w-64 bg-white shadow-2xl border border-gray-100 rounded-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
-                        <div className="px-3 pt-3 pb-2 border-b border-gray-50 bg-gray-50/30">
-                            <div className="text-[9px] font-black text-indigo-600 uppercase tracking-widest mb-0.5">
-                                {generateIssueId(projectName, issueId)}
-                            </div>
-                            <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider truncate">
-                                {issueTitle || 'Assign Member'}
-                            </div>
-                        </div>
-
                         <div className="p-2 border-b border-gray-50 flex items-center gap-2">
                             <Search size={12} className="text-gray-400" />
                             <input 

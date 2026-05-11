@@ -14,7 +14,6 @@ import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { cn, formatTime, formatTimeLong } from '@/lib/utils'
-import { ContextAwareLink } from './ContextAwareLink'
 import { STATUS_ICONS } from '@/lib/constants'
 import { getCachedStats, getCachedUsers, getCachedRecentTickets, getCachedProjects, getCachedUserTasks, getCachedUpcomingDeadlines, getCachedRecentNotifications, getCachedUserNote } from '@/lib/cache'
 import { Suspense, type ReactNode } from 'react'
@@ -218,11 +217,10 @@ async function ProjectOverviewList({ workspaceId, workspaceSlug }: { workspaceId
                         const lead = userMap.get(project.lead_id);
 
                         return (
-                            <ContextAwareLink
+                            <Link
                                 key={project.id}
                                 href={`/dashboard/${workspaceSlug}/projects/${project.id}`}
-                                project={project}
-                                className="px-6 py-5 hover:bg-slate-50/80 transition-all flex items-center justify-between group/project border-b border-gray-100 last:border-0"
+                                className="px-3 sm:px-6 py-4 sm:py-5 hover:bg-slate-50/80 transition-all flex items-start sm:items-center justify-between gap-2 sm:gap-4 group/project border-b border-gray-100 last:border-0"
                             >
                                 <div className="flex items-start sm:items-center gap-3 sm:gap-4 min-w-0 flex-1">
                                     <div className="w-7 h-7 sm:w-8 sm:h-8 bg-indigo-50 flex items-center justify-center rounded-lg border border-indigo-100 group-hover/project:bg-indigo-100 group-hover/project:scale-105 transition-all shrink-0 mt-0.5 sm:mt-0">
@@ -241,9 +239,6 @@ async function ProjectOverviewList({ workspaceId, workspaceSlug }: { workspaceId
                                                 <div className={cn("w-1.5 h-1.5 rounded-full shrink-0",
                                                     project.status === 'done' ? 'bg-green-500' :
                                                     project.status === 'in_progress' ? 'bg-indigo-500' :
-                                                    project.status === 'in_review' ? 'bg-purple-500' :
-                                                    project.status === 'review' ? 'bg-fuchsia-400' :
-                                                    project.status === 'to_do' ? 'bg-orange-400' :
                                                     project.status === 'cancelled' ? 'bg-red-500' :
                                                     'bg-orange-500'
                                                 )} />
@@ -266,7 +261,7 @@ async function ProjectOverviewList({ workspaceId, workspaceSlug }: { workspaceId
                                         {new Date(project.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                     </span>
                                 </div>
-                            </ContextAwareLink>
+                            </Link>
                         );
                     })}
                 </div>
@@ -334,7 +329,7 @@ async function IssueOverviewList({ workspaceId, workspaceSlug }: { workspaceId: 
                         const statusColor = statusData.color;
 
                         return (
-                            <ContextAwareLink
+                            <Link
                                 key={ticket.id}
                                 href={`/dashboard/${workspaceSlug}/issues/${ticket.id}`}
                                 className="px-3 sm:px-5 py-3 sm:py-4 hover:bg-gray-50 transition-all flex items-start sm:items-center justify-between gap-2 sm:gap-4 group/ticket border-b border-gray-50 last:border-0"
@@ -377,7 +372,7 @@ async function IssueOverviewList({ workspaceId, workspaceSlug }: { workspaceId: 
                                         {new Date(ticket.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                     </span>
                                 </div>
-                            </ContextAwareLink>
+                            </Link>
                         )
                     })}
                 </div>
@@ -398,7 +393,7 @@ async function MyTasksWidget({ userId, workspaceId, workspaceSlug }: { userId: s
                 <div className="max-h-[180px] overflow-y-auto pr-3 custom-scrollbar transition-all duration-200">
                     <div className="flex flex-col gap-4">
                         {tasks.map((task: any) => (
-                            <ContextAwareLink key={task.id} href={`/dashboard/${workspaceSlug}/issues/${task.id}`} ticket={task} className="group/task cursor-pointer">
+                            <Link key={task.id} href={`/dashboard/${workspaceSlug}/issues/${task.id}`} className="group/task cursor-pointer">
                                 <div className="flex items-center justify-between">
                                     <span className="text-xs font-semibold text-gray-700 truncate pr-2 group-hover/task:text-indigo-600 transition-colors">
                                         {task.title}
@@ -407,7 +402,7 @@ async function MyTasksWidget({ userId, workspaceId, workspaceSlug }: { userId: s
                                         {formatTime(task.created_at)}
                                     </span>
                                 </div>
-                            </ContextAwareLink>
+                            </Link>
                         ))}
                     </div>
                 </div>

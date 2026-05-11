@@ -13,8 +13,6 @@ import {
 import { twMerge } from 'tailwind-merge';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { BulkActionToolbar } from './BulkActionToolbar';
-import { useModalStore } from '@/lib/store/modal';
-import { generateIssueId } from '@/lib/utils/id';
 
 import { IssueStatusSelector } from './IssueStatusSelector';
 import { IssueAssigneeSelector } from './IssueAssigneeSelector';
@@ -52,11 +50,7 @@ const IssueRow = memo(({
 }: IssueRowProps) => {
   const router = useRouter();
   const [isInteractive, setIsInteractive] = useState(false);
-  const { setActiveTicket, setActiveProject } = useModalStore();
   const issueHref = `/dashboard/${workspaceSlug}/issues/${ticket.id}`;
-
-  const projectName = ticket.projects?.project_name || ticket.project_name;
-  const issueIdString = generateIssueId(projectName, ticket.id);
 
   const prefetchIssue = useCallback(() => {
     router.prefetch(issueHref);
@@ -66,6 +60,46 @@ const IssueRow = memo(({
     router.push(issueHref);
   };
 
+  // Priority Icon logic matching IssuePrioritySelector
+  const renderPriorityIcon = (priority: string) => {
+    switch (priority) {
+      case 'urgent':
+        return (
+          <div className="flex gap-0.5 items-end h-3">
+            <div className="w-1 h-3 bg-red-500 rounded-sm"></div>
+            <div className="w-1 h-3 bg-red-500 rounded-sm"></div>
+            <div className="w-1 h-3 bg-red-500 rounded-sm"></div>
+          </div>
+        );
+      case 'high':
+        return (
+          <div className="flex gap-0.5 items-end h-3">
+            <div className="w-1 h-2 bg-red-400 rounded-sm"></div>
+            <div className="w-1 h-2.5 bg-red-400 rounded-sm"></div>
+            <div className="w-1 h-3 bg-red-400 rounded-sm"></div>
+          </div>
+        );
+      case 'medium':
+        return (
+          <div className="flex gap-0.5 items-end h-3">
+            <div className="w-1 h-1.5 bg-yellow-400 rounded-sm"></div>
+            <div className="w-1 h-2.5 bg-yellow-400 rounded-sm"></div>
+            <div className="w-1 h-3 bg-yellow-100 rounded-sm"></div>
+          </div>
+        );
+      case 'low':
+        return (
+          <div className="flex gap-0.5 items-end h-3">
+            <div className="w-1 h-1.5 bg-indigo-400 rounded-sm"></div>
+            <div className="w-1 h-3 bg-indigo-100 rounded-sm"></div>
+            <div className="w-1 h-3 bg-indigo-100 rounded-sm"></div>
+          </div>
+        );
+      default:
+        return <div className="w-4 h-0.5 bg-gray-200 rounded-full"></div>;
+    }
+  };
+
   return (
     <div
       onClick={handleRowClick}
@@ -73,33 +107,8 @@ const IssueRow = memo(({
         "flex items-center justify-between px-3 sm:px-4 py-3 transition-all group border-b border-gray-50 last:border-0 cursor-pointer min-h-[48px]",
         isSelected ? "bg-indigo-50/40 hover:bg-indigo-50/60" : "hover:bg-indigo-50/20"
       )}
-      onMouseEnter={() => {
-        setIsInteractive(true);
-        setActiveTicket(ticket);
-        const projectData = Array.isArray(ticket.projects) ? ticket.projects[0] : ticket.projects;
-        setActiveProject(projectData || null);
-      }}
-      onFocus={() => {
-        setIsInteractive(true);
-        setActiveTicket(ticket);
-        const projectData = Array.isArray(ticket.projects) ? ticket.projects[0] : ticket.projects;
-        setActiveProject(projectData || null);
-      }}
-      onMouseLeave={() => { 
-        setIsInteractive(false); 
-        const state = useModalStore.getState();
-        if (state.isCommandPaletteOpen || state.activeContextMenu) return;
-        setActiveTicket(null); 
-        setActiveProject(null); 
-      }}
-      onBlur={() => { 
-        setIsInteractive(false); 
-        const state = useModalStore.getState();
-        if (state.isCommandPaletteOpen || state.activeContextMenu) return;
-        setActiveTicket(null); 
-        setActiveProject(null); 
-      }}
-      tabIndex={0}
+      onMouseEnter={() => setIsInteractive(true)}
+      onFocus={() => setIsInteractive(true)}
     >
       <div className="flex items-center gap-2 sm:gap-3 min-w-0">
         {/* Selection Checkbox (Hidden on mobile for more space) */}
@@ -120,15 +129,19 @@ const IssueRow = memo(({
           className="hidden md:flex items-center shrink-0 w-8 justify-center"
           onClick={(e) => e.stopPropagation()}
         >
-          <IssuePrioritySelector
-            issueId={ticket.id}
-            currentPriority={ticket.priority || 'no_priority'}
-            currentUser={currentUser}
-            assigneeId={ticket.assignee_id}
-            reviewerId={ticket.reviewer_id}
-            projectName={projectName}
-            issueTitle={ticket.title}
-          />
+          {isInteractive ? (
+            <IssuePrioritySelector
+              issueId={ticket.id}
+              currentPriority={ticket.priority || 'no_priority'}
+              currentUser={currentUser}
+              assigneeId={ticket.assignee_id}
+              reviewerId={ticket.reviewer_id}
+            />
+          ) : (
+            <div className="py-1">
+              {renderPriorityIcon(ticket.priority || 'no_priority')}
+            </div>
+          )}
         </div>
 
         <Link
@@ -137,7 +150,7 @@ const IssueRow = memo(({
           onFocus={prefetchIssue}
           className="text-[9px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-tighter shrink-0 w-10 sm:w-14 hover:text-indigo-600 transition-colors"
         >
-          {issueIdString}
+          {ticket.projects?.project_name?.substring(0, 3).toUpperCase() || 'KAP'}-{ticket.id.substring(0, 2).toUpperCase()}
         </Link>
 
         {/* Status Selector */}
@@ -145,16 +158,21 @@ const IssueRow = memo(({
           className="w-5 sm:w-8 shrink-0 flex justify-center"
           onClick={(e) => e.stopPropagation()}
         >
-          <IssueStatusSelector
-            issueId={ticket.id}
-            currentStatus={ticket.status || 'to_do'}
-            currentUser={currentUser}
-            assigneeId={ticket.assignee_id}
-            reviewerId={ticket.reviewer_id}
-            hideLabel={true}
-            projectName={projectName}
-            issueTitle={ticket.title}
-          />
+          {isInteractive ? (
+            <IssueStatusSelector
+              issueId={ticket.id}
+              currentStatus={ticket.status || 'to_do'}
+              currentUser={currentUser}
+              assigneeId={ticket.assignee_id}
+              reviewerId={ticket.reviewer_id}
+              hideLabel={true}
+            />
+          ) : (
+            <div className={twMerge(
+              "w-2 h-2 rounded-full",
+              statusIcons[ticket.status || 'to_do']?.color || 'bg-gray-400'
+            )}></div>
+          )}
         </div>
 
         <div className="flex items-center gap-2 min-w-0">
@@ -349,7 +367,7 @@ export function IssuesList({
               key={`header-${sectionId}`}
               onClick={() => toggleSection(sectionId)}
               className={twMerge(
-                "absolute top-0 left-0 w-full flex items-center gap-2.5 cursor-pointer group select-none transition-all hover:bg-slate-50/80 px-2 rounded-lg border border-transparent hover:border-slate-100",
+                "absolute top-0 left-0 w-full flex items-center gap-2 cursor-pointer group select-none transition-colors hover:bg-gray-50/50 px-2 rounded-md",
                 virtualRow.index !== 0 && "mt-2"
               )}
               style={{
@@ -360,17 +378,17 @@ export function IssuesList({
               <ChevronDown
                 size={14}
                 className={twMerge(
-                  "text-slate-300 group-hover:text-slate-500 transition-transform duration-300",
+                  "text-gray-400 group-hover:text-gray-600 transition-transform duration-200",
                   isCollapsed && "-rotate-90"
                 )}
               />
               {displaySettings.groupBy !== 'none' && (
-                <div className={twMerge("w-2 h-2 rounded-full ring-2 ring-white", statusColor)}></div>
+                <div className={twMerge("w-2 h-2 rounded-full", statusColor)}></div>
               )}
-              <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em]">
+              <h2 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
                 {groupName}
               </h2>
-              <span className="text-[9px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-black tracking-tighter">
+              <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-bold">
                 {sectionCount}
               </span>
             </div>

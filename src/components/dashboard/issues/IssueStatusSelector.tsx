@@ -12,8 +12,6 @@ import {
     Loader2
 } from 'lucide-react';
 import { twMerge } from 'tailwind-merge';
-import { useModalStore } from '@/lib/store/modal';
-import { generateIssueId } from '@/lib/utils/id';
 
 interface IssueStatusSelectorProps {
     issueId: string;
@@ -22,8 +20,6 @@ interface IssueStatusSelectorProps {
     assigneeId?: string | null;
     reviewerId?: string | null;
     hideLabel?: boolean;
-    projectName?: string;
-    issueTitle?: string;
 }
 
 const statusOptions = [
@@ -42,17 +38,12 @@ export const IssueStatusSelector = memo(({
     currentUser,
     assigneeId,
     reviewerId,
-    hideLabel = false,
-    projectName,
-    issueTitle
+    hideLabel = false
 }: IssueStatusSelectorProps) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
     const [optimisticStatus, setOptimisticStatus] = useState(currentStatus);
     const dropdownRef = useRef<HTMLDivElement>(null);
-    
-    const { activeContextMenu, setActiveContextMenu, activeTicket, optimisticTicketUpdates } = useModalStore();
-    const optimisticUpdate = optimisticTicketUpdates[issueId];
 
     // Safety checks for roles
     const roleData = currentUser?.roles;
@@ -63,14 +54,6 @@ export const IssueStatusSelector = memo(({
     const isReviewer = currentUser?.id === reviewerId;
     const canUpdate = isAdmin || isAssignee || isReviewer;
 
-    // Listen to global shortcut
-    useEffect(() => {
-        if (activeContextMenu === 'status' && activeTicket?.id === issueId && canUpdate) {
-            setIsOpen(true);
-            setActiveContextMenu(null); // consume the event
-        }
-    }, [activeContextMenu, activeTicket, issueId, setActiveContextMenu, canUpdate]);
-
     const isRestrictedUser = !isAdmin && !isReviewer;
     const restrictedStatuses = ['review', 'in_review', 'done'];
 
@@ -79,15 +62,7 @@ export const IssueStatusSelector = memo(({
         return statusOptions.filter(opt => !restrictedStatuses.includes(opt.value));
     }, [isRestrictedUser]);
 
-    useEffect(() => { 
-        if (optimisticUpdate?.status !== undefined) {
-            setOptimisticStatus(optimisticUpdate.status);
-        } else if (activeTicket && activeTicket.id === issueId && activeTicket.status) {
-            setOptimisticStatus(activeTicket.status);
-        } else {
-            setOptimisticStatus(currentStatus); 
-        }
-    }, [currentStatus, activeTicket, optimisticUpdate, issueId]);
+    useEffect(() => { setOptimisticStatus(currentStatus); }, [currentStatus]);
 
     const activeStatus = statusOptions.find(s => s.value === optimisticStatus) || statusOptions[1];
 
@@ -119,11 +94,6 @@ export const IssueStatusSelector = memo(({
 
         const previousStatus = optimisticStatus;
         setOptimisticStatus(value);
-        
-        // Update global optimistic store
-        const { setOptimisticTicketUpdate } = useModalStore.getState();
-        setOptimisticTicketUpdate(issueId, { status: value });
-
         setIsOpen(false);
         setIsUpdating(true);
 
@@ -131,7 +101,6 @@ export const IssueStatusSelector = memo(({
             const res = await updateIssue(issueId, { status: value });
             if (res.error) {
                 setOptimisticStatus(previousStatus);
-                useModalStore.getState().clearOptimisticTicketUpdate(issueId);
                 toast.error(res.error);
             }
             setIsUpdating(false);
@@ -177,37 +146,18 @@ export const IssueStatusSelector = memo(({
             {isOpen && (
                 <>
                     <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
-                    <div className="absolute left-0 top-full mt-2 w-52 bg-white/90 backdrop-blur-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] border border-slate-200/50 rounded-xl py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-                        <div className="px-3.5 pt-1 pb-2.5 border-b border-slate-100/50 mb-1.5">
-                            <div className="text-[9px] font-black text-indigo-600 uppercase tracking-[0.15em] mb-1">
-                                {generateIssueId(projectName, issueId)}
-                            </div>
-                            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-tight truncate leading-none">
-                                {issueTitle || 'Set Status'}
-                            </div>
-                        </div>
-
+                    <div className="absolute left-0 top-full mt-1 w-40 bg-white shadow-xl border border-gray-100 rounded-lg py-1.5 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
                         {availableOptions.map((opt) => (
                             <button
                                 key={opt.value}
                                 onClick={(e) => handleSelect(e, opt.value)}
                                 className={twMerge(
-                                    "w-full flex items-center justify-between px-3.5 py-1.5 transition-all group/opt",
-                                    optimisticStatus === opt.value ? "bg-indigo-50/50" : "hover:bg-slate-50/80"
+                                    "w-full flex items-center gap-2.5 px-3 py-2 text-[11px] font-bold uppercase tracking-wider transition-colors",
+                                    optimisticStatus === opt.value ? "bg-gray-50 text-indigo-600" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                                 )}
                             >
-                                <div className="flex items-center gap-3">
-                                    <div className={twMerge("w-2 h-2 rounded-full shrink-0 ring-2 ring-white shadow-sm", opt.dot)}></div>
-                                    <span className={twMerge(
-                                        "text-xs tracking-tight transition-colors",
-                                        optimisticStatus === opt.value ? "text-indigo-600 font-bold" : "text-slate-600 group-hover/opt:text-slate-900 font-medium"
-                                    )}>
-                                        {opt.label}
-                                    </span>
-                                </div>
-                                {optimisticStatus === opt.value && (
-                                    <div className="w-1 h-1 rounded-full bg-indigo-500" />
-                                )}
+                                <div className={twMerge("w-1.5 h-1.5 rounded-full shrink-0", opt.dot)}></div>
+                                {opt.label}
                             </button>
                         ))}
                     </div>

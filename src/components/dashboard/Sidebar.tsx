@@ -163,9 +163,6 @@ export function Sidebar({
               <span className="text-sm font-bold text-slate-800 leading-tight tracking-tight truncate max-w-[140px]">
                 {workspaceName || 'Tectome'}
               </span>
-              <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase mt-1">
-                {userRole || 'Member'}
-              </span>
             </div>
           </div>
           <ChevronDown size={14} className={`text-slate-400 transition-transform md:hidden lg:block ${showSwitcher ? 'rotate-180' : ''}`} />

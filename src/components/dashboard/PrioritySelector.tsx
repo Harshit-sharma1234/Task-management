@@ -3,11 +3,8 @@
 import { useState, useRef, useEffect, useTransition, memo, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { updateProjectPriority } from '@/app/dashboard/actions';
 import { toast } from 'sonner';
-import { Ban } from 'lucide-react';
+import { AlertCircle, SignalHigh, SignalMedium, SignalLow, Ban } from 'lucide-react';
 import { useGlobalStore } from '@/lib/store/global';
-import { useModalStore } from '@/lib/store/modal';
-import { SelectorHandle } from './StatusSelector';
-import { generateShortId } from '@/lib/utils/id';
 
 interface PrioritySelectorProps {
     projectId: string;
@@ -56,6 +53,8 @@ const priorities = [
     { value: null, label: 'No priority', shortcut: '0', icon: <Ban size={14} className="text-gray-400" /> },
 ];
 
+import { SelectorHandle } from './StatusSelector';
+
 export const PrioritySelector = memo(forwardRef<SelectorHandle, PrioritySelectorProps>(({
     projectId,
     currentPriority,
@@ -67,21 +66,8 @@ export const PrioritySelector = memo(forwardRef<SelectorHandle, PrioritySelector
     const [optimisticPriority, setOptimisticPriority] = useState(currentPriority);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
-    const globalProject = useGlobalStore(state => state.projects.find(p => p.id === projectId));
-
-    const { optimisticProjectUpdates } = useModalStore();
-    const optimisticUpdate = optimisticProjectUpdates[projectId];
-
-    // Sync with global store first, fallback to props
-    useEffect(() => { 
-        if (optimisticUpdate?.priority !== undefined) {
-            setOptimisticPriority(optimisticUpdate.priority);
-        } else if (globalProject && globalProject.priority !== undefined) {
-            setOptimisticPriority(globalProject.priority);
-        } else {
-            setOptimisticPriority(currentPriority); 
-        }
-    }, [currentPriority, globalProject, optimisticUpdate]);
+    // Sync with server props when they arrive
+    useEffect(() => { setOptimisticPriority(currentPriority); }, [currentPriority]);
 
     useImperativeHandle(ref, () => ({
         toggle: () => setIsOpen(prev => !prev),
@@ -113,11 +99,6 @@ export const PrioritySelector = memo(forwardRef<SelectorHandle, PrioritySelector
         const previousPriority = optimisticPriority;
         setOptimisticPriority(value);
         useGlobalStore.getState().updateProject({ id: projectId, priority: value });
-        
-        // Update global optimistic store
-        const { setOptimisticProjectUpdate } = useModalStore.getState();
-        setOptimisticProjectUpdate(projectId, { priority: value });
-        
         setIsOpen(false);
 
         startTransition(async () => {
@@ -125,7 +106,6 @@ export const PrioritySelector = memo(forwardRef<SelectorHandle, PrioritySelector
             if (res.error) {
                 // Revert on failure
                 setOptimisticPriority(previousPriority);
-                useModalStore.getState().clearOptimisticProjectUpdate(projectId);
                 useGlobalStore.getState().updateProject({ id: projectId, priority: previousPriority });
                 toast.error(res.error);
             }
@@ -194,7 +174,7 @@ export const PrioritySelector = memo(forwardRef<SelectorHandle, PrioritySelector
 
                             return (
                                 <button
-                                    key={String(p.label)}
+                                    key={p.label}
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         handleSelect(p.value);
@@ -223,6 +203,6 @@ export const PrioritySelector = memo(forwardRef<SelectorHandle, PrioritySelector
             )}
         </div>
     );
-}));
+}))
 
 PrioritySelector.displayName = 'PrioritySelector';

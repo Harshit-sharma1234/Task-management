@@ -16,23 +16,17 @@ import { validatePassword } from '../../lib/validation'
  * and a standard 'default' profile for revalidation.
  */
 
-function revalidateProjectDataTags(tags: string[] = ['projects', 'tickets', 'project-resources'], workspaceId?: string | null) {
+function revalidateProjectDataTags(tags: string[] = ['projects', 'tickets', 'project-resources']) {
     tags.forEach(tag => {
         try {
-            // revalidateTag is the correct Next.js function for on-demand revalidation
-            // We use "default" profile to match unstable_cache calls in lib/cache.ts
+            // updateTag provides immediate consistency for Server Actions
+            updateTag(tag);
+            // fallback revalidation with a shorter profile
             revalidateTag(tag, "default");
         } catch (e) {
-            console.error(`[Revalidate] Error revalidating tag ${tag}:`, e);
+            revalidateTag(tag, "default");
         }
     });
-    
-    // Also revalidate the workspace-specific tag if provided
-    if (workspaceId) {
-        try {
-            revalidateTag(`workspace-${workspaceId}`, "default");
-        } catch (e) {}
-    }
 }
 
 import { getCachedUsers, getCachedUserProfile } from '../../lib/cache'
@@ -243,18 +237,17 @@ export async function updateProjectPriority(projectId: string, priority: string 
     ])
     if (!profile) return { error: 'User profile not found' };
 
-    const { data: project, error } = await adminClient
+    const { data, error } = await adminClient
         .from('projects')
         .update({ priority })
         .eq('id', projectId)
-        .select('*, lead:users!lead_id(id, name, avatar_url)')
-        .single()
+        .select()
 
     if (error) {
         return { error: `Failed to update priority: ${error.message}` }
     }
 
-    if (!project) {
+    if (!data || data.length === 0) {
         return { error: 'Project not found' }
     }
 
@@ -268,10 +261,11 @@ export async function updateProjectPriority(projectId: string, priority: string 
         newValue: { priority }
     }).catch(() => {})
 
-    revalidateProjectDataTags(['projects', 'tickets'], project.workspace_id)
+    revalidateProjectDataTags()
     revalidatePath('/dashboard', 'layout')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
-    return { success: true, project }
+    revalidatePath('/dashboard', 'layout')
+    return { success: true }
 }
 
 export async function updateProjectLead(projectId: string, leadId: string | null) {
@@ -290,18 +284,17 @@ export async function updateProjectLead(projectId: string, leadId: string | null
     ])
     if (!profile) return { error: 'User profile not found' };
 
-    const { data: project, error } = await adminClient
+    const { data, error } = await adminClient
         .from('projects')
         .update({ lead_id: leadId })
         .eq('id', projectId)
-        .select('*, lead:users!lead_id(id, name, avatar_url)')
-        .single()
+        .select()
 
     if (error) {
         return { error: `Failed to update lead: ${error.message}` }
     }
 
-    if (!project) {
+    if (!data || data.length === 0) {
         return { error: 'Project not found' }
     }
 
@@ -324,7 +317,7 @@ export async function updateProjectLead(projectId: string, leadId: string | null
         newValue: { lead_id: leadId }
     }).catch(() => {})
 
-    revalidateProjectDataTags(['projects'], project.workspace_id)
+    revalidateProjectDataTags()
     revalidatePath('/dashboard', 'layout')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
     revalidatePath('/dashboard', 'layout')
@@ -346,18 +339,17 @@ export async function updateProjectTargetDate(projectId: string, startDate: stri
     ])
     if (!profile) return { error: 'User profile not found' };
 
-    const { data: project, error } = await adminClient
+    const { data, error } = await adminClient
         .from('projects')
         .update({ start_date: startDate })
         .eq('id', projectId)
-        .select('*, lead:users!lead_id(id, name, avatar_url)')
-        .single()
+        .select()
 
     if (error) {
         return { error: `Failed to update date: ${error.message}` }
     }
 
-    if (!project) {
+    if (!data || data.length === 0) {
         return { error: 'Project not found' }
     }
 
@@ -373,7 +365,7 @@ export async function updateProjectTargetDate(projectId: string, startDate: stri
         newValue: { start_date: startDate }
     }).catch(() => {})
 
-    revalidateProjectDataTags(['projects'], project.workspace_id)
+    revalidateProjectDataTags()
     revalidatePath('/dashboard', 'layout')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
     revalidatePath('/dashboard', 'layout')
@@ -395,19 +387,18 @@ export async function updateProjectDueDate(projectId: string, dueDate: string | 
     ])
     if (!profile) return { error: 'User profile not found' };
 
-    const { data: project, error } = await adminClient
+    const { data, error } = await adminClient
         .from('projects')
         .update({ target_date: dueDate })
         .eq('id', projectId)
-        .select('*, lead:users!lead_id(id, name, avatar_url)')
-        .single()
+        .select()
 
     if (error) {
         // If target_date column does not exist gracefully exit
         return { error: `Failed to update date: maybe target_date column is missing (${error.message})` }
     }
 
-    if (!project) {
+    if (!data || data.length === 0) {
         return { error: 'Project not found' }
     }
 
@@ -423,10 +414,11 @@ export async function updateProjectDueDate(projectId: string, dueDate: string | 
         newValue: { target_date: dueDate }
     }).catch(() => {})
 
-    revalidateProjectDataTags(['projects'], project.workspace_id)
+    revalidateProjectDataTags()
     revalidatePath('/dashboard', 'layout')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
-    return { success: true, project }
+    revalidatePath('/dashboard', 'layout')
+    return { success: true }
 }
 
 export async function updateProjectStatus(projectId: string, status: string | null) {
@@ -444,21 +436,17 @@ export async function updateProjectStatus(projectId: string, status: string | nu
     ])
     if (!profile) return { error: 'User profile not found' };
 
-    // Standardize 'backlog' as null for projects (matching ProjectList.tsx expectations)
-    const finalStatus = status === 'backlog' ? null : status;
-
-    const { data: project, error } = await adminClient
+    const { data, error } = await adminClient
         .from('projects')
-        .update({ status: finalStatus })
+        .update({ status })
         .eq('id', projectId)
-        .select('*, lead:users!lead_id(id, name, avatar_url)')
-        .single()
+        .select()
 
     if (error) {
         return { error: `Failed to update status: ${error.message}` }
     }
 
-    if (!project) {
+    if (!data || data.length === 0) {
         return { error: 'Project not found' }
     }
 
@@ -472,10 +460,11 @@ export async function updateProjectStatus(projectId: string, status: string | nu
         newValue: { status }
     }).catch(() => {})
 
-    revalidateProjectDataTags(['projects', 'tickets'], project.workspace_id)
+    revalidateProjectDataTags()
     revalidatePath('/dashboard', 'layout')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
-    return { success: true, project }
+    revalidatePath('/dashboard', 'layout')
+    return { success: true }
 }
 
 export async function updateProjectName(projectId: string, projectName: string) {
@@ -487,22 +476,22 @@ export async function updateProjectName(projectId: string, projectName: string) 
     }
 
     const adminClient = createAdminClient()
-    const { data: project, error } = await adminClient
+    const { error } = await adminClient
         .from('projects')
         .update({ project_name: projectName.trim() })
         .eq('id', projectId)
-        .select('*, lead:users!lead_id(id, name, avatar_url)')
-        .single()
 
     if (error) {
         return { error: friendlyDbError(error, 'project') }
     }
 
-    revalidateProjectDataTags(['projects'], project.workspace_id)
+    revalidateProjectDataTags()
     revalidatePath('/dashboard', 'layout')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
+    revalidatePath('/dashboard', 'layout')
+    revalidateTag('projects', "default")
     
-    return { success: true, project }
+    return { success: true }
 }
 
 export async function updateProjectDescription(projectId: string, description: string | null) {
@@ -543,7 +532,7 @@ export async function updateProjectDescription(projectId: string, description: s
         newValue: null
     }).catch(() => {})
 
-    revalidateProjectDataTags(['projects'], data[0].workspace_id)
+    revalidateProjectDataTags()
     revalidatePath('/dashboard', 'layout')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
     revalidatePath('/dashboard', 'layout')
@@ -642,7 +631,7 @@ export async function toggleProjectMember(projectId: string, userId: string) {
         }
     }
 
-    revalidateProjectDataTags(['projects', 'project-members'], project.workspace_id)
+    revalidateProjectDataTags()
     revalidatePath('/dashboard', 'layout')
     revalidatePath(`/dashboard/projects/${projectId}`, 'page')
     revalidatePath('/dashboard', 'layout')
