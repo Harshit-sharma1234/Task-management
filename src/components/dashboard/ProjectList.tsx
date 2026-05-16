@@ -1,16 +1,17 @@
 'use client';
 
-import { useState, useMemo, memo, useRef } from 'react';
+import { useState, useMemo, memo, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { Folder, Search, Trash2, Loader2, Filter, User as UserIcon } from 'lucide-react';
-import { useSettingsStore } from '@/lib/store/settings';
 import dynamic from 'next/dynamic';
-import { useRouter, useParams, useSearchParams } from 'next/navigation';
-import { deleteProject } from '@/app/dashboard/actions';
+import { useRouter, useParams, useSearchParams, usePathname } from 'next/navigation';
+import { deleteProject, updateProjectTargetDate } from '@/app/dashboard/actions';
 import { AppRole } from '@/lib/roles';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { toast } from 'sonner';
+import { useModalStore } from '@/lib/store/modal';
+import { useSettingsStore } from '@/lib/store/settings';
 
 // Heavy components that contain modals/complex logic should be lazy loaded
 const PrioritySelector = dynamic(() => import('@/components/dashboard/PrioritySelector').then(mod => mod.PrioritySelector), { ssr: false });
@@ -25,6 +26,7 @@ interface Project {
     priority: string | null;
     status: string | null;
     start_date: string | null;
+    workspace_id?: string;
     lead?: {
         id: string;
         name: string;
@@ -47,8 +49,6 @@ interface ProjectListProps {
     workspaceId?: string;
 }
 
-import { UserAvatar } from '@/components/ui/UserAvatar';
-
 /**
  * Memoized row component to prevent re-renders of the entire 
  * project list when searching or filtering.
@@ -57,12 +57,16 @@ const ProjectRow = memo(({
     project,
     users,
     isLast,
-    userRole
+    userRole,
+    onUpdateDate,
+    workspaceId
 }: {
     project: Project;
     users: User[];
     isLast: boolean;
     userRole: AppRole | null;
+    onUpdateDate: (projectId: string, dateStr: string | null) => Promise<{ error?: string }>;
+    workspaceId?: string;
 }) => {
     const router = useRouter();
     const params = useParams();
@@ -70,6 +74,7 @@ const ProjectRow = memo(({
     const [isDeleting, setIsDeleting] = useState(false);
     const [isInteractive, setIsInteractive] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const { setActiveProject, setActiveTicket } = useModalStore();
 
     const canDelete = userRole === 'Admin' || userRole === 'Project Manager';
 
@@ -103,48 +108,23 @@ const ProjectRow = memo(({
         };
     }, [project.id, router, workspaceSlug]);
 
-    // Priority Icon logic consistent with PrioritySelector
-    const renderPriorityIcon = () => {
-        const priority = project.priority;
-        if (priority === 'urgent') return (
-            <div className="flex gap-0.5 items-end h-3" title="Urgent">
-                <div className="w-1 h-3 bg-red-500 rounded-sm"></div>
-                <div className="w-1 h-3 bg-red-500 rounded-sm"></div>
-                <div className="w-1 h-3 bg-red-500 rounded-sm"></div>
-            </div>
-        );
-        if (priority === 'high') return (
-            <div className="flex gap-0.5 items-end h-3" title="High">
-                <div className="w-1 h-2 bg-orange-500 rounded-sm"></div>
-                <div className="w-1 h-2.5 bg-orange-500 rounded-sm"></div>
-                <div className="w-1 h-3 bg-orange-500 rounded-sm"></div>
-            </div>
-        );
-        if (priority === 'medium') return (
-            <div className="flex gap-0.5 items-end h-3" title="Medium">
-                <div className="w-1 h-1.5 bg-indigo-400 rounded-sm"></div>
-                <div className="w-1 h-2.5 bg-indigo-400 rounded-sm"></div>
-                <div className="w-1 h-3 bg-gray-200 rounded-sm"></div>
-            </div>
-        );
-        if (priority === 'low') return (
-            <div className="flex gap-0.5 items-end h-3" title="Low">
-                <div className="w-1 h-1.5 bg-indigo-400 rounded-sm"></div>
-                <div className="w-1 h-3 bg-gray-200 rounded-sm"></div>
-                <div className="w-1 h-3 bg-gray-200 rounded-sm"></div>
-            </div>
-        );
-        return <div className="text-[10px] text-gray-300 font-bold tracking-tight">---</div>;
-    };
-
-    // Resolve lead user: try workspace team list first, fallback to joined data from DB
-    const leadUser = users.find(u => u.id === project.lead_id) || project.lead;
-
     return (
         <div
             className="grid grid-cols-[1fr_100px_140px_140px_140px_48px] items-center py-2 hover:bg-gray-50/50 transition-colors group text-sm relative hover:z-20 focus-within:z-20 border-b border-gray-100"
-            onMouseEnter={() => setIsInteractive(true)}
-            onFocus={() => setIsInteractive(true)}
+            onMouseEnter={() => { setIsInteractive(true); setActiveProject(project); setActiveTicket(null); }}
+            onFocus={() => { setIsInteractive(true); setActiveProject(project); setActiveTicket(null); }}
+            onMouseLeave={() => { 
+                setIsInteractive(false); 
+                const state = useModalStore.getState();
+                if (state.isCommandPaletteOpen || state.activeContextMenu) return;
+                setActiveProject(null); 
+            }}
+            onBlur={() => { 
+                setIsInteractive(false); 
+                const state = useModalStore.getState();
+                if (state.isCommandPaletteOpen || state.activeContextMenu) return;
+                setActiveProject(null); 
+            }}
         >
             {/* Name */}
             <div className="flex items-center gap-3 pl-5 min-w-0">
@@ -162,53 +142,30 @@ const ProjectRow = memo(({
 
             {/* Priority */}
             <div className="hidden md:flex items-center relative z-10 pl-2">
-                {isInteractive ? (
-                    <PrioritySelector projectId={project.id} currentPriority={project.priority} />
-                ) : (
-                    <div className="py-1">
-                        {renderPriorityIcon()}
-                    </div>
-                )}
+                <PrioritySelector projectId={project.id} currentPriority={project.priority} />
             </div>
 
             {/* Lead */}
             <div className="hidden sm:flex items-center relative z-10 pl-2">
-                {isInteractive ? (
-                    <LeadSelector 
-                        projectId={project.id} 
-                        currentLeadId={project.lead_id} 
-                        users={users} 
-                        showName={true} 
-                        hideAvatar={true} 
-                        align="left" 
-                        fallbackUser={project.lead}
-                    />
-                ) : (
-                    <div className="py-0.5">
-                        {leadUser ? (
-                            <span className="text-[11px] font-medium text-gray-700 truncate max-w-[130px]">
-                                {leadUser.name}
-                            </span>
-                        ) : (
-                            <span className="text-[11px] font-medium text-gray-400 italic">
-                                {project.lead_id ? 'Unknown Lead' : 'Unassigned'}
-                            </span>
-                        )}
-                    </div>
-                )}
+                <LeadSelector 
+                    projectId={project.id} 
+                    currentLeadId={project.lead_id} 
+                    users={users} 
+                    showName={true} 
+                    hideAvatar={true} 
+                    align="left" 
+                    fallbackUser={project.lead}
+                />
             </div>
 
             {/* Target date */}
             <div className="hidden lg:flex items-center justify-end pr-5 relative z-10">
-                {isInteractive ? (
-                    <TargetDateSelector projectId={project.id} currentTargetDate={project.start_date || null} align="right" />
-                ) : (
-                    <span className="text-[10px] font-bold uppercase text-gray-400 tracking-tight">
-                        {project.start_date
-                            ? new Date(project.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                            : 'No date'}
-                    </span>
-                )}
+                <TargetDateSelector 
+                    projectId={project.id} 
+                    currentTargetDate={project.start_date || null} 
+                    align="right" 
+                    onUpdate={onUpdateDate}
+                />
             </div>
 
             {/* Status */}
@@ -258,15 +215,30 @@ const ProjectRow = memo(({
 });
 
 ProjectRow.displayName = 'ProjectRow';
+
 export function ProjectList({ projects, users, userMap, userRole, workspaceId }: ProjectListProps) {
+    const router = useRouter();
+    const pathname = usePathname();
     const searchParams = useSearchParams();
-    const filterParam = searchParams.get('filter');
 
     const [searchTerm, setSearchTerm] = useState('');
-    const [priorityFilter, setPriorityFilter] = useState<string>('all');
-    const [statusFilter, setStatusFilter] = useState<string>('all');
-    const [assignedToMe, setAssignedToMe] = useState<boolean>(filterParam === 'assigned');
+    
+    // URL-based filter state
+    const priorityFilter = searchParams.get('priority') || 'all';
+    const statusFilter = searchParams.get('status') || 'all';
+    const assignedToMe = searchParams.get('filter') === 'assigned';
+    
     const { user } = useSettingsStore();
+
+    const updateFilter = (name: string, value: string | null) => {
+        const params = new URLSearchParams(searchParams.toString());
+        if (value === 'all' || !value) {
+            params.delete(name);
+        } else {
+            params.set(name, value);
+        }
+        router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    };
 
     // Use projects directly from props (kept in sync by the layout's GlobalDataSync)
     const listScrollRef = useRef<HTMLElement>(null);
@@ -290,12 +262,21 @@ export function ProjectList({ projects, users, userMap, userRole, workspaceId }:
             list = list.filter(p => p.status === (statusFilter === 'backlog' ? null : statusFilter));
         }
 
-        if (assignedToMe && user?.id) {
+        if (assignedToMe) {
+            if (!user?.id) {
+                // If we're filtering by "Assigned to me" but user data hasn't arrived, 
+                // show an empty list instead of the full list to avoid confusion.
+                return [];
+            }
             list = list.filter(p => p.lead_id === user.id);
         }
 
         return list;
     }, [projects, searchTerm, priorityFilter, statusFilter, assignedToMe, user?.id, userMap]);
+
+    const handleUpdateDate = useCallback(async (projectId: string, dateStr: string | null) => {
+        return await updateProjectTargetDate(projectId, dateStr);
+    }, []);
 
     const rowVirtualizer = useVirtualizer({
         count: filteredProjects.length,
@@ -341,7 +322,7 @@ export function ProjectList({ projects, users, userMap, userRole, workspaceId }:
                 <div className="flex items-center gap-2">
                     <select 
                         value={priorityFilter}
-                        onChange={(e) => setPriorityFilter(e.target.value)}
+                        onChange={(e) => updateFilter('priority', e.target.value)}
                         className="text-[11px] font-bold uppercase tracking-tight bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer text-gray-600"
                     >
                         <option value="all">All Priorities</option>
@@ -353,7 +334,7 @@ export function ProjectList({ projects, users, userMap, userRole, workspaceId }:
 
                     <select 
                         value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
+                        onChange={(e) => updateFilter('status', e.target.value)}
                         className="text-[11px] font-bold uppercase tracking-tight bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer text-gray-600"
                     >
                         <option value="all">All Statuses</option>
@@ -364,7 +345,7 @@ export function ProjectList({ projects, users, userMap, userRole, workspaceId }:
                     </select>
 
                     <button
-                        onClick={() => setAssignedToMe(!assignedToMe)}
+                        onClick={() => updateFilter('filter', assignedToMe ? null : 'assigned')}
                         className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-tight transition-all border ${
                             assignedToMe 
                                 ? 'bg-indigo-50 text-indigo-700 border-indigo-200 ring-2 ring-indigo-500/10' 
@@ -378,9 +359,11 @@ export function ProjectList({ projects, users, userMap, userRole, workspaceId }:
                     {(priorityFilter !== 'all' || statusFilter !== 'all' || assignedToMe) && (
                         <button 
                             onClick={() => {
-                                setPriorityFilter('all');
-                                setStatusFilter('all');
-                                setAssignedToMe(false);
+                                const params = new URLSearchParams(searchParams.toString());
+                                params.delete('priority');
+                                params.delete('status');
+                                params.delete('filter');
+                                router.push(`${pathname}?${params.toString()}`, { scroll: false });
                             }}
                             className="text-[10px] font-bold text-red-500 uppercase tracking-widest hover:text-red-600 transition-colors ml-4 py-1 px-2 hover:bg-red-50 rounded-md"
                         >
@@ -438,6 +421,8 @@ export function ProjectList({ projects, users, userMap, userRole, workspaceId }:
                                                 users={users}
                                                 isLast={virtualRow.index === filteredProjects.length - 1}
                                                 userRole={userRole}
+                                                onUpdateDate={handleUpdateDate}
+                                                workspaceId={workspaceId}
                                             />
                                         </div>
                                     );

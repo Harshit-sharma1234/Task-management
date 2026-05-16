@@ -16,6 +16,7 @@ interface IssuesViewProps {
 }
 
 import { useState, useMemo, useEffect, useRef } from 'react';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { createClient } from '@/lib/supabase/client';
 import { loadIssuesChunk } from '@/app/dashboard/[workspace]/issues/list-actions';
@@ -56,9 +57,23 @@ export function IssuesView({
   const listScrollRef = useRef<HTMLDivElement>(null);
   const nextOffsetRef = useRef(initialLimit);
   const isFetchingMoreRef = useRef(false);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
-  // Sync with server-side prop updates (e.g. after router.refresh())
+  const handleFilterChange = (filter: string) => {
+    setActiveFilter(filter);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('filter', filter);
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
+  // Sync with server-side prop updates (e.g. after router.refresh() or navigation)
   // but never restore items that were already deleted
+  useEffect(() => {
+    if (initialFilter) setActiveFilter(initialFilter);
+  }, [initialFilter]);
+
   useEffect(() => {
     if (!initialTickets) return;
     const validTickets = initialTickets.filter(t => !deletedIdsRef.current.has(t.id));
@@ -135,6 +150,8 @@ export function IssuesView({
     showProperties: ['id', 'status', 'assignee', 'priority']
   });
 
+  const [assigneeFilter, setAssigneeFilter] = useState('all');
+
   // Keep a fast lookup map for realtime row enrichment.
   const usersById = useMemo(() => {
     const map: Record<string, any> = {};
@@ -190,6 +207,8 @@ export function IssuesView({
 
   const filteredTickets = useMemo(() => {
     let result = tickets;
+
+    // Apply main filter
     if (activeFilter === 'active') {
       result = tickets.filter(t => t.status === 'in_progress' || t.status === 'to_do');
     } else if (activeFilter === 'backlog') {
@@ -201,8 +220,14 @@ export function IssuesView({
     } else if (activeFilter === 'in_progress') {
       result = tickets.filter(t => (t.status === 'in_progress' || t.status === 'in_review') && (t.assignee_id === currentUser?.id || t.reviewer_id === currentUser?.id));
     }
+
+    // Apply assignee filter
+    if (assigneeFilter !== 'all') {
+      result = result.filter(t => t.assignee_id === assigneeFilter || t.reviewer_id === assigneeFilter);
+    }
+
     return result;
-  }, [tickets, activeFilter, currentUser]);
+  }, [tickets, activeFilter, assigneeFilter, currentUser]);
 
   // Transform data based on display settings
   const groupedData = useMemo(() => {
@@ -214,7 +239,10 @@ export function IssuesView({
       <IssuesHeader
         totalIssues={filteredTickets.length}
         activeFilter={activeFilter}
-        onFilterChange={setActiveFilter}
+        onFilterChange={handleFilterChange}
+        assigneeFilter={assigneeFilter}
+        onAssigneeFilterChange={setAssigneeFilter}
+        users={users}
         onOpenModal={() => setIsModalOpen(true)}
         displaySettings={displaySettings}
         onDisplaySettingsChange={setDisplaySettings}

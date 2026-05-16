@@ -27,6 +27,8 @@ export function MyTasksView({ initialTickets, projects, users, currentUser, work
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState('all');
 
+  const [assigneeFilter, setAssigneeFilter] = useState('all');
+
   const [displaySettings, setDisplaySettings] = useState<DisplaySettings>({
     viewMode: 'list',
     groupBy: 'status',
@@ -41,8 +43,13 @@ export function MyTasksView({ initialTickets, projects, users, currentUser, work
     } else if (activeFilter === 'backlog') {
       result = initialTickets.filter(t => t.status === 'backlog');
     }
+
+    if (assigneeFilter !== 'all') {
+      result = result.filter(t => t.assignee_id === assigneeFilter);
+    }
+    
     return result;
-  }, [initialTickets, activeFilter]);
+  }, [initialTickets, activeFilter, assigneeFilter]);
 
   // Transform data based on display settings
   const groupedData = useMemo(() => {
@@ -56,6 +63,9 @@ export function MyTasksView({ initialTickets, projects, users, currentUser, work
         totalIssues={filteredTickets.length}
         activeFilter={activeFilter}
         onFilterChange={setActiveFilter}
+        assigneeFilter={assigneeFilter}
+        onAssigneeFilterChange={setAssigneeFilter}
+        users={users}
         onOpenModal={() => setIsModalOpen(true)}
         displaySettings={displaySettings}
         onDisplaySettingsChange={setDisplaySettings}
@@ -63,7 +73,7 @@ export function MyTasksView({ initialTickets, projects, users, currentUser, work
 
       {/* Content Area */}
       <div className="flex-1 overflow-hidden">
-        <div className="h-full overflow-y-auto pt-6 px-8 w-full">
+        <div className="h-full overflow-y-auto pt-6 px-4 sm:px-8 w-full no-scrollbar">
           {displaySettings.viewMode === 'list' ? (
             <IssuesList
               tickets={filteredTickets}

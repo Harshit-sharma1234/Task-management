@@ -307,54 +307,58 @@ export function CommentSection({ ticketId, initialComments, initialLogs = [], cu
 
   return (
     <div className="space-y-8">
-      {/* Unified Activity Feed */}
+      {/* Comments Feed */}
       <div className="space-y-7 pl-1">
-        {activity.map((item) => (
-          <div key={`${item.type}-${item.id}`} className={`flex gap-3 ${item.id.startsWith('temp-') ? 'opacity-70' : ''}`}>
-            <div className="mt-0.5">
-              <UserAvatar
-                name={item.users?.name || 'User'}
-                avatarUrl={item.users?.avatar_url}
-                size="sm"
-              />
-            </div>
-            <div className="flex-1 group/comment min-w-0">
-              <div className="flex items-center justify-between gap-2 mb-1.5">
-                <div className="flex items-center gap-2">
-                  <span className="text-[12px] font-bold text-gray-900">{item.users?.name}</span>
-                  <span className="text-[11px] font-medium text-gray-400">
-                    {item.type === 'comment' ? '' : `${'message' in item ? item.message : ''} · `}
-                    {new Date(item.created_at).toLocaleString('en-IN', {
-                      month: 'short', day: 'numeric',
-                      hour: '2-digit', minute: '2-digit',
-                      hour12: true, timeZone: 'Asia/Kolkata'
-                    })}
-                    {item.id.startsWith('temp-') && ' · Sending...'}
-                  </span>
+        {comments.length === 0 ? (
+          <div className="py-10 text-center border-2 border-dashed border-gray-50 rounded-2xl">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">No comments yet</p>
+            <p className="text-[11px] text-gray-400 mt-1 font-medium">Be the first to start the discussion</p>
+          </div>
+        ) : (
+          comments.map((item) => (
+            <div key={item.id} className={`flex gap-3 ${item.id.startsWith('temp-') ? 'opacity-70' : ''}`}>
+              <div className="mt-0.5">
+                <UserAvatar
+                  name={item.users?.name || 'User'}
+                  avatarUrl={item.users?.avatar_url}
+                  size="sm"
+                />
+              </div>
+              <div className="flex-1 group/comment min-w-0">
+                <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[12px] font-bold text-gray-900">{item.users?.name}</span>
+                    <span className="text-[11px] font-medium text-gray-400">
+                      {new Date(item.created_at).toLocaleString('en-IN', {
+                        month: 'short', day: 'numeric',
+                        hour: '2-digit', minute: '2-digit',
+                        hour12: true, timeZone: 'Asia/Kolkata'
+                      })}
+                      {item.id.startsWith('temp-') && ' · Sending...'}
+                    </span>
+                  </div>
+
+                  {/* Edit/Delete Actions */}
+                  {item.user_id === currentUser.id && !item.id.startsWith('temp-') && !editingCommentId && (
+                    <div className="flex items-center gap-1 opacity-0 group-hover/comment:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => handleEditStart(item)}
+                        className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 transition-colors"
+                        title="Edit comment"
+                      >
+                        <Pencil size={11} />
+                      </button>
+                      <button
+                        onClick={() => setCommentToDelete(item.id)}
+                        className="p-1 hover:bg-red-50 rounded text-gray-400 hover:text-red-600 transition-colors"
+                        title="Delete comment"
+                      >
+                        <Trash2 size={11} />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
-                {/* Edit/Delete Actions */}
-                {item.type === 'comment' && item.user_id === currentUser.id && !item.id.startsWith('temp-') && !editingCommentId && (
-                  <div className="flex items-center gap-1 opacity-0 group-hover/comment:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => handleEditStart(item as Comment)}
-                      className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 transition-colors"
-                      title="Edit comment"
-                    >
-                      <Pencil size={11} />
-                    </button>
-                    <button
-                      onClick={() => setCommentToDelete(item.id)}
-                      className="p-1 hover:bg-red-50 rounded text-gray-400 hover:text-red-600 transition-colors"
-                      title="Delete comment"
-                    >
-                      <Trash2 size={11} />
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {item.type === 'comment' && (
                 <div className="text-[13px] text-gray-700 leading-snug">
                   {editingCommentId === item.id ? (
                     <div className="space-y-2 mt-1">
@@ -389,8 +393,8 @@ export function CommentSection({ ticketId, initialComments, initialLogs = [], cu
                     </div>
                   ) : (
                     <div className="relative break-words">
-                      {'comment' in item ? item.comment : ''}
-                      {renderAttachments(item as Comment)}
+                      {item.comment}
+                      {renderAttachments(item)}
                       {isActionLoading === item.id && (
                         <div className="absolute inset-0 bg-white/50 flex items-center justify-center">
                           <Loader2 size={12} className="animate-spin text-gray-400" />
@@ -399,10 +403,10 @@ export function CommentSection({ ticketId, initialComments, initialLogs = [], cu
                     </div>
                   )}
                 </div>
-              )}
+              </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
         <div ref={feedEndRef} />
       </div>
 

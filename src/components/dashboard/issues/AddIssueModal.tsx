@@ -171,22 +171,24 @@ export function AddIssueModal({ isOpen, onClose, projects, users, workspaceId }:
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-[2px] animate-in fade-in duration-200">
-      <div className="w-full max-w-2xl bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md animate-in fade-in duration-300">
+      <div className="w-full max-w-2xl bg-white rounded-[32px] shadow-[0_32px_120px_-20px_rgba(0,0,0,0.3)] border border-slate-100 overflow-hidden flex flex-col animate-in zoom-in-95 duration-300">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50/50">
-          <div className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase tracking-widest">
-            <FolderKanban size={14} className="text-indigo-600" />
-            <span>New Issue</span>
+        <div className="flex items-center justify-between px-8 py-5 border-b border-slate-50 bg-white">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 shadow-sm">
+              <FolderKanban size={16} strokeWidth={2.5} />
+            </div>
+            <span className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">
+              New Issue
+            </span>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onClose}
-              className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              <X size={18} />
-            </button>
-          </div>
+          <button
+            onClick={onClose}
+            className="p-2 text-slate-300 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all"
+          >
+            <X size={20} />
+          </button>
         </div>
 
         {/* Form Body */}

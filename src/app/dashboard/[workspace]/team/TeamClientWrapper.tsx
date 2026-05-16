@@ -19,7 +19,7 @@ export function TeamClientWrapper({ workspaceId }: { workspaceId: string }) {
     }
 
     if (!hasFetched) {
-      fetchTeamData(workspaceId).then(data => {
+      fetchTeamData(workspaceId, true).then(data => {
         setTeamData(data.users, data.isAdmin, data.currentUserRole, workspaceId);
       }).catch(err => {
         console.error(err);
@@ -32,7 +32,7 @@ export function TeamClientWrapper({ workspaceId }: { workspaceId: string }) {
   if (!hasFetched) return <TeamSkeleton />;
 
   return (
-    <div className="p-8 max-w-7xl mx-auto flex flex-col gap-6 w-full h-full">
+    <div className="p-4 sm:p-8 max-w-7xl mx-auto flex flex-col gap-4 sm:gap-6 w-full h-full">
       {/* Header */}
       <TeamHeader isAdmin={isAdmin} currentUserRole={currentUserRole} workspaceId={workspaceId} />
 

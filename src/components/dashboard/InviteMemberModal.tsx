@@ -125,16 +125,16 @@ export function InviteMemberModal({ isOpen, onClose, workspaceId, isAdmin = fals
                 onClick={onClose} 
             />
             
-            <div className="relative w-full max-w-[480px] bg-white rounded-2xl shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden">
+            <div className="relative w-[95vw] sm:max-w-[480px] bg-white rounded-2xl shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden max-h-[90vh] overflow-y-auto no-scrollbar">
                 {/* Header */}
-                <div className="px-8 pt-8 pb-6 border-b border-gray-50 flex items-center justify-between">
+                <div className="px-5 sm:px-8 pt-6 sm:pt-8 pb-4 sm:pb-6 border-b border-gray-50 flex items-center justify-between sticky top-0 bg-white z-10">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                        <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0">
                             <UserPlus size={20} />
                         </div>
                         <div>
-                            <h2 className="text-[17px] font-bold text-gray-900 tracking-tight">Invite Member</h2>
-                            <p className="text-[12px] font-medium text-gray-500">Add people to your workspace</p>
+                            <h2 className="text-[16px] sm:text-[17px] font-bold text-gray-900 tracking-tight">Invite Member</h2>
+                            <p className="text-[11px] sm:text-[12px] font-medium text-gray-500">Add people to your workspace</p>
                         </div>
                     </div>
                     <button 
@@ -146,12 +146,12 @@ export function InviteMemberModal({ isOpen, onClose, workspaceId, isAdmin = fals
                 </div>
 
                 {!inviteLink ? (
-                    <form ref={formRef} onSubmit={handleSubmit} className="p-8 space-y-8">
+                    <form ref={formRef} onSubmit={handleSubmit} className="p-5 sm:p-8 space-y-6 sm:space-y-8">
                         <input type="hidden" name="workspaceId" value={workspaceId} />
                         
                         {/* Email Input */}
-                        <div className="space-y-3">
-                            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest px-1">Email Address</label>
+                        <div className="space-y-2 sm:space-y-3">
+                            <label className="text-[10px] sm:text-[11px] font-bold text-gray-500 uppercase tracking-widest px-1">Email Address</label>
                             <div className="relative group">
                                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-500 transition-colors">
                                     <Mail size={18} />
@@ -161,19 +161,19 @@ export function InviteMemberModal({ isOpen, onClose, workspaceId, isAdmin = fals
                                     type="email"
                                     placeholder="Enter colleague's email"
                                     required
-                                    className="w-full h-14 pl-12 pr-4 bg-gray-50 border-none rounded-xl text-[14px] font-medium placeholder:text-gray-400 focus:ring-2 focus:ring-indigo-500/20 focus:bg-white transition-all"
+                                    className="w-full h-12 sm:h-14 pl-12 pr-4 bg-gray-50 border-none rounded-xl text-[13px] sm:text-[14px] font-medium placeholder:text-gray-400 focus:ring-2 focus:ring-indigo-500/20 focus:bg-white transition-all"
                                 />
                             </div>
                         </div>
 
                         {/* Role Selection */}
-                        <div className="space-y-3">
-                            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest px-1">Assign Role</label>
+                        <div className="space-y-2 sm:space-y-3">
+                            <label className="text-[10px] sm:text-[11px] font-bold text-gray-500 uppercase tracking-widest px-1">Assign Role</label>
                             <div className="grid grid-cols-1 gap-2">
                                 {ROLES.filter(r => isAdmin || r.id !== 'Admin').map((role) => (
                                     <label 
                                         key={role.id}
-                                        className="relative flex items-center gap-4 p-4 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors border-2 border-transparent has-[:checked]:border-indigo-500/20 has-[:checked]:bg-indigo-50/30 group"
+                                        className="relative flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors border-2 border-transparent has-[:checked]:border-indigo-500/20 has-[:checked]:bg-indigo-50/30 group"
                                     >
                                         <input
                                             type="radio"
@@ -182,14 +182,14 @@ export function InviteMemberModal({ isOpen, onClose, workspaceId, isAdmin = fals
                                             defaultChecked={role.id === 'Junior Developer'}
                                             className="sr-only"
                                         />
-                                        <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 group-has-[:checked]:bg-indigo-600 group-has-[:checked]:text-white transition-colors">
-                                            {role.id === 'Admin' ? <Shield size={18} /> : <BadgeCheck size={18} />}
+                                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 group-has-[:checked]:bg-indigo-600 group-has-[:checked]:text-white transition-colors shrink-0">
+                                            {role.id === 'Admin' ? <Shield size={16} className="sm:w-[18px] sm:h-[18px]" /> : <BadgeCheck size={16} className="sm:w-[18px] sm:h-[18px]" />}
                                         </div>
                                         <div className="flex-1">
-                                            <div className="text-[14px] font-bold text-gray-900 leading-none">{role.label}</div>
+                                            <div className="text-[13px] sm:text-[14px] font-bold text-gray-900 leading-none">{role.label}</div>
                                         </div>
-                                        <div className="w-5 h-5 rounded-full border-2 border-gray-200 group-has-[:checked]:border-indigo-600 group-has-[:checked]:bg-indigo-600 flex items-center justify-center transition-all">
-                                            <div className="w-2 h-2 rounded-full bg-white opacity-0 group-has-[:checked]:opacity-100 transition-opacity" />
+                                        <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 border-gray-200 group-has-[:checked]:border-indigo-600 group-has-[:checked]:bg-indigo-600 flex items-center justify-center transition-all shrink-0">
+                                            <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-white opacity-0 group-has-[:checked]:opacity-100 transition-opacity" />
                                         </div>
                                     </label>
                                 ))}
@@ -197,7 +197,7 @@ export function InviteMemberModal({ isOpen, onClose, workspaceId, isAdmin = fals
                         </div>
 
                         {error && (
-                            <div className="p-4 rounded-xl bg-red-50 text-red-600 text-[13px] font-medium animate-in slide-in-from-top-2">
+                            <div className="p-3 sm:p-4 rounded-xl bg-red-50 text-red-600 text-[12px] sm:text-[13px] font-medium animate-in slide-in-from-top-2">
                                 {error}
                             </div>
                         )}
@@ -205,7 +205,7 @@ export function InviteMemberModal({ isOpen, onClose, workspaceId, isAdmin = fals
                         <button
                             type="submit"
                             disabled={isSubmitting}
-                            className="w-full h-14 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-xl text-[14px] font-bold shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2 group"
+                            className="w-full h-12 sm:h-14 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-xl text-[13px] sm:text-[14px] font-bold shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2 group"
                         >
                             {isSubmitting ? (
                                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -215,82 +215,77 @@ export function InviteMemberModal({ isOpen, onClose, workspaceId, isAdmin = fals
                         </button>
                     </form>
                 ) : (
-                    <div className="p-10 text-center animate-in zoom-in-95 fade-in duration-500">
+                    <div className="p-6 sm:p-10 text-center animate-in zoom-in-95 fade-in duration-500">
                         {/* Premium Success Icon */}
-                        <div className="relative w-24 h-24 mx-auto mb-8">
+                        <div className="relative w-20 h-20 sm:w-24 sm:h-24 mx-auto mb-6 sm:mb-8">
                             <div className="absolute inset-0 bg-green-100 rounded-[2rem] rotate-6 animate-pulse" />
                             <div className="absolute inset-0 bg-green-500 rounded-[2rem] -rotate-3 shadow-lg shadow-green-200 flex items-center justify-center text-white">
-                                <Check size={40} strokeWidth={3} />
+                                <Check size={32} className="sm:w-[40px] sm:h-[40px]" strokeWidth={3} />
                             </div>
                         </div>
 
-                        <h3 className="text-[24px] font-extrabold text-gray-900 mb-2 tracking-tight">Invite Link Ready!</h3>
-                        <p className="text-[14px] font-medium text-gray-500 mb-6 max-w-[300px] mx-auto leading-relaxed">
+                        <h3 className="text-[20px] sm:text-[24px] font-extrabold text-gray-900 mb-2 tracking-tight">Invite Link Ready!</h3>
+                        <p className="text-[13px] sm:text-[14px] font-medium text-gray-500 mb-6 max-w-[300px] mx-auto leading-relaxed">
                             Share this link with your colleague to grant them access to the workspace.
                         </p>
 
                         {/* Email sent status badge */}
                         {emailSent === null && (
-                            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-[13px] font-semibold mb-6 animate-in fade-in duration-500">
+                            <div className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-[12px] sm:text-[13px] font-semibold mb-6 animate-in fade-in duration-500">
                                 <div className="w-3 h-3 border-2 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin" />
-                                Sending invitation email...
+                                Sending email...
                             </div>
                         )}
                         {emailSent === true && (
-                            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-50 border border-green-200 text-green-700 text-[13px] font-semibold mb-6 animate-in fade-in duration-500">
-                                <MailCheck size={15} className="text-green-600" />
-                                Invitation email sent to recipient
+                            <div className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-green-50 border border-green-200 text-green-700 text-[12px] sm:text-[13px] font-semibold mb-6 animate-in fade-in duration-500">
+                                <MailCheck size={14} className="text-green-600 sm:w-[15px] sm:h-[15px]" />
+                                Email sent to recipient
                             </div>
                         )}
                         {emailSent === false && (
                             <div className="flex flex-col items-center gap-2 mb-6 animate-in fade-in duration-500">
-                                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-[13px] font-semibold">
-                                    <MailX size={15} className="text-amber-600" />
+                                <div className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-[12px] sm:text-[13px] font-semibold">
+                                    <MailX size={14} className="text-amber-600 sm:w-[15px] sm:h-[15px]" />
                                     Email delivery failed
                                 </div>
-                                {emailError && (
-                                    <p className="text-[11px] text-amber-600/80 font-medium max-w-[280px]">
-                                        Reason: {emailError}
-                                    </p>
-                                )}
                             </div>
                         )}
                         
                         {/* Glassmorphic Link Container */}
-                        <div className="relative group mb-10">
+                        <div className="relative group mb-8 sm:mb-10">
                             <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 rounded-[1.5rem] blur opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200" />
-                            <div className="relative flex items-center gap-3 p-5 bg-white border border-gray-100 rounded-[1.5rem] shadow-sm overflow-hidden">
+                            <div className="relative flex items-center gap-3 p-4 sm:p-5 bg-white border border-gray-100 rounded-[1.5rem] shadow-sm overflow-hidden">
                                 <div className="flex-1 text-left">
-                                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Invitation URL</div>
-                                    <div className="text-[13px] font-bold text-indigo-600 break-all leading-relaxed pr-10">
+                                    <div className="text-[9px] sm:text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Invitation URL</div>
+                                    <div className="text-[12px] sm:text-[13px] font-bold text-indigo-600 break-all leading-relaxed pr-10">
                                         {inviteLink}
                                     </div>
                                 </div>
                                 <button
                                     onClick={copyToClipboard}
-                                    className={`absolute right-3 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center rounded-2xl transition-all duration-300 ${
+                                    className={`absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center rounded-2xl transition-all duration-300 shrink-0 ${
                                         copied 
                                         ? 'bg-green-500 text-white shadow-lg shadow-green-100 scale-105' 
                                         : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100 active:scale-95'
                                     }`}
                                 >
-                                    {copied ? <Check size={20} /> : <Copy size={20} />}
+                                    {copied ? <Check size={18} className="sm:w-[20px] sm:h-[20px]" /> : <Copy size={18} className="sm:w-[20px] sm:h-[20px]" />}
                                 </button>
                             </div>
                         </div>
 
-                        <div className="flex flex-col gap-3">
+                        <div className="flex flex-col gap-2 sm:gap-3">
                             <button
                                 type="button"
                                 onClick={resetState}
-                                className="w-full h-14 bg-gray-900 text-white rounded-2xl text-[14px] font-bold hover:bg-gray-800 transition-all active:scale-[0.98] shadow-lg shadow-gray-200"
+                                className="w-full h-12 sm:h-14 bg-gray-900 text-white rounded-2xl text-[13px] sm:text-[14px] font-bold hover:bg-gray-800 transition-all active:scale-[0.98] shadow-lg shadow-gray-200"
                             >
                                 Invite another member
                             </button>
                             <button 
                                 type="button"
                                 onClick={onClose}
-                                className="w-full h-14 text-[14px] font-bold text-gray-500 hover:text-gray-900 transition-colors"
+                                className="w-full h-12 sm:h-14 text-[13px] sm:text-[14px] font-bold text-gray-500 hover:text-gray-900 transition-colors"
                             >
                                 Close
                             </button>
